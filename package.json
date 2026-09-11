@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "test": "npm run test:calendar && npm run test:workouts",
+    "test": "npm run test:calendar && npm run test:workouts && npm run test:qa",
     "test:calendar": "tsx --test lib/calendar/*.test.ts",
     "test:workouts": "tsx --test lib/workouts/*.test.ts",
+    "test:qa": "tsx --test lib/qa/*.test.ts",
     "prebuild": "npm test",
     "build": "next build",
     "start": "next start",
