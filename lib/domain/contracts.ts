@@ -87,6 +87,7 @@ export interface WorkoutExecutionStep {
   durationType: WorkoutDurationType;
   durationValue?: number;
   durationUnit?: string;
+  manualLapIntent?: boolean;
   targetType: WorkoutTargetType;
   targetLow?: number;
   targetHigh?: number;
