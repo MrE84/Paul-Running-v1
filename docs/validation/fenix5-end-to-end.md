@@ -19,7 +19,9 @@ The build gate verifies:
 - canonical BPM targets are converted only through an explicit LTHR anchor;
 - intentional open steps emit Intervals.icu `Press lap` semantics and a load-only placeholder duration;
 - every validation template stays inside the current single-target-family safety rule;
-- edits retain the same external ID while changing the translated content, enabling update rather than duplicate publish.
+- edits retain the same external ID while changing the translated content, enabling update rather than duplicate publish;
+- the live validation publisher is dry-run by default and performs no external request without `--publish`;
+- a live publish sends one event only and still respects the PAU-13 rolling sync window.
 
 These tests validate Paul's Running and the Intervals.icu representation. They do **not** claim that Garmin Connect or the physical watch has been observed yet.
 
@@ -49,17 +51,59 @@ The validation pack exposes five candidate templates:
 
 They remain **candidates**, not `watch_verified`, until the Garmin Connect and Fenix 5 observations have been recorded.
 
+## Safe live publisher
+
+The repository exposes `npm run validate:fenix5`. It is intentionally dry-run first and will only publish one explicitly selected validation template.
+
+Dry-run example:
+
+```bash
+npm run validate:fenix5 -- --template fenix5-time-auto --date 2026-09-12 --time 09:00:00
+```
+
+This prints the exact Intervals.icu event payload after timezone conversion and PAU-11 QA. It makes no external request.
+
+For a real publish, create an Intervals.icu personal API key in Intervals.icu Developer Settings and place it only in the process environment. Do not paste it into chat, commit it, or pass it as a command-line argument.
+
+PowerShell:
+
+```powershell
+$env:INTERVALS_ICU_API_KEY="<your key>"
+$env:INTERVALS_ICU_ATHLETE_ID="0"
+npm run validate:fenix5 -- --template fenix5-time-auto --date 2026-09-12 --time 09:00:00 --publish
+```
+
+Bash/Zsh:
+
+```bash
+export INTERVALS_ICU_API_KEY="<your key>"
+export INTERVALS_ICU_ATHLETE_ID="0"
+npm run validate:fenix5 -- --template fenix5-time-auto --date 2026-09-12 --time 09:00:00 --publish
+```
+
+`INTERVALS_ICU_ATHLETE_ID` is optional and defaults to `0` for the authenticated athlete. The API key is never printed by the command. A publish outside the configured PAU-13 rolling window is refused before any network call.
+
+The HR-range template never guesses athlete-specific HR data. It additionally requires explicit values, for example:
+
+```bash
+npm run validate:fenix5 -- --template fenix5-hr-range --date 2026-09-12 --lthr 165 --hr-low 145 --hr-high 155
+```
+
+Add `--publish` only after the dry-run payload has been reviewed.
+
 ## Manual device run procedure
 
 1. Configure the Intervals.icu account's Garmin connection with planned-workout upload enabled.
-2. Publish one validation workout inside the PAU-13 rolling window.
-3. Confirm there is one corresponding workout/event in Intervals.icu.
-4. Confirm Garmin Connect receives the structured workout and inspect each step before syncing the watch.
-5. Sync the Fenix 5 through Garmin Connect/Garmin Express.
-6. On the watch open the Run activity, then `Training > My Workouts` (or the scheduled training calendar entry), and inspect the step overview.
-7. Execute only enough of the test workout to prove transition semantics. For pace/HR tests, the target display can be verified without treating the validation run as a training session.
-8. Record any Garmin representation differences in this document and in PAU-14.
-9. For edit/resync, edit the already-published workout, resync, and verify Garmin Connect/watch do not retain a duplicate obsolete revision.
+2. Run the `fenix5-time-auto` command without `--publish` and inspect the payload.
+3. Set `INTERVALS_ICU_API_KEY` locally, rerun with `--publish`, and confirm the command reports one successful Intervals.icu event ID.
+4. Confirm there is one corresponding workout/event in Intervals.icu.
+5. Confirm Garmin Connect receives the structured workout and inspect each step before syncing the watch.
+6. Sync the Fenix 5 through Garmin Connect/Garmin Express.
+7. On the watch open the Run activity, then `Training > My Workouts` (or the scheduled training calendar entry), and inspect the step overview.
+8. Execute only enough of the test workout to prove transition semantics. For pace/HR tests, the target display can be verified without treating the validation run as a training session.
+9. Repeat with the distance, repeat, HR-range and manual-Lap candidates as needed to complete the matrix.
+10. Record any Garmin representation differences in this document and in PAU-14.
+11. For edit/resync, edit the already-published workout, resync, and verify Garmin Connect/watch do not retain a duplicate obsolete revision.
 
 ## Evidence basis
 
