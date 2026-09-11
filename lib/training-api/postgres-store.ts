@@ -55,6 +55,7 @@ function sortBy<T>(items: T[], selector: (item: T) => string, direction: "asc" |
 export class PostgresTrainingStore implements TrainingApiStore, IntegrationStateStore {
   private readonly pool: Pool;
   private readonly transactionClient = new AsyncLocalStorage<PoolClient>();
+  private schemaReady: Promise<void> | null = null;
 
   constructor(private readonly options: PostgresTrainingStoreOptions) {
     this.pool = new Pool({
@@ -68,13 +69,58 @@ export class PostgresTrainingStore implements TrainingApiStore, IntegrationState
     await this.pool.end();
   }
 
+  /**
+   * Bootstrap the small PAU-16 document repository lazily on first use. This keeps builds
+   * safe before DATABASE_URL exists and means a newly provisioned Vercel/Neon database is
+   * usable without a separate manual SQL step. The checked-in SQL migration remains the
+   * authoritative migration record.
+   */
+  private async ensureSchema(): Promise<void> {
+    if (!this.schemaReady) {
+      this.schemaReady = this.pool
+        .query(`
+          create table if not exists training_api_documents (
+            kind text not null,
+            entity_id text not null,
+            athlete_id text,
+            sort_key timestamptz,
+            payload jsonb not null,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now(),
+            primary key (kind, entity_id)
+          );
+
+          create index if not exists training_api_documents_athlete_kind_idx
+            on training_api_documents (athlete_id, kind, sort_key desc nulls last);
+
+          create index if not exists training_api_documents_payload_gin_idx
+            on training_api_documents using gin (payload jsonb_path_ops);
+
+          create table if not exists training_api_idempotency (
+            key text primary key,
+            fingerprint text not null,
+            response jsonb not null,
+            created_at timestamptz not null default now()
+          );
+        `)
+        .then(() => undefined)
+        .catch((error) => {
+          this.schemaReady = null;
+          throw error;
+        });
+    }
+    return this.schemaReady;
+  }
+
   private async query<T extends QueryResultRow = QueryResultRow>(text: string, values: unknown[] = []) {
+    await this.ensureSchema();
     const client = this.transactionClient.getStore();
     return client ? client.query<T>(text, values) : this.pool.query<T>(text, values);
   }
 
   private async transaction<T>(operation: () => Promise<T>): Promise<T> {
     if (this.transactionClient.getStore()) return operation();
+    await this.ensureSchema();
     const client = await this.pool.connect();
     try {
       await client.query("begin");
@@ -126,7 +172,7 @@ export class PostgresTrainingStore implements TrainingApiStore, IntegrationState
   ): Promise<void> {
     await this.query(
       `insert into training_api_documents(kind, entity_id, athlete_id, sort_key, payload)
-       values ($1, $2, $3::uuid, $4::timestamptz, $5::jsonb)
+       values ($1, $2, $3, $4::timestamptz, $5::jsonb)
        on conflict (kind, entity_id) do update
        set athlete_id = excluded.athlete_id,
            sort_key = excluded.sort_key,
