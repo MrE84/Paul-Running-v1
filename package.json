@@ -9,6 +9,7 @@
     "test:workouts": "tsx --test lib/workouts/*.test.ts",
     "test:qa": "tsx --test lib/qa/*.test.ts",
     "test:integrations": "tsx --test lib/integrations/*.test.ts",
+    "validate:fenix5": "tsx scripts/publish-fenix5-validation.ts",
     "prebuild": "npm test",
     "build": "next build",
     "start": "next start",
