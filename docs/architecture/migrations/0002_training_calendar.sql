@@ -12,11 +12,18 @@ create table plan_applications (
   applied_at timestamptz not null default now(),
   applied_by_actor actor_type not null,
   foreign key (plan_id, plan_version)
-    references training_plan_revisions(plan_id, version)
+    references training_plan_revisions(plan_id, version),
+  unique (id, plan_id, plan_version)
 );
 
 create index plan_applications_athlete_applied_idx
   on plan_applications (athlete_id, applied_at desc);
+
+-- Give PostgreSQL a composite candidate key so a calendar item's plan-item reference
+-- can be proven to belong to the same immutable plan revision recorded on that item.
+alter table plan_items
+  add constraint plan_items_provenance_key
+  unique (id, plan_id, plan_version);
 
 alter table calendar_items
   add column plan_application_id uuid references plan_applications(id),
@@ -29,11 +36,17 @@ create index calendar_items_plan_application_idx
 -- A plan-generated calendar item must preserve the exact application that created it.
 -- Manually-created calendar items may legitimately have no plan application.
 alter table calendar_items
-  add constraint calendar_item_plan_application_consistency check (
+  add constraint calendar_item_plan_application_presence check (
     (source_plan_id is null and source_plan_version is null and source_plan_item_id is null and plan_application_id is null)
     or
     (source_plan_id is not null and source_plan_version is not null and source_plan_item_id is not null and plan_application_id is not null)
-  );
+  ),
+  add constraint calendar_item_source_plan_item_consistency
+    foreign key (source_plan_item_id, source_plan_id, source_plan_version)
+    references plan_items(id, plan_id, plan_version),
+  add constraint calendar_item_plan_application_consistency
+    foreign key (plan_application_id, source_plan_id, source_plan_version)
+    references plan_applications(id, plan_id, plan_version);
 
 -- New writes should always provide local date/time as well as scheduled_start.
 -- These remain nullable in this migration so an eventual existing deployment can backfill safely
