@@ -22,6 +22,11 @@ export interface IntegrationStateStore {
   saveExternalReference(reference: ExternalReference): Promise<void>;
 
   findSyncJobByIdempotencyKey(idempotencyKey: string): Promise<SyncJob | undefined>;
+  findLatestSyncJob(
+    provider: string,
+    entityType: string,
+    entityId: UUID,
+  ): Promise<SyncJob | undefined>;
   saveSyncJob(job: SyncJob): Promise<void>;
 }
 
