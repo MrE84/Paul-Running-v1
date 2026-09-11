@@ -181,7 +181,7 @@ function canonicalTarget(target: WorkoutTargetInput): Pick<
 
 function canonicalDuration(duration: WorkoutDurationInput): Pick<
   WorkoutExecutionStep,
-  "durationType" | "durationValue" | "durationUnit"
+  "durationType" | "durationValue" | "durationUnit" | "manualLapIntent"
 > {
   switch (duration.type) {
     case "time":
@@ -189,15 +189,17 @@ function canonicalDuration(duration: WorkoutDurationInput): Pick<
         durationType: "time",
         durationValue: duration.seconds,
         durationUnit: "seconds",
+        manualLapIntent: false,
       };
     case "distance":
       return {
         durationType: "distance",
         durationValue: duration.meters,
         durationUnit: "meters",
+        manualLapIntent: false,
       };
     case "open":
-      return { durationType: "open" };
+      return { durationType: "open", manualLapIntent: true };
   }
 }
 
