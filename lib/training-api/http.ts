@@ -1,5 +1,6 @@
 import { randomUUID, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { ProductionWorkoutPublishError } from "../integrations/production-publisher";
 import type { TrainingApiActor } from "./contracts";
 import { getTrainingApiRuntime } from "./runtime";
 import {
@@ -94,6 +95,9 @@ export async function handleTrainingApiRequest(
         mcpReady: true,
         primaryAthleteId: runtime.primaryAthleteId,
         storageMode: runtime.storageMode,
+        integrations: {
+          intervalsIcuPublishingConfigured: runtime.intervalsIcuConfigured,
+        },
         writeSafety: ["bearer_auth", "idempotency", "optimistic_concurrency", "qa_before_save", "audit_attribution"],
         endpoints: [
           "GET /api/v1/profile",
@@ -107,6 +111,7 @@ export async function handleTrainingApiRequest(
           "GET /api/v1/training-plans/{id}",
           "POST /api/v1/training-plans/{id}/apply",
           "GET /api/v1/calendar-items/{id}/sync-status",
+          "POST /api/v1/calendar-items/{id}/publish",
         ],
       });
     }
@@ -120,6 +125,30 @@ export async function handleTrainingApiRequest(
       return ok(await service.listCalendar(athleteId, request.nextUrl.searchParams.get("from") ?? undefined, request.nextUrl.searchParams.get("to") ?? undefined));
     }
     if (method === "GET" && path.length === 3 && path[0] === "calendar-items" && path[2] === "sync-status") return ok(await service.getSyncStatus(path[1]));
+    if (method === "POST" && path.length === 3 && path[0] === "calendar-items" && path[2] === "publish") {
+      if (!actor.idempotencyKey) {
+        throw new TrainingApiError(400, "IDEMPOTENCY_KEY_REQUIRED", "Publish operations require an Idempotency-Key header.");
+      }
+      if (!runtime.workoutPublisher) {
+        throw new TrainingApiError(
+          503,
+          "INTERVALS_ICU_AUTH_NOT_CONFIGURED",
+          "Intervals.icu publishing is not configured. Set INTERVALS_ICU_API_KEY in the server environment.",
+        );
+      }
+      try {
+        return ok(await runtime.workoutPublisher.publishCalendarItem(path[1], {
+          actorType: actor.type,
+          actorId: actor.id,
+          requestId: actor.requestId,
+        }));
+      } catch (error) {
+        if (error instanceof ProductionWorkoutPublishError) {
+          throw new TrainingApiError(error.status, error.code, error.message, error.details);
+        }
+        throw error;
+      }
+    }
 
     if (method === "GET" && path.length === 1 && path[0] === "activities") {
       const rawLimit = Number(request.nextUrl.searchParams.get("limit") ?? "20");
