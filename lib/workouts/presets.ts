@@ -13,6 +13,34 @@ function targetOrNone(target?: WorkoutTargetInput): WorkoutTargetInput {
   return target ?? noTarget();
 }
 
+export function advancedLunchWalkPreset(): WorkoutPreset {
+  return {
+    name: "Advanced Lunch Break Walk",
+    steps: [
+      step("warmup", timeDuration(120), noTarget(), {
+        name: "Posture and settle",
+        instruction: "Walk briskly. Stand tall, relax the shoulders and settle into a purposeful rhythm.",
+      }),
+      step("active", timeDuration(120), noTarget(), {
+        name: "Arm drive",
+        instruction: "Keep the stride smooth and add a positive arm drive without jogging.",
+      }),
+      step("active", timeDuration(120), noTarget(), {
+        name: "Quick cadence",
+        instruction: "Increase walking cadence while keeping the effort controlled and technically clean.",
+      }),
+      step("active", timeDuration(120), noTarget(), {
+        name: "Controlled power",
+        instruction: "Maintain a strong purposeful walk with stable hips and consistent posture.",
+      }),
+      step("cooldown", timeDuration(120), noTarget(), {
+        name: "Smooth finish",
+        instruction: "Ease the effort slightly while keeping a fluent walking rhythm to the finish.",
+      }),
+    ],
+  };
+}
+
 export function easyRunPreset(input: {
   durationSeconds: number;
   target?: WorkoutTargetInput;
