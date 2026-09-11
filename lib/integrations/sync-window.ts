@@ -74,8 +74,9 @@ function nonNegativeFinite(value: number, name: string): number {
   return value;
 }
 
-function jobMatchesWorkout(job: SyncJob | undefined, input: CanonicalScheduledWorkout): boolean {
-  return job?.entityVersion === input.workout.version;
+function jobMatchesSource(job: SyncJob | undefined, input: CanonicalScheduledWorkout): boolean {
+  if (!job || job.entityVersion !== input.workout.version) return false;
+  return job.idempotencyKey.endsWith(`:${input.calendarItem.updatedAt}`);
 }
 
 function currentDelivery(
@@ -83,7 +84,7 @@ function currentDelivery(
   latestJob: SyncJob | undefined,
   input: CanonicalScheduledWorkout,
 ): boolean {
-  if (!reference || latestJob?.state !== "succeeded" || !jobMatchesWorkout(latestJob, input)) {
+  if (!reference || latestJob?.state !== "succeeded" || !jobMatchesSource(latestJob, input)) {
     return false;
   }
 
@@ -187,7 +188,7 @@ export class RollingSyncWindowService {
       };
     }
 
-    if (jobMatchesWorkout(latestJob, input)) {
+    if (jobMatchesSource(latestJob, input)) {
       if (latestJob?.state === "permanent_failure") {
         return {
           calendarItemId: input.calendarItem.id,
@@ -256,7 +257,7 @@ export class RollingSyncWindowService {
   /**
    * Re-evaluates the entire plan and attempts only workouts currently eligible
    * for delivery. Retryable failures are retried only when nextAttemptAt is due;
-   * permanent failures require a source change or manual intervention.
+   * permanent failures apply only to the exact source snapshot that failed.
    */
   async syncEligible(inputs: readonly CanonicalScheduledWorkout[]): Promise<SyncWindowRunResult> {
     const before = await this.scan(inputs);
@@ -270,7 +271,7 @@ export class RollingSyncWindowService {
       }
 
       const latestJob = item.latestJob;
-      if (jobMatchesWorkout(latestJob, item.input)) {
+      if (jobMatchesSource(latestJob, item.input)) {
         if (latestJob?.state === "permanent_failure") continue;
         if (latestJob?.state === "retryable_failure" && latestJob.nextAttemptAt) {
           const retryAt = asTimestamp(latestJob.nextAttemptAt);
