@@ -19,6 +19,7 @@ export type WorkoutTargetType =
   | "pace"
   | "cadence"
   | "power";
+export type WorkoutStepPhase = "warmup" | "active" | "recovery" | "cooldown";
 
 export type SyncOperation = "publish" | "update" | "cancel" | "import";
 export type SyncState =
@@ -81,6 +82,7 @@ export interface WorkoutExecutionStep {
   id: UUID;
   kind: "step";
   sequence: number;
+  phase?: WorkoutStepPhase;
   name?: string;
   durationType: WorkoutDurationType;
   durationValue?: number;
