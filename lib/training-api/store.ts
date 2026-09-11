@@ -15,7 +15,7 @@ import type { IdempotencyRecord, TrainingApiSeed, TrainingApiStore } from "./con
 const revisionKey = (id: string, version: number) => `${id}@${version}`;
 
 /** Reference store for tests/local development. Production persistence can
- * implement the same port against the canonical PostgreSQL schema. */
+ * implement the same port against PostgreSQL. */
 export class InMemoryTrainingApiStore implements TrainingApiStore {
   private readonly athletes = new Map<string, Athlete>();
   private readonly capacities: CapacityRevision[] = [];
@@ -46,6 +46,7 @@ export class InMemoryTrainingApiStore implements TrainingApiStore {
     this.audits.push(...(seed.auditEvents ?? []));
   }
 
+  async withIdempotencyLock<T>(_key: string, operation: () => Promise<T>): Promise<T> { return operation(); }
   async getAthlete(id: string) { return this.athletes.get(id); }
   async listCapacities(athleteId: string) { return this.capacities.filter((item) => item.athleteId === athleteId).sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)); }
   async listZoneSets(athleteId: string) { return this.zones.filter((item) => item.athleteId === athleteId).sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)); }

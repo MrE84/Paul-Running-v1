@@ -1,13 +1,16 @@
 import { randomUUID } from "node:crypto";
 import type { Athlete } from "../domain/contracts";
 import { InMemoryIntegrationStateStore } from "../integrations/state";
+import { PostgresTrainingStore } from "./postgres-store";
 import { TrainingApiService } from "./service";
 import { InMemoryTrainingApiStore } from "./store";
+
+export type TrainingApiStorageMode = "memory_reference" | "postgres";
 
 export interface TrainingApiRuntimeBundle {
   service: TrainingApiService;
   primaryAthleteId: string;
-  storageMode: "memory_reference";
+  storageMode: TrainingApiStorageMode;
 }
 
 const globalRuntime = globalThis as typeof globalThis & {
@@ -26,6 +29,28 @@ export function getTrainingApiRuntime(): TrainingApiRuntimeBundle {
     createdAt: now,
     updatedAt: now,
   };
+
+  const connectionString = process.env.DATABASE_URL?.trim();
+
+  if (connectionString) {
+    const store = new PostgresTrainingStore({
+      connectionString,
+      seedAthlete: athlete,
+      maxConnections: 4,
+    });
+    const service = new TrainingApiService(
+      store,
+      { idFactory: () => randomUUID(), now: () => new Date().toISOString() },
+      store,
+    );
+    globalRuntime.__paulRunningTrainingApi = {
+      service,
+      primaryAthleteId,
+      storageMode: "postgres",
+    };
+    return globalRuntime.__paulRunningTrainingApi;
+  }
+
   const store = new InMemoryTrainingApiStore({ athletes: [athlete] });
   const integrationState = new InMemoryIntegrationStateStore();
   const service = new TrainingApiService(

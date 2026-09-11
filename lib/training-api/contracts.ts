@@ -28,6 +28,17 @@ export interface IdempotencyRecord {
   createdAt: string;
 }
 
+export class TrainingStoreVersionConflictError extends Error {
+  constructor(
+    readonly entityId: string,
+    readonly expectedVersion: number,
+    readonly currentVersion: number,
+  ) {
+    super(`Expected ${entityId} version ${expectedVersion}, current version is ${currentVersion}.`);
+    this.name = "TrainingStoreVersionConflictError";
+  }
+}
+
 export interface TrainingApiSeed {
   athletes?: Athlete[];
   capacities?: CapacityRevision[];
@@ -43,6 +54,10 @@ export interface TrainingApiSeed {
 }
 
 export interface TrainingApiStore {
+  /** Serialize one idempotent command across processes/instances. Durable stores should
+   * hold the lock for the idempotency lookup, domain writes and idempotency record save. */
+  withIdempotencyLock<T>(key: string, operation: () => Promise<T>): Promise<T>;
+
   getAthlete(id: string): Promise<Athlete | undefined>;
   listCapacities(athleteId: string): Promise<CapacityRevision[]>;
   listZoneSets(athleteId: string): Promise<ZoneSet[]>;
