@@ -7,6 +7,7 @@ import type {
 } from "./contracts";
 import {
   addLocalDays,
+  assertValidTimeZone,
   localDateTimeToUtc,
   parseLocalDate,
   parseLocalTime,
@@ -37,6 +38,7 @@ function requireWorkout(
 
 function validatePlanItems(input: ApplyPlanInput): void {
   parseLocalDate(input.startDate);
+  assertValidTimeZone(input.timezone);
   if (input.defaultLocalStartTime) {
     parseLocalTime(input.defaultLocalStartTime);
   }
@@ -62,6 +64,10 @@ function validatePlanItems(input: ApplyPlanInput): void {
     }
     if (item.localStartTime) {
       parseLocalTime(item.localStartTime);
+    } else if (!input.defaultLocalStartTime) {
+      throw new Error(
+        `Plan item ${item.id} has no local start time and no default was provided.`,
+      );
     }
     requireWorkout(input.workouts, item);
   }
@@ -90,13 +96,7 @@ export function applyTrainingPlan(
     .sort((a, b) => a.sequence - b.sequence)
     .map((item) => {
       const scheduledLocalDate = addLocalDays(input.startDate, item.dayOffset);
-      const scheduledLocalTime = item.localStartTime ?? input.defaultLocalStartTime;
-      if (!scheduledLocalTime) {
-        throw new Error(
-          `Plan item ${item.id} has no local start time and no default was provided.`,
-        );
-      }
-
+      const scheduledLocalTime = item.localStartTime ?? input.defaultLocalStartTime!;
       const scheduledStart = localDateTimeToUtc(
         scheduledLocalDate,
         scheduledLocalTime,
