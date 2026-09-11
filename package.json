@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run test:calendar",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:calendar": "tsx --test lib/calendar/*.test.ts"
   },
   "dependencies": {
     "next": "^15.5.0",
@@ -17,6 +19,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "tsx": "^4.23.13",
     "typescript": "^5.8.0"
   }
 }
