@@ -4,11 +4,15 @@
 -- a durable repository adapter for the current TypeScript domain objects, allowing the
 -- PAU-15 API contract to survive deployments and concurrent Vercel function instances
 -- without coupling HTTP handlers to a particular normalized persistence mapping.
+--
+-- athlete_id is intentionally text here. The API contract currently permits stable opaque
+-- athlete identifiers (for example "primary-athlete"); this adapter must not impose UUID
+-- semantics that are absent from the domain boundary.
 
 create table if not exists training_api_documents (
   kind text not null,
   entity_id text not null,
-  athlete_id uuid,
+  athlete_id text,
   sort_key timestamptz,
   payload jsonb not null,
   created_at timestamptz not null default now(),
