@@ -50,6 +50,25 @@ export class InMemoryIntegrationStateStore implements IntegrationStateStore {
     return this.jobsByKey.get(idempotencyKey);
   }
 
+  async findLatestSyncJob(
+    provider: string,
+    entityType: string,
+    entityId: string,
+  ): Promise<SyncJob | undefined> {
+    return [...this.jobsByKey.values()]
+      .filter(
+        (job) =>
+          job.provider === provider &&
+          job.entityType === entityType &&
+          job.entityId === entityId,
+      )
+      .sort((a, b) => {
+        const updated = b.updatedAt.localeCompare(a.updatedAt);
+        if (updated !== 0) return updated;
+        return b.createdAt.localeCompare(a.createdAt);
+      })[0];
+  }
+
   async saveSyncJob(job: SyncJob): Promise<void> {
     this.jobsByKey.set(job.idempotencyKey, job);
   }
