@@ -1,4 +1,4 @@
-import PremiumActivityWorkspace from "./PremiumActivityWorkspace";
+import ActivityDetailClient from "./ActivityDetailClient";
 
 export const metadata = {
   title: "Activity Detail · Paul's Running",
@@ -7,5 +7,5 @@ export const metadata = {
 
 export default async function ActivityDetailPage({ params }: { params: Promise<{ activityId: string }> }) {
   const { activityId } = await params;
-  return <PremiumActivityWorkspace activityId={decodeURIComponent(activityId)} />;
+  return <ActivityDetailClient activityId={decodeURIComponent(activityId)} />;
 }
