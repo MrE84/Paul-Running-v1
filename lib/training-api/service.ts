@@ -268,6 +268,25 @@ export class TrainingApiService {
     });
   }
 
+  async supersedeCalendarItem(calendarItemId: string, actor: TrainingApiActor) {
+    return this.idempotent(actor, `supersede_calendar_item:${calendarItemId}`, { calendarItemId }, async () => {
+      const current = await this.store.getCalendarItem(calendarItemId);
+      if (!current) throw new TrainingApiError(404, "NOT_FOUND", `Calendar item ${calendarItemId} was not found.`);
+      if (current.status === "superseded") return current;
+      if (current.status !== "planned") {
+        throw new TrainingApiError(409, "CALENDAR_ITEM_NOT_SUPERSEDEABLE", `Only planned calendar items can be superseded; current status is ${current.status}.`);
+      }
+      const externalReference = await this.integrationState?.findExternalReference(this.provider, "calendar_item", calendarItemId);
+      if (externalReference) {
+        throw new TrainingApiError(409, "CALENDAR_ITEM_ALREADY_SENT", "This calendar item already has an external delivery reference and cannot be superseded without canceling the provider event first.");
+      }
+      const updated = { ...current, status: "superseded" as const, updatedAt: this.runtime.now() };
+      await this.store.saveCalendarItem(updated);
+      await this.audit(actor, "calendar_item.superseded", "calendar_item", calendarItemId, current.workout.version);
+      return updated;
+    });
+  }
+
   async getSyncStatus(calendarItemId: string): Promise<SyncStatusView> {
     const calendarItem = await this.store.getCalendarItem(calendarItemId);
     if (!calendarItem) throw new TrainingApiError(404, "NOT_FOUND", `Calendar item ${calendarItemId} was not found.`);

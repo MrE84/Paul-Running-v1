@@ -62,6 +62,7 @@ export class InMemoryTrainingApiStore implements TrainingApiStore {
     return [...this.calendar.values()].filter((item) => item.athleteId === athleteId).filter((item) => !from || item.scheduledStart >= from).filter((item) => !to || item.scheduledStart <= to).sort((a, b) => a.scheduledStart.localeCompare(b.scheduledStart));
   }
   async getCalendarItem(id: string) { return this.calendar.get(id); }
+  async saveCalendarItem(item: ScheduledCalendarItem) { this.calendar.set(item.id, item); }
   async savePlanApplication(application: PlanApplication, items: ScheduledCalendarItem[]) { this.applications.set(application.id, application); for (const item of items) this.calendar.set(item.id, item); }
   async listActivities(athleteId: string, limit = 20) { return [...this.activities.values()].filter((item) => item.athleteId === athleteId).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, Math.max(0, limit)); }
   async saveActivity(activity: Activity) { this.activities.set(activity.id, activity); }

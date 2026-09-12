@@ -111,6 +111,7 @@ export async function handleTrainingApiRequest(
           "GET /api/v1/training-plans/{id}",
           "POST /api/v1/training-plans/{id}/apply",
           "GET /api/v1/calendar-items/{id}/sync-status",
+          "POST /api/v1/calendar-items/{id}/supersede",
           "POST /api/v1/calendar-items/{id}/publish",
         ],
       });
@@ -125,6 +126,9 @@ export async function handleTrainingApiRequest(
       return ok(await service.listCalendar(athleteId, request.nextUrl.searchParams.get("from") ?? undefined, request.nextUrl.searchParams.get("to") ?? undefined));
     }
     if (method === "GET" && path.length === 3 && path[0] === "calendar-items" && path[2] === "sync-status") return ok(await service.getSyncStatus(path[1]));
+    if (method === "POST" && path.length === 3 && path[0] === "calendar-items" && path[2] === "supersede") {
+      return ok(await service.supersedeCalendarItem(path[1], actor));
+    }
     if (method === "POST" && path.length === 3 && path[0] === "calendar-items" && path[2] === "publish") {
       if (!actor.idempotencyKey) {
         throw new TrainingApiError(400, "IDEMPOTENCY_KEY_REQUIRED", "Publish operations require an Idempotency-Key header.");

@@ -281,6 +281,10 @@ export class PostgresTrainingStore implements TrainingApiStore, IntegrationState
     return this.read<ScheduledCalendarItem>("calendar_item", id);
   }
 
+  async saveCalendarItem(item: ScheduledCalendarItem): Promise<void> {
+    await this.write("calendar_item", item.id, item.athleteId, item, item.scheduledStart);
+  }
+
   async savePlanApplication(application: PlanApplication, items: ScheduledCalendarItem[]): Promise<void> {
     await this.transaction(async () => {
       await this.write(
