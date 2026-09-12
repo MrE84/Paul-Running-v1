@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { advancedLunchWalkSteps, RACE_WEEK_2026 } from "../../lib/workouts/race-week";
+import { classifyRaceWeekCalendar } from "../../lib/workouts/race-week-reconcile";
 import styles from "./training-calendar.module.css";
 
 type ApiEnvelope<T> = { data: T };
@@ -22,6 +23,7 @@ type CalendarItem = {
   scheduledLocalTime: string;
   timezone: string;
   status: string;
+  createdAt?: string;
   workout: { id: string; version: number };
 };
 type SyncStatus = {
@@ -39,6 +41,14 @@ type PublishResult = {
   reason?: string;
   externalId?: string;
 };
+
+type CalendarSnapshot = {
+  items: CalendarItem[];
+  workoutList: Workout[];
+  workoutMap: Record<string, Workout>;
+};
+
+const RACE_WEEK_START_DATE = "2026-09-14";
 
 function errorText(value: unknown): string {
   if (value instanceof Error) return value.message;
@@ -74,7 +84,7 @@ export default function TrainingCalendarClient() {
     return payload.data;
   }
 
-  async function refreshCalendar() {
+  async function loadCalendarSnapshot(): Promise<CalendarSnapshot> {
     const now = new Date();
     const from = new Date(now.getTime() - 2 * 86400000).toISOString();
     const to = new Date(now.getTime() + 45 * 86400000).toISOString();
@@ -82,12 +92,21 @@ export default function TrainingCalendarClient() {
       api<CalendarItem[]>(`calendar-items?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
       api<Workout[]>("workouts"),
     ]);
-    const workoutMap = Object.fromEntries(workoutList.map((workout) => [workout.id, workout]));
-    setWorkouts(workoutMap);
-    setCalendar(items);
+    return {
+      items,
+      workoutList,
+      workoutMap: Object.fromEntries(workoutList.map((workout) => [workout.id, workout])),
+    };
+  }
 
+  async function refreshCalendar(): Promise<CalendarSnapshot> {
+    const snapshot = await loadCalendarSnapshot();
+    setWorkouts(snapshot.workoutMap);
+    setCalendar(snapshot.items);
+
+    const visibleItems = snapshot.items.filter((item) => item.status !== "superseded");
     const statuses = await Promise.all(
-      items.map(async (item) => {
+      visibleItems.map(async (item) => {
         try {
           return [item.id, await api<SyncStatus>(`calendar-items/${item.id}/sync-status`)] as const;
         } catch {
@@ -96,6 +115,7 @@ export default function TrainingCalendarClient() {
       }),
     );
     setSync(Object.fromEntries(statuses));
+    return snapshot;
   }
 
   async function connect() {
@@ -107,7 +127,7 @@ export default function TrainingCalendarClient() {
       setMessage(
         found.integrations.intervalsIcuPublishingConfigured
           ? "Connected. PostgreSQL and Intervals.icu publishing are available."
-          : "Connected to Paul’s Running, but Intervals.icu publishing is not configured on the server.",
+          : "Connected to Paul’s Running. Intervals.icu publishing is not configured: add INTERVALS_ICU_API_KEY to Vercel Production, then redeploy once.",
       );
     } catch (error) {
       setCapabilities(null);
@@ -120,73 +140,115 @@ export default function TrainingCalendarClient() {
   async function populateRaceWeek() {
     setBusy(true);
     try {
-      const created: Record<string, WorkoutCreate> = {};
-      for (const definition of RACE_WEEK_2026) {
-        created[definition.key] = await api<WorkoutCreate>(
-          "workouts",
+      const snapshot = await loadCalendarSnapshot();
+      const reconciliation = classifyRaceWeekCalendar(
+        RACE_WEEK_2026,
+        RACE_WEEK_START_DATE,
+        snapshot.items,
+        snapshot.workoutList,
+      );
+
+      let supersededCount = 0;
+      for (const duplicate of reconciliation.duplicates) {
+        await api<CalendarItem>(
+          `calendar-items/${duplicate.id}/supersede`,
+          { method: "POST" },
+          `race-week-2026-supersede-${duplicate.id}-v1`,
+        );
+        supersededCount += 1;
+      }
+
+      const keeperIds = new Set(
+        Object.values(reconciliation.keepers)
+          .map((item) => item?.id)
+          .filter((id): id is string => Boolean(id)),
+      );
+      const canonicalItems = snapshot.items.filter((item) => keeperIds.has(item.id));
+
+      if (reconciliation.missing.length > 0) {
+        const created: Record<string, WorkoutCreate> = {};
+        for (const definition of reconciliation.missing) {
+          const existingWorkout = snapshot.workoutList.find(
+            (workout) => workout.currentRevision.name === definition.name,
+          );
+          created[definition.key] = existingWorkout
+            ? { workout: existingWorkout }
+            : await api<WorkoutCreate>(
+                "workouts",
+                {
+                  method: "POST",
+                  body: JSON.stringify({
+                    name: definition.name,
+                    description: definition.description,
+                    sport: definition.sport,
+                    steps: definition.steps,
+                  }),
+                },
+                `race-week-2026-${definition.key}-workout-v1`,
+              );
+        }
+
+        const repairKey = reconciliation.missing.map((definition) => definition.key).sort().join("--");
+        const plan = await api<TrainingPlan>(
+          "training-plans",
           {
             method: "POST",
             body: JSON.stringify({
-              name: definition.name,
-              description: definition.description,
-              sport: definition.sport,
-              steps: definition.steps,
+              name: `Cheltenham Half - Race Week Repair ${repairKey}`,
+              description:
+                "Idempotent repair of missing authoritative race-week sessions. Existing canonical sessions are retained and Wednesday remains deliberately omitted.",
+              items: reconciliation.missing.map((definition, sequence) => ({
+                id: `race-week-2026-repair-${definition.key}`,
+                sequence,
+                dayOffset: definition.dayOffset,
+                localStartTime: definition.localStartTime,
+                workoutId: created[definition.key].workout.id,
+                workoutVersion: created[definition.key].workout.currentVersion,
+              })),
             }),
           },
-          `race-week-2026-${definition.key}-workout-v1`,
+          `race-week-2026-repair-${repairKey}-plan-v2`,
         );
+
+        const application = await api<PlanApplication>(
+          `training-plans/${plan.id}/apply`,
+          {
+            method: "POST",
+            body: JSON.stringify({
+              planVersion: plan.currentVersion,
+              startDate: RACE_WEEK_START_DATE,
+              timezone: "Europe/London",
+            }),
+          },
+          `race-week-2026-repair-${repairKey}-apply-v2`,
+        );
+        canonicalItems.push(...application.calendarItems);
       }
 
-      const plan = await api<TrainingPlan>(
-        "training-plans",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            name: "Cheltenham Half - Final Race Week v1",
-            description:
-              "Authoritative Paul’s Running race week: Monday rehearsal, Saturday optional shakeout, Sunday route-aware 1:50 race. Wednesday deliberately omitted by latest athlete instruction.",
-            items: RACE_WEEK_2026.map((definition, sequence) => ({
-              id: `race-week-2026-item-${sequence + 1}`,
-              sequence,
-              dayOffset: definition.dayOffset,
-              localStartTime: definition.localStartTime,
-              workoutId: created[definition.key].workout.id,
-              workoutVersion: created[definition.key].workout.currentVersion,
-            })),
-          }),
-        },
-        "race-week-2026-plan-v1",
-      );
-
-      const application = await api<PlanApplication>(
-        `training-plans/${plan.id}/apply`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            planVersion: plan.currentVersion,
-            startDate: "2026-09-14",
-            timezone: "Europe/London",
-          }),
-        },
-        "race-week-2026-apply-v1",
-      );
-
+      const uniqueCanonicalItems = [...new Map(canonicalItems.map((item) => [item.id, item])).values()];
       const publishResults: string[] = [];
-      for (const item of application.calendarItems) {
-        try {
-          const result = await api<PublishResult>(
-            `calendar-items/${item.id}/publish`,
-            { method: "POST" },
-            `race-week-2026-publish-${item.id}-v1`,
-          );
-          publishResults.push(`${item.scheduledLocalDate}: ${result.deliveryState}${result.eligible ? "" : " (outside current delivery window)"}`);
-        } catch (error) {
-          publishResults.push(`${item.scheduledLocalDate}: ${errorText(error)}`);
+      if (!capabilities?.integrations.intervalsIcuPublishingConfigured) {
+        publishResults.push("Intervals.icu not configured; Garmin delivery was not attempted.");
+      } else {
+        for (const item of uniqueCanonicalItems) {
+          try {
+            const result = await api<PublishResult>(
+              `calendar-items/${item.id}/publish`,
+              { method: "POST" },
+              `race-week-2026-publish-${item.id}-v1`,
+            );
+            publishResults.push(`${item.scheduledLocalDate}: ${result.deliveryState}${result.eligible ? "" : " (outside current delivery window)"}`);
+          } catch (error) {
+            publishResults.push(`${item.scheduledLocalDate}: ${errorText(error)}`);
+          }
         }
       }
 
       await refreshCalendar();
-      setMessage(`Race week is canonical in Paul’s Running. Sync evaluation: ${publishResults.join(" · ")}`);
+      const cleanupText = supersededCount > 0
+        ? ` Superseded ${supersededCount} duplicate calendar ${supersededCount === 1 ? "record" : "records"}.`
+        : " No duplicate calendar records found.";
+      setMessage(`Race week is canonical in Paul’s Running.${cleanupText} ${publishResults.join(" · ")}`);
     } catch (error) {
       setMessage(errorText(error));
     } finally {
@@ -195,6 +257,10 @@ export default function TrainingCalendarClient() {
   }
 
   async function publishItem(itemId: string) {
+    if (!capabilities?.integrations.intervalsIcuPublishingConfigured) {
+      setMessage("Intervals.icu publishing is not configured. Add INTERVALS_ICU_API_KEY to Vercel Production before evaluating Garmin delivery.");
+      return;
+    }
     setBusy(true);
     try {
       const result = await api<PublishResult>(
@@ -216,6 +282,10 @@ export default function TrainingCalendarClient() {
   }
 
   async function createLunchWalk() {
+    if (!capabilities?.integrations.intervalsIcuPublishingConfigured) {
+      setMessage("Configure INTERVALS_ICU_API_KEY in Vercel Production before creating the live lunch-walk delivery test.");
+      return;
+    }
     if (!lunchDate || !lunchTime) {
       setMessage("Choose a future date and time for the lunch-walk test.");
       return;
@@ -292,7 +362,9 @@ export default function TrainingCalendarClient() {
   }
 
   const sortedCalendar = useMemo(
-    () => [...calendar].sort((a, b) => a.scheduledStart.localeCompare(b.scheduledStart)),
+    () => calendar
+      .filter((item) => item.status !== "superseded")
+      .sort((a, b) => a.scheduledStart.localeCompare(b.scheduledStart)),
     [calendar],
   );
 
@@ -337,7 +409,7 @@ export default function TrainingCalendarClient() {
             <h2>Race week</h2>
             <p>Monday rehearsal · Saturday optional shakeout · Sunday Cheltenham Half. Wednesday is deliberately omitted.</p>
           </div>
-          <button className={styles.primary} onClick={populateRaceWeek} disabled={busy || !capabilities}>Populate &amp; sync race week</button>
+          <button className={styles.primary} onClick={populateRaceWeek} disabled={busy || !capabilities}>Repair &amp; sync race week</button>
         </div>
       </section>
 
