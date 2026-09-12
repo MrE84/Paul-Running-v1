@@ -1,10 +1,10 @@
-import ActivityExplorer from "../ActivityExplorer";
+import LocalActivityAnalysis from "./LocalActivityAnalysis";
 
 export const metadata = {
-  title: "Local FIT Explorer · Paul's Running",
-  description: "Private browser-local FIT decoding and raw activity inspection.",
+  title: "Private FIT Analysis · Paul's Running",
+  description: "Browser-local FIT analysis using the same premium projection, timeline and route engine without persistence.",
 };
 
 export default function LegacyActivityAnalysisPage() {
-  return <ActivityExplorer />;
+  return <LocalActivityAnalysis />;
 }
