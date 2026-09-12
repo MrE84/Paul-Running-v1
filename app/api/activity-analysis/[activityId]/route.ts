@@ -30,14 +30,21 @@ export async function GET(request: NextRequest, context: RouteContext) {
     );
   }
 
+  const started = performance.now();
   const readModel = buildCanonicalActivityAnalysisReadModel(activity);
+  const computeMs = performance.now() - started;
+  const responseBody = { data: readModel };
+  const payloadBytes = Buffer.byteLength(JSON.stringify(responseBody), "utf8");
+
   return NextResponse.json(
-    { data: readModel },
+    responseBody,
     {
       headers: {
         "Cache-Control": "private, no-store",
+        "Server-Timing": `activity-projection;dur=${computeMs.toFixed(2)}`,
         "X-Activity-Projection-Version": readModel.projection.projectionVersion,
         "X-Activity-Algorithm-Version": readModel.projection.algorithmVersion,
+        "X-Activity-Projection-Bytes": String(payloadBytes),
       },
     },
   );
