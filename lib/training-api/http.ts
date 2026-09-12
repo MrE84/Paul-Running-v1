@@ -97,6 +97,7 @@ export async function handleTrainingApiRequest(
         storageMode: runtime.storageMode,
         integrations: {
           intervalsIcuPublishingConfigured: runtime.intervalsIcuConfigured,
+          intervalsIcuActivityImportConfigured: runtime.activityImportConfigured,
         },
         writeSafety: ["bearer_auth", "idempotency", "optimistic_concurrency", "qa_before_save", "audit_attribution"],
         endpoints: [
@@ -104,6 +105,7 @@ export async function handleTrainingApiRequest(
           "GET /api/v1/zones",
           "GET /api/v1/calendar-items",
           "GET /api/v1/activities",
+          "POST /api/v1/activities/import",
           "GET|POST /api/v1/workouts",
           "GET|PATCH /api/v1/workouts/{id}",
           "GET /api/v1/workouts/{id}/qa",
@@ -158,6 +160,27 @@ export async function handleTrainingApiRequest(
       const rawLimit = Number(request.nextUrl.searchParams.get("limit") ?? "20");
       const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(0, Math.floor(rawLimit))) : 20;
       return ok(await service.listActivities(athleteId, limit));
+    }
+    if (method === "POST" && path.length === 2 && path[0] === "activities" && path[1] === "import") {
+      if (!actor.idempotencyKey) {
+        throw new TrainingApiError(400, "IDEMPOTENCY_KEY_REQUIRED", "Activity import operations require an Idempotency-Key header.");
+      }
+      if (athleteId !== runtime.primaryAthleteId) {
+        throw new TrainingApiError(400, "VALIDATION_FAILED", "Production activity import currently targets the primary athlete only.");
+      }
+      if (!runtime.activityImporter) {
+        throw new TrainingApiError(
+          503,
+          "INTERVALS_ICU_ACTIVITY_IMPORT_NOT_CONFIGURED",
+          "Intervals.icu activity import is not configured. Set INTERVALS_ICU_API_KEY in the server environment.",
+        );
+      }
+      const body = await jsonBody<{ maxPages?: number }>(request);
+      const maxPages = body.maxPages ?? 1;
+      if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 3) {
+        throw new TrainingApiError(400, "VALIDATION_FAILED", "maxPages must be an integer from 1 to 3.");
+      }
+      return ok(await runtime.activityImporter.importRecent(maxPages));
     }
 
     if (path[0] === "workouts") {

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CHART_METRICS,
+  analyseDecodedFit,
   availableChartMetrics,
   buildChartSeries,
   buildRoute,
@@ -26,6 +27,29 @@ import {
 import styles from "./activity-explorer.module.css";
 
 type Tab = "summary" | "charts" | "route" | "laps" | "records" | "data";
+
+type StoredActivity = {
+  id: string;
+  startedAt: string;
+  normalizedData: Record<string, unknown>;
+  sourceFileName?: string;
+  sourceMetadata: Record<string, unknown>;
+};
+
+type ActivityImportResult = {
+  imported: number;
+  alreadyImported: number;
+  failed: number;
+  pagesProcessed: number;
+  items: Array<{
+    externalId: string;
+    activityId?: string;
+    status: "imported" | "already_imported" | "failed";
+    errorMessage?: string;
+  }>;
+};
+
+type ApiEnvelope<T> = { data: T };
 
 const tabs: Array<[Tab, string]> = [
   ["summary", "Summary"],
@@ -68,6 +92,10 @@ function formatCell(value: unknown): string {
   return String(value);
 }
 
+function errorText(value: unknown): string {
+  return value instanceof Error ? value.message : String(value);
+}
+
 function download(content: string, type: string, filename: string): void {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const anchor = document.createElement("a");
@@ -81,6 +109,25 @@ function download(content: string, type: string, filename: string): void {
 
 function basename(name: string): string {
   return name.replace(/\.fit$/i, "");
+}
+
+function backendActivity(item: StoredActivity): AnalysedActivity {
+  const externalId = typeof item.sourceMetadata.externalId === "string"
+    ? item.sourceMetadata.externalId
+    : undefined;
+  const sourceFileUrl = typeof item.sourceMetadata.sourceFileUrl === "string"
+    ? item.sourceMetadata.sourceFileUrl
+    : undefined;
+  return analyseDecodedFit(
+    {
+      id: item.id,
+      name: item.sourceFileName ?? `${externalId ?? item.id}.fit`,
+      origin: "backend",
+      externalId,
+      sourceFileUrl,
+    },
+    item.normalizedData,
+  );
 }
 
 function DataTable({ rows, columns, limit }: { rows: FitRow[]; columns?: string[]; limit?: number }) {
@@ -350,6 +397,9 @@ export default function ActivityExplorer() {
   const [metric, setMetric] = useState<ChartMetricKey>("heart_rate");
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [apiToken, setApiToken] = useState("");
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncMessage, setSyncMessage] = useState("Enter the Paul’s Running API token to load or sync canonical activities.");
 
   useEffect(() => {
     const stored = window.localStorage.getItem("pauls-running-fit-units");
@@ -358,6 +408,83 @@ export default function ActivityExplorer() {
   useEffect(() => { window.localStorage.setItem("pauls-running-fit-units", units); }, [units]);
 
   const activity = activities.find((candidate) => candidate.source.id === currentId) ?? activities[0] ?? null;
+
+  async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+    if (!apiToken.trim()) throw new Error("Enter PAUL_RUNNING_API_TOKEN first.");
+    const response = await fetch(`/api/v1/${path}`, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${apiToken.trim()}`,
+        "X-Client-Id": "activity-analysis-web",
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
+        ...(init.headers ?? {}),
+      },
+    });
+    const payload = await response.json().catch(() => ({})) as ApiEnvelope<T> & {
+      error?: { message?: string; code?: string };
+    };
+    if (!response.ok) {
+      throw new Error(payload.error?.message ?? `${response.status} ${response.statusText}`);
+    }
+    return payload.data;
+  }
+
+  function mergeActivities(loaded: AnalysedActivity[]) {
+    if (!loaded.length) return;
+    setActivities((existing) => {
+      const byId = new Map(existing.map((item) => [item.source.id, item]));
+      loaded.forEach((item) => byId.set(item.source.id, item));
+      return [...loaded, ...[...byId.values()].filter((item) => !loaded.some((newItem) => newItem.source.id === item.source.id))];
+    });
+    setCurrentId(loaded[0].source.id);
+    setTab("summary");
+  }
+
+  async function loadStoredActivities(announce = true) {
+    const rows = await api<StoredActivity[]>("activities?limit=12");
+    const loaded = rows
+      .filter((item) => item.normalizedData && typeof item.normalizedData === "object")
+      .map(backendActivity);
+    mergeActivities(loaded);
+    if (announce) {
+      setSyncMessage(
+        loaded.length
+          ? `Loaded ${loaded.length} canonical ${loaded.length === 1 ? "activity" : "activities"} from Paul’s Running.`
+          : "No canonical activities are stored yet.",
+      );
+    }
+    return loaded;
+  }
+
+  async function syncLatestActivities() {
+    setSyncBusy(true);
+    try {
+      const requestKey = typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? `activity-import-${crypto.randomUUID()}`
+        : `activity-import-${Date.now()}`;
+      const result = await api<ActivityImportResult>(
+        "activities/import",
+        {
+          method: "POST",
+          headers: { "Idempotency-Key": requestKey },
+          body: JSON.stringify({ maxPages: 1 }),
+        },
+      );
+      const loaded = await loadStoredActivities(false);
+      const failureDetails = result.items
+        .filter((item) => item.status === "failed")
+        .map((item) => item.errorMessage)
+        .filter(Boolean)
+        .join(" · ");
+      setSyncMessage(
+        `Intervals.icu sync complete: ${result.imported} new, ${result.alreadyImported} already present, ${result.failed} failed. ${loaded.length} canonical activities loaded.${failureDetails ? ` ${failureDetails}` : ""}`,
+      );
+    } catch (error) {
+      setSyncMessage(errorText(error));
+    } finally {
+      setSyncBusy(false);
+    }
+  }
 
   async function ingest(files: FileList | File[]) {
     const fits = Array.from(files).filter((file) => file.name.toLowerCase().endsWith(".fit"));
@@ -370,15 +497,7 @@ export default function ActivityExplorer() {
       try { loaded.push(await loadBrowserFitFile(file)); }
       catch (error) { errors.push(`${file.name}: ${error instanceof Error ? error.message : String(error)}`); }
     }
-    if (loaded.length) {
-      setActivities((existing) => {
-        const byId = new Map(existing.map((item) => [item.source.id, item]));
-        loaded.forEach((item) => byId.set(item.source.id, item));
-        return [...loaded, ...[...byId.values()].filter((item) => !loaded.some((newItem) => newItem.source.id === item.source.id))];
-      });
-      setCurrentId(loaded[0].source.id);
-      setTab("summary");
-    }
+    if (loaded.length) mergeActivities(loaded);
     setMessage(errors.length ? errors.join(" · ") : `${loaded.length} FIT file${loaded.length === 1 ? "" : "s"} decoded locally.`);
     setBusy(false);
   }
@@ -407,6 +526,25 @@ export default function ActivityExplorer() {
       <aside className={styles.sidebar}>
         <Link href="/" className={styles.backLink}>← Paul&apos;s Running</Link>
         <div className={styles.brand}><div className={styles.brandMark}>FIT</div><div><h1>Activity Explorer</h1><p>Integrated analysis workspace</p></div></div>
+
+        <div className={styles.syncPanel}>
+          <div><strong>Garmin → Paul&apos;s Running</strong><span>Pull completed Garmin activities from Intervals.icu into the canonical PostgreSQL activity store.</span></div>
+          <input
+            className={styles.syncInput}
+            type="password"
+            value={apiToken}
+            onChange={(event) => setApiToken(event.target.value)}
+            placeholder="PAUL_RUNNING_API_TOKEN"
+            autoComplete="off"
+            spellCheck="false"
+          />
+          <div className={styles.syncActions}>
+            <button disabled={syncBusy || !apiToken.trim()} onClick={() => void syncLatestActivities()}>{syncBusy ? "Syncing…" : "Sync latest"}</button>
+            <button disabled={syncBusy || !apiToken.trim()} onClick={() => void loadStoredActivities()}>Load stored</button>
+          </div>
+          <small>{syncMessage}</small>
+        </div>
+
         <input ref={inputRef} className={styles.hiddenInput} type="file" accept=".fit" multiple onChange={(event) => { if (event.target.files) void ingest(event.target.files); event.target.value = ""; }} />
         <button
           className={`${styles.dropZone} ${busy ? styles.busy : ""}`}
@@ -420,7 +558,7 @@ export default function ActivityExplorer() {
         </button>
         <div className={styles.sidebarTitle}><span>Loaded activities</span><strong>{activities.length}</strong></div>
         <div className={styles.fileList}>
-          {!activities.length && <p className={styles.muted}>No FIT files loaded yet.</p>}
+          {!activities.length && <p className={styles.muted}>No activities loaded yet.</p>}
           {activities.map((candidate) => (
             <div key={candidate.source.id} className={`${styles.fileCard} ${candidate.source.id === activity?.source.id ? styles.fileActive : ""}`}>
               <button className={styles.fileSelect} onClick={() => { setCurrentId(candidate.source.id); setTab("summary"); }}>
@@ -431,7 +569,7 @@ export default function ActivityExplorer() {
             </div>
           ))}
         </div>
-        <div className={styles.privacy}><strong>Local-first privacy</strong><span>Uploaded FIT files are decoded in this browser. They are not sent to Paul&apos;s Running or Vercel.</span></div>
+        <div className={styles.privacy}><strong>Two privacy paths</strong><span>Manual FIT uploads stay browser-local. Canonical Garmin activities are loaded only after you enter the Paul&apos;s Running bearer token; the token is kept only in page memory.</span></div>
       </aside>
 
       <section className={styles.workspace}>
@@ -439,14 +577,14 @@ export default function ActivityExplorer() {
           <div className={styles.welcome}>
             <span className={styles.welcomeIcon}>⌁</span>
             <h2>Analyse a FIT activity</h2>
-            <p>This integration preserves the FIT Explorer workflow: summary metrics, charts, route, laps, record messages, raw decoded data and exports.</p>
+            <p>Sync a completed Garmin activity from Paul&apos;s Running or load a local FIT file. Both use the same FIT Explorer analysis engine for summary metrics, charts, route, laps, record messages and raw decoded data.</p>
             <button onClick={() => inputRef.current?.click()}>Choose FIT files</button>
-            <div className={styles.features}><span><strong>Private</strong>Browser-local decoding</span><span><strong>Reusable</strong>Same core for backend FIT data</span><span><strong>Complete</strong>Raw messages remain available</span></div>
+            <div className={styles.features}><span><strong>Canonical</strong>Garmin data via Paul&apos;s Running</span><span><strong>Private</strong>Local FIT option remains browser-only</span><span><strong>Complete</strong>Raw FIT messages remain available</span></div>
           </div>
         ) : <>
           <header className={styles.header}>
             <div>
-              <div className={styles.eyebrow}>{activity.source.origin === "browser" ? "LOCAL FIT FILE" : "BACKEND ACTIVITY"}</div>
+              <div className={styles.eyebrow}>{activity.source.origin === "browser" ? "LOCAL FIT FILE" : "PAUL'S RUNNING CANONICAL ACTIVITY"}</div>
               <h2>{activity.summary.session.sport_profile_name || titleCase(activity.summary.session.sub_sport || activity.summary.session.sport || "FIT activity")}</h2>
               <p>{formatDate(activity.summary.start)} · {formatDistance(activity.summary.distance, units)} · {formatDuration(activity.summary.timerTime)}</p>
               <small>{activity.source.name} · {activity.source.size ? `${(activity.source.size / 1024).toFixed(1)} KB · ` : ""}FIT protocol {formatCell(activity.parsed.protocolVersion)} · profile {formatCell(activity.parsed.profileVersion)}</small>

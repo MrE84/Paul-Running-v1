@@ -188,4 +188,41 @@ export class IntervalsIcuClient {
   activityFileUrl(activityId: string): string {
     return `${this.baseUrl}/activity/${encodeURIComponent(activityId)}/file`;
   }
+
+  async downloadActivityFile(activityId: string): Promise<IntervalsIcuResponse<Uint8Array>> {
+    let response: Response;
+    try {
+      response = await this.fetchImpl(this.activityFileUrl(activityId), {
+        headers: {
+          Accept: "application/octet-stream,application/fit,*/*",
+          Authorization: this.authorizationHeader(),
+        },
+      });
+    } catch (error) {
+      throw new IntervalsIcuHttpError({
+        status: 0,
+        message: `Intervals.icu activity file download failed: ${error instanceof Error ? error.message : String(error)}`,
+      });
+    }
+
+    const rateLimit = rateLimitFromHeaders(response.headers, this.nowMillis());
+    if (!response.ok) {
+      const responseBody = await response.text().catch(() => "");
+      throw new IntervalsIcuHttpError({
+        status: response.status,
+        message:
+          response.status === 429
+            ? "Intervals.icu rate limit reached while downloading an activity file."
+            : `Intervals.icu activity file download failed with HTTP ${response.status}.`,
+        responseBody,
+        retryAfterSeconds: rateLimit.retryAfterSeconds,
+        rateLimit,
+      });
+    }
+
+    return {
+      data: new Uint8Array(await response.arrayBuffer()),
+      rateLimit,
+    };
+  }
 }
