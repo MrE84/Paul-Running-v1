@@ -1,5 +1,4 @@
-import type { NextRequest } from "next/server";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { buildCanonicalActivityAnalysisReadModel } from "../../../../lib/activity-analysis";
 import type { Activity } from "../../../../lib/domain/contracts";
 import { handleTrainingApiRequest } from "../../../../lib/training-api/http";
@@ -15,11 +14,11 @@ export async function GET(request: NextRequest, context: RouteContext) {
   const { activityId } = await context.params;
   const upstreamUrl = new URL("/api/v1/activities", request.url);
   upstreamUrl.searchParams.set("limit", "100");
-  const authenticatedRequest = new Request(upstreamUrl, {
+  const authenticatedRequest = new NextRequest(upstreamUrl, {
     method: "GET",
     headers: request.headers,
   });
-  const upstream = await handleTrainingApiRequest(authenticatedRequest as NextRequest, ["activities"]);
+  const upstream = await handleTrainingApiRequest(authenticatedRequest, ["activities"]);
   const payload = await upstream.json().catch(() => ({})) as ActivityEnvelope;
   if (!upstream.ok) return NextResponse.json(payload, { status: upstream.status });
 
