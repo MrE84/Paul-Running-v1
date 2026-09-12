@@ -13,14 +13,15 @@ import { applyTrainingPlan } from "../calendar/apply-plan";
 import { parseLocalDate, parseLocalTime, assertValidTimeZone } from "../calendar/timezone";
 import type { IntegrationStateStore } from "../integrations/contracts";
 import { validateWorkoutForSync } from "../qa";
-import type {
-  PlanApplicationView,
-  ProfileView,
-  SyncStatusView,
-  TrainingApiActor,
-  TrainingApiRuntime,
-  TrainingApiStore,
-  WorkoutMutationResult,
+import {
+  TrainingStoreVersionConflictError,
+  type PlanApplicationView,
+  type ProfileView,
+  type SyncStatusView,
+  type TrainingApiActor,
+  type TrainingApiRuntime,
+  type TrainingApiStore,
+  type WorkoutMutationResult,
 } from "./contracts";
 
 export class TrainingApiError extends Error {
@@ -112,22 +113,38 @@ export class TrainingApiService {
     await this.store.appendAuditEvent(event);
   }
 
+  private async persistWorkout(workout: Workout, revision: WorkoutRevision): Promise<void> {
+    try {
+      await this.store.saveWorkout(workout, revision);
+    } catch (error) {
+      if (error instanceof TrainingStoreVersionConflictError) {
+        throw new TrainingApiError(409, "VERSION_CONFLICT", error.message, {
+          currentVersion: error.currentVersion,
+          expectedVersion: error.expectedVersion,
+        });
+      }
+      throw error;
+    }
+  }
+
   private async idempotent<T>(actor: TrainingApiActor, action: string, input: unknown, operation: () => Promise<T>): Promise<T> {
     if (!actor.idempotencyKey) {
       throw new TrainingApiError(400, "IDEMPOTENCY_KEY_REQUIRED", "Write operations require an Idempotency-Key header.");
     }
     const key = `${actor.type}:${actor.id}:${action}:${actor.idempotencyKey}`;
     const fingerprint = stableSerialize(input);
-    const existing = await this.store.findIdempotency(key);
-    if (existing) {
-      if (existing.fingerprint !== fingerprint) {
-        throw new TrainingApiError(409, "IDEMPOTENCY_CONFLICT", "This idempotency key was already used with a different request.");
+    return this.store.withIdempotencyLock(key, async () => {
+      const existing = await this.store.findIdempotency(key);
+      if (existing) {
+        if (existing.fingerprint !== fingerprint) {
+          throw new TrainingApiError(409, "IDEMPOTENCY_CONFLICT", "This idempotency key was already used with a different request.");
+        }
+        return existing.response as T;
       }
-      return existing.response as T;
-    }
-    const response = await operation();
-    await this.store.saveIdempotency({ key, fingerprint, response, createdAt: this.runtime.now() });
-    return response;
+      const response = await operation();
+      await this.store.saveIdempotency({ key, fingerprint, response, createdAt: this.runtime.now() });
+      return response;
+    });
   }
 
   async getProfile(athleteId: string): Promise<ProfileView> {
@@ -167,7 +184,7 @@ export class TrainingApiService {
       const qa = validateWorkoutForSync({ workout: revision, context: await this.qaContext(input.athleteId) });
       if (!qa.valid) throw new TrainingApiError(422, "WORKOUT_QA_FAILED", "Workout failed QA and was not persisted.", qa.findings);
       const workout: Workout = { id, athleteId: input.athleteId, currentVersion: 1, currentRevision: revision, createdAt: now, updatedAt: now };
-      await this.store.saveWorkout(workout, revision);
+      await this.persistWorkout(workout, revision);
       await this.audit(actor, "workout.created", "workout", id, 1);
       return { workout, qa };
     });
@@ -191,7 +208,7 @@ export class TrainingApiService {
       const qa = validateWorkoutForSync({ workout: revision, context: await this.qaContext(current.athleteId) });
       if (!qa.valid) throw new TrainingApiError(422, "WORKOUT_QA_FAILED", "Workout revision failed QA and was not persisted.", qa.findings);
       const workout: Workout = { ...current, currentVersion: revision.version, currentRevision: revision, updatedAt: now };
-      await this.store.saveWorkout(workout, revision);
+      await this.persistWorkout(workout, revision);
       await this.audit(actor, "workout.revised", "workout", id, revision.version);
       return { workout, qa };
     });

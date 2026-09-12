@@ -3,7 +3,7 @@ import type { Athlete } from "../domain/contracts";
 import { ProductionWorkoutPublisher } from "../integrations/production-publisher";
 import { InMemoryIntegrationStateStore } from "../integrations/state";
 import type { IntegrationRuntime, IntegrationStateStore } from "../integrations/contracts";
-import { PostgresTrainingStore } from "./postgres-store";
+import { SerializedPostgresTrainingStore } from "./serialized-postgres-store";
 import type { TrainingApiStore } from "./contracts";
 import { TrainingApiService } from "./service";
 import { InMemoryTrainingApiStore } from "./store";
@@ -57,7 +57,7 @@ export function getTrainingApiRuntime(): TrainingApiRuntimeBundle {
   const connectionString = process.env.DATABASE_URL?.trim();
 
   if (connectionString) {
-    const store = new PostgresTrainingStore({
+    const store = new SerializedPostgresTrainingStore({
       connectionString,
       seedAthlete: athlete,
       maxConnections: 4,
