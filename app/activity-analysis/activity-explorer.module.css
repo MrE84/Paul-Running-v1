@@ -43,6 +43,17 @@
 }
 .brand h1 { margin: 0; font-size: 1.02rem; }
 .brand p { margin: 3px 0 0; color: #8fa4bd; font-size: .72rem; }
+.syncPanel { display: grid; gap: 9px; padding: 12px; border: 1px solid rgba(86,213,154,.24); border-radius: 13px; background: rgba(86,213,154,.055); }
+.syncPanel > div:first-child { display: grid; gap: 4px; }
+.syncPanel strong { color: #56d59a; font-size: .75rem; }
+.syncPanel span, .syncPanel small { color: #8fa4bd; font-size: .67rem; line-height: 1.4; }
+.syncInput { width: 100%; min-width: 0; padding: 8px 9px; border: 1px solid #2b3b52; border-radius: 9px; background: #0d1623; color: #f4f7fb; font: inherit; outline: none; }
+.syncInput:focus { border-color: #56d59a; }
+.syncActions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.syncActions button { padding: 8px 9px; border: 1px solid #2b3b52; border-radius: 9px; background: #162234; color: #f4f7fb; font: inherit; font-size: .7rem; font-weight: 800; cursor: pointer; }
+.syncActions button:first-child { border-color: rgba(86,213,154,.35); background: rgba(86,213,154,.12); color: #b8e8d2; }
+.syncActions button:hover:not(:disabled) { border-color: #56d59a; }
+.syncActions button:disabled { opacity: .45; cursor: not-allowed; }
 .hiddenInput { display: none; }
 .dropZone {
   display: grid;

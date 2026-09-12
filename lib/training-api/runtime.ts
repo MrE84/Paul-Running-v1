@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Athlete } from "../domain/contracts";
+import { ProductionActivityImporter } from "../integrations/production-activity-importer";
 import { ProductionWorkoutPublisher } from "../integrations/production-publisher";
 import { InMemoryIntegrationStateStore } from "../integrations/state";
 import type { IntegrationRuntime, IntegrationStateStore } from "../integrations/contracts";
@@ -15,25 +16,50 @@ export interface TrainingApiRuntimeBundle {
   primaryAthleteId: string;
   storageMode: TrainingApiStorageMode;
   intervalsIcuConfigured: boolean;
+  activityImportConfigured: boolean;
   workoutPublisher?: ProductionWorkoutPublisher;
+  activityImporter?: ProductionActivityImporter;
 }
 
 const globalRuntime = globalThis as typeof globalThis & {
   __paulRunningTrainingApi?: TrainingApiRuntimeBundle;
 };
 
+function intervalsApiKey(): string | undefined {
+  const value = process.env.INTERVALS_ICU_API_KEY?.trim();
+  return value || undefined;
+}
+
 function productionPublisher(
   store: TrainingApiStore,
   state: IntegrationStateStore,
   runtime: IntegrationRuntime,
+  apiKey: string | undefined,
 ): ProductionWorkoutPublisher | undefined {
-  const apiKey = process.env.INTERVALS_ICU_API_KEY?.trim();
   if (!apiKey) return undefined;
   return new ProductionWorkoutPublisher({
     store,
     state,
     runtime,
     apiKey,
+    intervalsAthleteId: process.env.INTERVALS_ICU_ATHLETE_ID?.trim() || "0",
+  });
+}
+
+function productionActivityImporter(
+  store: TrainingApiStore,
+  state: IntegrationStateStore,
+  runtime: IntegrationRuntime,
+  apiKey: string | undefined,
+  athleteId: string,
+): ProductionActivityImporter | undefined {
+  if (!apiKey) return undefined;
+  return new ProductionActivityImporter({
+    store,
+    state,
+    runtime,
+    apiKey,
+    athleteId,
     intervalsAthleteId: process.env.INTERVALS_ICU_ATHLETE_ID?.trim() || "0",
   });
 }
@@ -55,6 +81,7 @@ export function getTrainingApiRuntime(): TrainingApiRuntimeBundle {
     now: () => new Date().toISOString(),
   };
   const connectionString = process.env.DATABASE_URL?.trim();
+  const apiKey = intervalsApiKey();
 
   if (connectionString) {
     const store = new SerializedPostgresTrainingStore({
@@ -63,13 +90,22 @@ export function getTrainingApiRuntime(): TrainingApiRuntimeBundle {
       maxConnections: 4,
     });
     const service = new TrainingApiService(store, runtime, store);
-    const workoutPublisher = productionPublisher(store, store, runtime);
+    const workoutPublisher = productionPublisher(store, store, runtime, apiKey);
+    const activityImporter = productionActivityImporter(
+      store,
+      store,
+      runtime,
+      apiKey,
+      primaryAthleteId,
+    );
     globalRuntime.__paulRunningTrainingApi = {
       service,
       primaryAthleteId,
       storageMode: "postgres",
-      intervalsIcuConfigured: Boolean(workoutPublisher),
+      intervalsIcuConfigured: Boolean(apiKey),
+      activityImportConfigured: Boolean(activityImporter),
       workoutPublisher,
+      activityImporter,
     };
     return globalRuntime.__paulRunningTrainingApi;
   }
@@ -77,13 +113,22 @@ export function getTrainingApiRuntime(): TrainingApiRuntimeBundle {
   const store = new InMemoryTrainingApiStore({ athletes: [athlete] });
   const integrationState = new InMemoryIntegrationStateStore();
   const service = new TrainingApiService(store, runtime, integrationState);
-  const workoutPublisher = productionPublisher(store, integrationState, runtime);
+  const workoutPublisher = productionPublisher(store, integrationState, runtime, apiKey);
+  const activityImporter = productionActivityImporter(
+    store,
+    integrationState,
+    runtime,
+    apiKey,
+    primaryAthleteId,
+  );
   globalRuntime.__paulRunningTrainingApi = {
     service,
     primaryAthleteId,
     storageMode: "memory_reference",
-    intervalsIcuConfigured: Boolean(workoutPublisher),
+    intervalsIcuConfigured: Boolean(apiKey),
+    activityImportConfigured: Boolean(activityImporter),
     workoutPublisher,
+    activityImporter,
   };
   return globalRuntime.__paulRunningTrainingApi;
 }
