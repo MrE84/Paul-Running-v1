@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { activityListItem, projectActivity, PROJECTION_VERSION } from "../activity-analysis/projection";
 import type {
   Activity,
   AuditEvent,
@@ -156,6 +158,23 @@ export class TrainingApiService {
   async listZones(athleteId: string) { await this.requireAthlete(athleteId); return this.store.listZoneSets(athleteId); }
   async listCalendar(athleteId: string, from?: string, to?: string) { await this.requireAthlete(athleteId); return this.store.listCalendarItems(athleteId, from, to); }
   async listActivities(athleteId: string, limit = 20) { await this.requireAthlete(athleteId); return this.store.listActivities(athleteId, limit); }
+  async listActivitySummaries(athleteId: string, limit = 20) { await this.requireAthlete(athleteId); return this.store.listActivitySummaries(athleteId, limit); }
+  async getActivity(athleteId: string, id: string) {
+    await this.requireAthlete(athleteId);
+    const activity = await this.store.getActivity(id);
+    if (!activity || activity.athleteId !== athleteId) throw new TrainingApiError(404, "NOT_FOUND", "Activity was not found.");
+    return activity;
+  }
+  async getActivityAnalysis(athleteId: string, id: string, recompute = false) {
+    const activity = await this.getActivity(athleteId, id);
+    const zones = await this.store.listZoneSets(athleteId);
+    const fingerprint = createHash("sha256").update(JSON.stringify([PROJECTION_VERSION, activity, zones])).digest("hex");
+    const cached = recompute ? undefined : await this.store.getAnalysisCache(id);
+    if (cached?.fingerprint === fingerprint && cached.projection.version === PROJECTION_VERSION) return cached.projection;
+    const projection = projectActivity({ id, name: activity.sourceFileName ?? `${id}.fit`, origin: "backend" }, activity.normalizedData, activityListItem(activity), zones);
+    await this.store.saveAnalysisCache(id, athleteId, { fingerprint, projection });
+    return projection;
+  }
   async listWorkouts(athleteId: string) { await this.requireAthlete(athleteId); return this.store.listWorkouts(athleteId); }
   async listPlans(athleteId: string) { await this.requireAthlete(athleteId); return this.store.listPlans(athleteId); }
   async getWorkout(id: string) { const item = await this.store.getWorkout(id); if (!item) throw new TrainingApiError(404, "NOT_FOUND", `Workout ${id} was not found.`); return item; }

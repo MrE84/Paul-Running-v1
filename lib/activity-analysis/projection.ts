@@ -1,290 +1,197 @@
-import type { ActivitySource, DecodedFit, FitRow } from "./contracts";
-import {
-  cadenceDisplay,
-  firstNumber,
-  getLaps,
-  getRecords,
-  getSession,
-  normaliseDate,
-  normaliseDecodedFit,
-  paceSecondsFromSpeed,
-  safeNumber,
-  semicirclesToDegrees,
-} from "./core";
+import type { Activity, ZoneSet } from "../domain/contracts";
+import type { ActivitySource, DecodedFit } from "./contracts";
+import { analyseDecodedFit, firstNumber, normaliseDate, safeNumber, semicirclesToDegrees } from "./core";
 
-export const ACTIVITY_ANALYSIS_PROJECTION_VERSION = "1.0.0";
-export const ACTIVITY_ANALYSIS_ALGORITHM_VERSION = "2026-09-batch-a";
-
-export type AnalysisChannelKey =
-  | "latitude"
-  | "longitude"
-  | "altitudeMeters"
-  | "gradePercent"
-  | "speedMps"
-  | "paceSecondsPerKm"
-  | "heartRateBpm"
-  | "cadenceSpm"
-  | "powerWatts"
-  | "temperatureC"
-  | "verticalOscillationMm"
-  | "groundContactTimeMs"
-  | "respirationRateBpm";
-
-export interface AnalysisStreamPoint {
-  index: number;
-  elapsedSeconds: number;
-  distanceMeters: number | null;
-  timestamp: string | null;
-  channels: Partial<Record<AnalysisChannelKey, number>>;
+export const PROJECTION_VERSION = "1.0.0";
+export const CHANNELS = {
+  heart_rate: { label: "Heart rate", unit: "bpm", color: "#fb7185" },
+  pace: { label: "Pace", unit: "min/km", color: "#60a5fa" },
+  cadence: { label: "Cadence", unit: "spm", color: "#fbbf24" },
+  altitude: { label: "Elevation", unit: "m", color: "#6ee7b7" },
+  power: { label: "Power", unit: "W", color: "#c4b5fd" },
+  speed: { label: "Speed", unit: "m/s", color: "#38bdf8" },
+  grade: { label: "Gradient", unit: "%", color: "#2dd4bf" },
+  temperature: { label: "Device temperature", unit: "°C", color: "#fdba74" },
+  vertical_oscillation: { label: "Vertical oscillation", unit: "mm", color: "#f0abfc" },
+  ground_contact_time: { label: "Ground contact", unit: "ms", color: "#a5b4fc" },
+  respiration_rate: { label: "Respiration", unit: "/min", color: "#67e8f9" },
+} as const;
+export type Channel = keyof typeof CHANNELS;
+export type Values = Array<number | null>;
+export type IndexRange = [number, number];
+export type Axis = "time" | "distance";
+export interface AnalysisLap {
+  id: string; label: string; start: number; end: number;
+  duration: number | null; distance: number | null; heartRate: number | null;
 }
-
-export interface AnalysisLapProjection {
-  index: number;
-  startElapsedSeconds: number | null;
-  elapsedSeconds: number | null;
-  distanceMeters: number | null;
-  avgHeartRateBpm: number | null;
-  maxHeartRateBpm: number | null;
-  avgSpeedMps: number | null;
-  avgCadenceSpm: number | null;
+export interface AnalysisZone {
+  name: string; lower: number | null; upper: number | null; color: string;
 }
-
-export interface ActivityAnalysisProjection {
-  projectionVersion: string;
-  algorithmVersion: string;
-  generatedAt: null;
-  source: Pick<ActivitySource, "id" | "name" | "origin" | "externalId">;
-  activity: {
-    sport: string | null;
-    subSport: string | null;
-    startedAt: string | null;
-    elapsedSeconds: number | null;
-    timerSeconds: number | null;
-    distanceMeters: number | null;
-    avgHeartRateBpm: number | null;
-    maxHeartRateBpm: number | null;
-    avgSpeedMps: number | null;
-    maxSpeedMps: number | null;
-    avgCadenceSpm: number | null;
-    totalAscentMeters: number | null;
-    totalDescentMeters: number | null;
+export interface ActivityListItem {
+  id: string; title: string; sport: string; startedAt: string | null;
+  distance: number | null; duration: number | null; calendarItemId?: string;
+}
+export interface AnalysisProjection {
+  version: string;
+  source: Pick<ActivitySource, "id" | "name" | "origin">;
+  activity: ActivityListItem;
+  summary: {
+    distance: number | null; duration: number | null; elapsed: number | null;
+    speed: number | null; heartRate: number | null; cadence: number | null;
+    ascent: number | null; calories: number | null;
   };
-  sourceChannels: AnalysisChannelKey[];
-  stream: AnalysisStreamPoint[];
-  laps: AnalysisLapProjection[];
-  derived: {
-    intervals: { version: string; items: unknown[] };
-    zones: { version: string; items: unknown[] };
-    weather: { version: string; status: "not_enriched" | "enriched"; data: unknown | null };
-    bestEfforts: { version: string; items: unknown[] };
-    efficiency: { version: string; aerobicDecouplingPercent: number | null };
-    dataQuality: {
-      version: string;
-      recordCount: number;
-      gpsPointCount: number;
-      missingChannels: AnalysisChannelKey[];
-      duplicateElapsedPoints: number;
-      nonMonotonicDistancePoints: number;
+  streams: {
+    elapsed: number[]; distance: Values; latitude: Values; longitude: Values;
+    /** Original record index, for raw-data inspection after ordering/deduplication. */
+    recordIndex: number[]; breakBefore: boolean[];
+    channels: Partial<Record<Channel, Values>>;
+  };
+  laps: AnalysisLap[];
+  zones: Partial<Record<Channel, AnalysisZone[]>>;
+  provenance: { sourceFields: string[]; algorithms: Record<string, string> };
+  quality: { flags: string[]; inputRecords: number; samples: number; missing: Partial<Record<Channel, number>> };
+  /** Future enrichment results are independently versioned; absent != zero. */
+  derived: Record<"intervals" | "zones" | "weather" | "bestEfforts" | "efficiency" | "plannedActual", { version: string; status: "pending" | "available"; sourceChannels: Channel[] }>;
+}
+
+const round = (n: number | null, precision = 3) => n === null ? null : Math.round(n * 10 ** precision) / 10 ** precision;
+const positive = (n: number | null) => n !== null && n > 0 ? n : null;
+const nonnegative = (n: number | null) => n !== null && n >= 0 ? n : null;
+const zoneColors = ["#94a3b8", "#60a5fa", "#4ade80", "#fbbf24", "#fb7185", "#c4b5fd"];
+
+export function activityListItem(item: Omit<Activity, "normalizedData">): ActivityListItem {
+  return {
+    id: item.id,
+    title: typeof item.sourceMetadata.name === "string" ? item.sourceMetadata.name : item.sourceFileName?.replace(/\.fit$/i, "") || `${item.sport} activity`,
+    sport: item.sport, startedAt: item.startedAt,
+    distance: item.summary.distanceMeters ?? null, duration: item.summary.durationSeconds ?? null,
+    ...(item.calendarItemId ? { calendarItemId: item.calendarItemId } : {}),
+  };
+}
+
+function projectZones(zoneSets: ZoneSet[], sport: string, startedAt: string | null): AnalysisProjection["zones"] {
+  const zones: AnalysisProjection["zones"] = {};
+  if (!startedAt) return zones;
+  const valid = zoneSets.filter(z => z.sport === sport && z.effectiveFrom <= startedAt && (!z.effectiveTo || z.effectiveTo > startedAt))
+    .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom));
+  for (const set of valid) {
+    const key = set.targetType as Channel;
+    if (!(key in CHANNELS) || zones[key]) continue;
+    const expected = key === "pace" ? ["s/km", "sec/km", "seconds_per_km"] : key === "heart_rate" ? ["bpm"] : key === "power" ? ["w", "watts"] : ["spm", "rpm"];
+    zones[key] = set.zones.filter(z => expected.includes(z.unit.toLowerCase())).map((z, i) => ({
+      name: z.name, lower: safeNumber(z.lowerBound), upper: safeNumber(z.upperBound), color: zoneColors[i % zoneColors.length],
+    }));
+  }
+  return zones;
+}
+
+/** Pure projection. SI units, seconds/km for pace, null for missing; never alters FIT input. */
+export function projectActivity(source: ActivitySource, decoded: DecodedFit, context?: ActivityListItem, zoneSets: ZoneSet[] = []): AnalysisProjection {
+  const analysed = analyseDecodedFit(source, decoded);
+  const { records, summary, laps } = analysed;
+  const session = summary.session;
+  const startedAt = context?.startedAt ?? normaliseDate(summary.start)?.toISOString() ?? normaliseDate(records[0]?.timestamp)?.toISOString() ?? null;
+  const firstTime = normaliseDate(records.find(r => normaliseDate(r.timestamp))?.timestamp)?.getTime();
+  const flags = new Set<string>();
+  const ordered = records.map((r, index) => {
+    const timestamp = normaliseDate(r.timestamp)?.getTime();
+    const seconds = firstNumber(r.elapsed_time, timestamp !== undefined && firstTime !== undefined ? (timestamp - firstTime) / 1000 : null, r.timer_time);
+    if (seconds === null) flags.add("Sample timing unavailable; record order used as seconds.");
+    return { r, index, seconds: Math.max(0, seconds ?? index) };
+  }).sort((a, b) => a.seconds - b.seconds || a.index - b.index);
+  const rows = ordered.filter((r, i) => i === ordered.length - 1 || r.seconds !== ordered[i + 1].seconds);
+  if (rows.length !== records.length) flags.add("Duplicate timestamps merged; original messages retained in Raw data.");
+  if (ordered.some((r, i) => i > 0 && r.index < ordered[i - 1].index)) flags.add("Out-of-order samples sorted by elapsed time.");
+  const elapsed: number[] = [], distance: Values = [], latitude: Values = [], longitude: Values = [], breakBefore: boolean[] = [];
+  const channels = Object.fromEntries(Object.keys(CHANNELS).map(k => [k, []])) as Record<Channel, Values>;
+  let lastDistance = 0;
+  rows.forEach(({ r, seconds }, i) => {
+    elapsed.push(round(seconds)!);
+    let d = nonnegative(safeNumber(r.distance));
+    if (d !== null && d < lastDistance) { d = null; flags.add("Distance resets excluded from distance alignment."); }
+    if (d !== null) lastDistance = d;
+    distance.push(round(d));
+    const lat = semicirclesToDegrees(firstNumber(r.position_lat, r.latitude));
+    const lon = semicirclesToDegrees(firstNumber(r.position_long, r.longitude));
+    const validGps = lat !== null && lon !== null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && !(lat === 0 && lon === 0);
+    latitude.push(validGps ? round(lat, 6) : null);
+    longitude.push(validGps ? round(lon, 6) : null);
+    const gap = i > 0 && seconds - rows[i - 1].seconds > 30;
+    breakBefore.push(gap);
+    if (gap) flags.add("Recording gaps over 30 seconds are not interpolated.");
+    const speed = nonnegative(firstNumber(r.enhanced_speed, r.speed));
+    const cadence = nonnegative(firstNumber(r.cadence, r.running_cadence));
+    const values: Record<Channel, number | null> = {
+      speed, pace: speed !== null && speed > 0 ? 1000 / speed : null,
+      heart_rate: positive(safeNumber(r.heart_rate)),
+      cadence: cadence !== null ? cadence * (String(session.sport ?? context?.sport) === "running" ? 2 : 1) : null,
+      altitude: firstNumber(r.enhanced_altitude, r.altitude),
+      power: nonnegative(safeNumber(r.power)), temperature: safeNumber(r.temperature), grade: safeNumber(r.grade),
+      vertical_oscillation: nonnegative(safeNumber(r.vertical_oscillation)),
+      ground_contact_time: nonnegative(firstNumber(r.ground_contact_time, r.stance_time)),
+      respiration_rate: positive(safeNumber(r.respiration_rate)),
     };
-    plannedAlignment: { version: string; status: "not_linked" | "linked"; data: unknown | null };
-  };
-  diagnostics: {
-    streamPointCount: number;
-    approximateJsonBytes: number;
-  };
-}
-
-function iso(value: unknown): string | null {
-  return normaliseDate(value)?.toISOString() ?? null;
-}
-
-function field(record: FitRow, ...keys: string[]): number | null {
-  return firstNumber(...keys.map((key) => record?.[key]));
-}
-
-function elapsedSeconds(record: FitRow, firstTimestamp: Date | null, index: number): number {
-  const direct = firstNumber(record.elapsed_time, record.timer_time);
-  if (direct !== null) return Math.max(0, direct);
-  const timestamp = normaliseDate(record.timestamp);
-  if (timestamp && firstTimestamp) return Math.max(0, (timestamp.getTime() - firstTimestamp.getTime()) / 1000);
-  return index;
-}
-
-function buildChannels(record: FitRow, session: FitRow): Partial<Record<AnalysisChannelKey, number>> {
-  const channels: Partial<Record<AnalysisChannelKey, number>> = {};
-  const latitude = semicirclesToDegrees(firstNumber(record.position_lat, record.latitude));
-  const longitude = semicirclesToDegrees(firstNumber(record.position_long, record.longitude));
-  const altitude = field(record, "enhanced_altitude", "altitude");
-  const grade = field(record, "grade");
-  const speed = field(record, "enhanced_speed", "speed");
-  const heartRate = field(record, "heart_rate");
-  const cadence = cadenceDisplay(firstNumber(record.cadence, record.running_cadence), session);
-  const power = field(record, "power");
-  const temperature = field(record, "temperature");
-  const verticalOscillation = field(record, "vertical_oscillation");
-  const groundContactTime = field(record, "ground_contact_time");
-  const respirationRate = field(record, "respiration_rate");
-
-  if (latitude !== null) channels.latitude = latitude;
-  if (longitude !== null) channels.longitude = longitude;
-  if (altitude !== null) channels.altitudeMeters = altitude;
-  if (grade !== null) channels.gradePercent = grade;
-  if (speed !== null) {
-    channels.speedMps = speed;
-    const pace = paceSecondsFromSpeed(speed, "metric");
-    if (pace !== null && pace < 3600) channels.paceSecondsPerKm = pace;
-  }
-  if (heartRate !== null) channels.heartRateBpm = heartRate;
-  if (cadence !== null) channels.cadenceSpm = cadence;
-  if (power !== null) channels.powerWatts = power;
-  if (temperature !== null) channels.temperatureC = temperature;
-  if (verticalOscillation !== null) channels.verticalOscillationMm = verticalOscillation;
-  if (groundContactTime !== null) channels.groundContactTimeMs = groundContactTime;
-  if (respirationRate !== null) channels.respirationRateBpm = respirationRate;
-  return channels;
-}
-
-function aerobicDecoupling(stream: AnalysisStreamPoint[]): number | null {
-  const usable = stream.filter((point) => {
-    const hr = point.channels.heartRateBpm;
-    const speed = point.channels.speedMps;
-    return typeof hr === "number" && hr > 0 && typeof speed === "number" && speed > 0;
+    for (const key of Object.keys(CHANNELS) as Channel[]) channels[key].push(round(values[key]));
   });
-  if (usable.length < 20) return null;
-  const midpoint = Math.floor(usable.length / 2);
-  const ratio = (rows: AnalysisStreamPoint[]) => {
-    const values = rows.map((point) => (point.channels.speedMps as number) / (point.channels.heartRateBpm as number));
-    return values.reduce((sum, value) => sum + value, 0) / values.length;
-  };
-  const first = ratio(usable.slice(0, midpoint));
-  const second = ratio(usable.slice(midpoint));
-  if (!first) return null;
-  return Number((((second - first) / first) * 100).toFixed(2));
-}
-
-function lapProjection(lap: FitRow, index: number, session: FitRow): AnalysisLapProjection {
-  return {
-    index,
-    startElapsedSeconds: firstNumber(lap.start_elapsed_time, lap.start_timer_time),
-    elapsedSeconds: firstNumber(lap.total_elapsed_time, lap.total_timer_time),
-    distanceMeters: firstNumber(lap.total_distance),
-    avgHeartRateBpm: firstNumber(lap.avg_heart_rate),
-    maxHeartRateBpm: firstNumber(lap.max_heart_rate),
-    avgSpeedMps: firstNumber(lap.enhanced_avg_speed, lap.avg_speed),
-    avgCadenceSpm: cadenceDisplay(firstNumber(lap.avg_cadence, lap.avg_running_cadence), session),
-  };
-}
-
-export function buildActivityAnalysisProjection(
-  source: ActivitySource,
-  decoded: DecodedFit,
-): ActivityAnalysisProjection {
-  const parsed = normaliseDecodedFit(decoded);
-  const session = getSession(parsed);
-  const records = getRecords(parsed);
-  const firstTimestamp = normaliseDate(records.find((record) => normaliseDate(record.timestamp))?.timestamp);
-  const stream = records.map((record, index): AnalysisStreamPoint => ({
-    index,
-    elapsedSeconds: elapsedSeconds(record, firstTimestamp, index),
-    distanceMeters: field(record, "distance"),
-    timestamp: iso(record.timestamp),
-    channels: buildChannels(record, session),
-  }));
-  const sourceChannels = [...new Set(stream.flatMap((point) => Object.keys(point.channels) as AnalysisChannelKey[]))].sort() as AnalysisChannelKey[];
-  const allChannels: AnalysisChannelKey[] = [
-    "latitude", "longitude", "altitudeMeters", "gradePercent", "speedMps", "paceSecondsPerKm",
-    "heartRateBpm", "cadenceSpm", "powerWatts", "temperatureC", "verticalOscillationMm",
-    "groundContactTimeMs", "respirationRateBpm",
-  ];
-  let duplicateElapsedPoints = 0;
-  let nonMonotonicDistancePoints = 0;
-  for (let index = 1; index < stream.length; index += 1) {
-    if (stream[index].elapsedSeconds === stream[index - 1].elapsedSeconds) duplicateElapsedPoints += 1;
-    const previous = stream[index - 1].distanceMeters;
-    const current = stream[index].distanceMeters;
-    if (previous !== null && current !== null && current < previous) nonMonotonicDistancePoints += 1;
+  // Distance-based elevation gradient over >=10m avoids amplifying one-second GPS noise.
+  let anchor = 0;
+  let derivedGrade = false;
+  for (let i = 1; i < rows.length; i++) {
+    if (breakBefore[i]) anchor = i;
+    const d = distance[i], d0 = distance[anchor], h = channels.altitude[i], h0 = channels.altitude[anchor];
+    if (d !== null && d0 !== null && d - d0 >= 10) {
+      if (channels.grade[i] === null && h !== null && h0 !== null) { channels.grade[i] = round(100 * (h - h0) / (d - d0)); derivedGrade = true; }
+      anchor = i;
+    }
   }
-
-  const projection: ActivityAnalysisProjection = {
-    projectionVersion: ACTIVITY_ANALYSIS_PROJECTION_VERSION,
-    algorithmVersion: ACTIVITY_ANALYSIS_ALGORITHM_VERSION,
-    generatedAt: null,
-    source: {
-      id: source.id,
-      name: source.name,
-      origin: source.origin,
-      ...(source.externalId ? { externalId: source.externalId } : {}),
-    },
-    activity: {
-      sport: typeof session.sport === "string" ? session.sport : null,
-      subSport: typeof session.sub_sport === "string" ? session.sub_sport : null,
-      startedAt: iso(session.start_time ?? firstTimestamp),
-      elapsedSeconds: firstNumber(session.total_elapsed_time, session.total_timer_time),
-      timerSeconds: firstNumber(session.total_timer_time),
-      distanceMeters: firstNumber(session.total_distance, stream.at(-1)?.distanceMeters),
-      avgHeartRateBpm: firstNumber(session.avg_heart_rate),
-      maxHeartRateBpm: firstNumber(session.max_heart_rate),
-      avgSpeedMps: firstNumber(session.enhanced_avg_speed, session.avg_speed),
-      maxSpeedMps: firstNumber(session.enhanced_max_speed, session.max_speed),
-      avgCadenceSpm: cadenceDisplay(firstNumber(session.avg_cadence, session.avg_running_cadence), session),
-      totalAscentMeters: firstNumber(session.total_ascent),
-      totalDescentMeters: firstNumber(session.total_descent),
-    },
-    sourceChannels,
-    stream,
-    laps: getLaps(parsed).map((lap, index) => lapProjection(lap, index, session)),
-    derived: {
-      intervals: { version: "1", items: [] },
-      zones: { version: "1", items: [] },
-      weather: { version: "1", status: "not_enriched", data: null },
-      bestEfforts: { version: "1", items: [] },
-      efficiency: { version: "1", aerobicDecouplingPercent: aerobicDecoupling(stream) },
-      dataQuality: {
-        version: "1",
-        recordCount: records.length,
-        gpsPointCount: stream.filter((point) => point.channels.latitude !== undefined && point.channels.longitude !== undefined).length,
-        missingChannels: allChannels.filter((key) => !sourceChannels.includes(key)),
-        duplicateElapsedPoints,
-        nonMonotonicDistancePoints,
-      },
-      plannedAlignment: { version: "1", status: "not_linked", data: null },
-    },
-    diagnostics: { streamPointCount: stream.length, approximateJsonBytes: 0 },
+  const missing: AnalysisProjection["quality"]["missing"] = {};
+  const available: Partial<Record<Channel, Values>> = {};
+  for (const key of Object.keys(CHANNELS) as Channel[]) {
+    const count = channels[key].filter(v => v === null).length;
+    if (count < rows.length) { available[key] = channels[key]; missing[key] = count; }
+  }
+  if (!latitude.some(v => v !== null)) flags.add("No GPS recorded; indoor analysis is available.");
+  if (!distance.some(v => v !== null)) flags.add("No recorded distance; use the time axis.");
+  if (!rows.length) flags.add("No sample streams recorded.");
+  const activity: ActivityListItem = context ?? {
+    id: source.id, title: String(session.sport_profile_name || source.name.replace(/\.fit$/i, "")), sport: String(session.sport || "other"), startedAt,
+    distance: summary.distance, duration: summary.timerTime,
   };
-  projection.diagnostics.approximateJsonBytes = JSON.stringify(projection).length;
-  return projection;
-}
-
-export function projectionCacheKey(sourceId: string): string {
-  return `${sourceId}:${ACTIVITY_ANALYSIS_PROJECTION_VERSION}:${ACTIVITY_ANALYSIS_ALGORITHM_VERSION}`;
-}
-
-export function selectProjectionRange(
-  projection: ActivityAnalysisProjection,
-  startIndex: number,
-  endIndex: number,
-): AnalysisStreamPoint[] {
-  const low = Math.max(0, Math.min(startIndex, endIndex));
-  const high = Math.min(projection.stream.length - 1, Math.max(startIndex, endIndex));
-  return projection.stream.slice(low, high + 1);
-}
-
-export function summarizeProjectionRange(points: AnalysisStreamPoint[]) {
-  const average = (key: AnalysisChannelKey): number | null => {
-    const values = points.map((point) => point.channels[key]).filter((value): value is number => typeof value === "number" && Number.isFinite(value));
-    return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
-  };
-  const start = points[0];
-  const end = points.at(-1);
+  let lapElapsed = 0;
+  const projectedLaps = laps.map((lap, i): AnalysisLap => {
+    const startTime = normaliseDate(lap.start_time)?.getTime();
+    const startSeconds = startTime !== undefined && firstTime !== undefined ? (startTime - firstTime) / 1000 : lapElapsed;
+    const duration = firstNumber(lap.total_elapsed_time, lap.total_timer_time);
+    lapElapsed = startSeconds + (duration ?? 0);
+    return { id: `lap-${i + 1}`, label: `Lap ${i + 1}`, start: nearestIndex(elapsed, startSeconds), end: nearestIndex(elapsed, lapElapsed), duration,
+      distance: safeNumber(lap.total_distance), heartRate: safeNumber(lap.avg_heart_rate) };
+  });
+  const zones = projectZones(zoneSets, activity.sport, activity.startedAt);
   return {
-    elapsedSeconds: start && end ? Math.max(0, end.elapsedSeconds - start.elapsedSeconds) : null,
-    distanceMeters: start?.distanceMeters !== null && start?.distanceMeters !== undefined && end?.distanceMeters !== null && end?.distanceMeters !== undefined
-      ? Math.max(0, end.distanceMeters - start.distanceMeters)
-      : null,
-    avgHeartRateBpm: average("heartRateBpm"),
-    avgSpeedMps: average("speedMps"),
-    avgCadenceSpm: average("cadenceSpm"),
-    avgPowerWatts: average("powerWatts"),
-    avgGradePercent: average("gradePercent"),
+    version: PROJECTION_VERSION, source: { id: source.id, name: source.name, origin: source.origin }, activity,
+    summary: { distance: summary.distance ?? activity.distance, duration: summary.timerTime ?? activity.duration,
+      elapsed: summary.elapsedTime ?? elapsed.at(-1) ?? null, speed: summary.avgSpeed,
+      heartRate: safeNumber(session.avg_heart_rate), cadence: summary.avgCadence, ascent: summary.totalAscent, calories: safeNumber(session.total_calories) },
+    streams: { elapsed, distance, latitude, longitude, breakBefore, channels: available, recordIndex: rows.map(r => r.index) },
+    laps: projectedLaps, zones,
+    provenance: { sourceFields: [...summary.recordFields].sort(), algorithms: { projection: PROJECTION_VERSION, ...(derivedGrade ? { grade: "elevation-delta-10m-v1" } : {}) } },
+    quality: { flags: [...flags], inputRecords: records.length, samples: rows.length, missing },
+    derived: {
+      intervals: { version: "1", status: "pending", sourceChannels: ["speed"] },
+      zones: { version: "1", status: Object.keys(zones).length ? "available" : "pending", sourceChannels: Object.keys(zones) as Channel[] },
+      weather: { version: "1", status: "pending", sourceChannels: [] },
+      bestEfforts: { version: "1", status: "pending", sourceChannels: ["speed"] },
+      efficiency: { version: "1", status: "pending", sourceChannels: ["heart_rate", "speed"] },
+      plannedActual: { version: "1", status: "pending", sourceChannels: [] },
+    },
   };
 }
+
+export function nearestIndex(values: number[], target: number): number {
+  if (!values.length) return 0;
+  let low = 0, high = values.length - 1;
+  while (low < high) { const mid = (low + high) >>> 1; if (values[mid] < target) low = mid + 1; else high = mid; }
+  return low > 0 && Math.abs(values[low - 1] - target) <= Math.abs(values[low] - target) ? low - 1 : low;
+}
+
+export interface ProjectionCacheEntry { fingerprint: string; projection: AnalysisProjection }

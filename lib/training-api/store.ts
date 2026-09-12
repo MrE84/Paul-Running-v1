@@ -11,6 +11,7 @@ import type {
 } from "../domain/contracts";
 import type { PlanApplication, ScheduledCalendarItem } from "../calendar/contracts";
 import type { IdempotencyRecord, TrainingApiSeed, TrainingApiStore } from "./contracts";
+import { activityListItem, type ProjectionCacheEntry } from "../activity-analysis/projection";
 
 const revisionKey = (id: string, version: number) => `${id}@${version}`;
 
@@ -26,6 +27,7 @@ export class InMemoryTrainingApiStore implements TrainingApiStore {
   private readonly planRevisions = new Map<string, TrainingPlanRevision>();
   private readonly calendar = new Map<string, ScheduledCalendarItem>();
   private readonly activities = new Map<string, Activity>();
+  private readonly analysisCache = new Map<string, ProjectionCacheEntry>();
   private readonly applications = new Map<string, PlanApplication>();
   private readonly audits: AuditEvent[] = [];
   private readonly idempotency = new Map<string, IdempotencyRecord>();
@@ -66,6 +68,14 @@ export class InMemoryTrainingApiStore implements TrainingApiStore {
   async savePlanApplication(application: PlanApplication, items: ScheduledCalendarItem[]) { this.applications.set(application.id, application); for (const item of items) this.calendar.set(item.id, item); }
   async listActivities(athleteId: string, limit = 20) { return [...this.activities.values()].filter((item) => item.athleteId === athleteId).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, Math.max(0, limit)); }
   async saveActivity(activity: Activity) { this.activities.set(activity.id, activity); }
+  async listActivitySummaries(athleteId: string, limit = 20) { return (await this.listActivities(athleteId, limit)).map(activityListItem); }
+  async getActivity(id: string) { return this.activities.get(id); }
+  async getAnalysisCache(id: string) { return this.analysisCache.get(id); }
+  async saveAnalysisCache(id: string, _athleteId: string, entry: ProjectionCacheEntry) {
+    this.analysisCache.delete(id);
+    this.analysisCache.set(id, entry);
+    if (this.analysisCache.size > 24) this.analysisCache.delete(this.analysisCache.keys().next().value!);
+  }
   async appendAuditEvent(event: AuditEvent) { this.audits.push(event); }
   async listAuditEvents() { return [...this.audits]; }
   async findIdempotency(key: string) { return this.idempotency.get(key); }
