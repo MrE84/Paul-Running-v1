@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
+import { activityListItem, type ActivityListItem, type ProjectionCacheEntry } from "../activity-analysis/projection";
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
 import type {
   Activity,
@@ -309,6 +310,22 @@ export class PostgresTrainingStore implements TrainingApiStore, IntegrationState
 
   async saveActivity(activity: Activity): Promise<void> {
     await this.write("activity", activity.id, activity.athleteId, activity, activity.startedAt);
+  }
+
+  async listActivitySummaries(athleteId: string, limit = 20): Promise<ActivityListItem[]> {
+    const result = await this.query<DocumentRow>(
+      `select payload - 'normalizedData' as payload from training_api_documents
+       where kind = 'activity' and athlete_id = $1
+       order by sort_key desc nulls last, entity_id asc limit $2`,
+      [athleteId, Math.max(0, Math.min(100, limit))],
+    );
+    return result.rows.map(row => activityListItem(row.payload as Omit<Activity, "normalizedData">));
+  }
+
+  async getActivity(id: string): Promise<Activity | undefined> { return this.read<Activity>("activity", id); }
+  async getAnalysisCache(id: string): Promise<ProjectionCacheEntry | undefined> { return this.read<ProjectionCacheEntry>("activity_analysis", id); }
+  async saveAnalysisCache(id: string, athleteId: string, entry: ProjectionCacheEntry): Promise<void> {
+    await this.write("activity_analysis", id, athleteId, entry);
   }
 
   async appendAuditEvent(event: AuditEvent): Promise<void> {

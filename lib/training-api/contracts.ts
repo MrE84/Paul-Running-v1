@@ -12,6 +12,7 @@ import type {
   WorkoutRevision,
   ZoneSet,
 } from "../domain/contracts";
+import type { ActivityListItem, ProjectionCacheEntry } from "../activity-analysis/projection";
 import type { PlanApplication, ScheduledCalendarItem } from "../calendar/contracts";
 
 export interface TrainingApiActor {
@@ -78,6 +79,10 @@ export interface TrainingApiStore {
   savePlanApplication(application: PlanApplication, items: ScheduledCalendarItem[]): Promise<void>;
 
   listActivities(athleteId: string, limit?: number): Promise<Activity[]>;
+  listActivitySummaries(athleteId: string, limit?: number): Promise<ActivityListItem[]>;
+  getActivity(id: string): Promise<Activity | undefined>;
+  getAnalysisCache(id: string): Promise<ProjectionCacheEntry | undefined>;
+  saveAnalysisCache(id: string, athleteId: string, entry: ProjectionCacheEntry): Promise<void>;
   saveActivity(activity: Activity): Promise<void>;
 
   appendAuditEvent(event: AuditEvent): Promise<void>;

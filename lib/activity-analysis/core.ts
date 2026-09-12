@@ -39,16 +39,97 @@ export function firstNumber(...values: unknown[]): number | null {
   return null;
 }
 
+function isRow(value: unknown): value is FitRow {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value) && !(value instanceof Date);
+}
+
+function rowsFrom(value: unknown): FitRow[] {
+  return Array.isArray(value) ? value.filter(isRow) : [];
+}
+
+function nestedActivity(parsed: DecodedFit): FitRow {
+  return isRow(parsed?.activity) ? parsed.activity : {};
+}
+
+function nestedSessions(parsed: DecodedFit): FitRow[] {
+  return rowsFrom(nestedActivity(parsed).sessions);
+}
+
+function nestedLaps(parsed: DecodedFit): FitRow[] {
+  const activity = nestedActivity(parsed);
+  const direct = rowsFrom(activity.laps);
+  if (direct.length) return direct;
+  return nestedSessions(parsed).flatMap((session) => rowsFrom(session.laps));
+}
+
+function nestedRecords(parsed: DecodedFit): FitRow[] {
+  const activity = nestedActivity(parsed);
+  const direct = rowsFrom(activity.records);
+  if (direct.length) return direct;
+  const fromLaps = nestedLaps(parsed).flatMap((lap) => rowsFrom(lap.records));
+  if (fromLaps.length) return fromLaps;
+  return nestedSessions(parsed).flatMap((session) => rowsFrom(session.records));
+}
+
+function chooseRows(value: unknown, fallbacks: FitRow[][]): FitRow[] {
+  const primary = rowsFrom(value);
+  const complete = Array.isArray(value) && primary.length === value.length;
+  if (complete && primary.length) return primary;
+  const fallback = fallbacks.find((rows) => rows.length);
+  return fallback ?? primary;
+}
+
+function flattenRow(row: FitRow, nestedKeys: string[] = []): FitRow {
+  const flat = { ...row };
+  nestedKeys.forEach((key) => delete flat[key]);
+  return flat;
+}
+
+/**
+ * Converts parser output into independent flat message lists.
+ *
+ * fit-file-parser's `both` mode shares objects between the root lists and the
+ * nested `activity` tree. Older persisted payloads were serialized with a
+ * global seen-set, which turned those shared objects into "[Circular]" at the
+ * root. Prefer valid flat lists, but recover missing/corrupt lists from the
+ * nested tree so existing activities remain readable.
+ */
+export function normaliseDecodedFit(parsed: DecodedFit): DecodedFit {
+  const input = isRow(parsed) ? parsed : {};
+  const sessions = chooseRows(input.sessions, [nestedSessions(input)]);
+  const laps = chooseRows(input.laps, [nestedLaps(input)]);
+  const records = chooseRows(input.records, [nestedRecords(input)]);
+
+  return {
+    ...input,
+    sessions: sessions.map((session) => flattenRow(session, ["laps"])),
+    laps: laps.map((lap) => flattenRow(lap, ["records", "lengths"])),
+    records: records.map((record) => flattenRow(record)),
+  };
+}
+
+function getSessionFromNormalised(parsed: DecodedFit): FitRow {
+  return rowsFrom(parsed.sessions)[0] ?? {};
+}
+
+function getRecordsFromNormalised(parsed: DecodedFit): FitRow[] {
+  return rowsFrom(parsed.records);
+}
+
+function getLapsFromNormalised(parsed: DecodedFit): FitRow[] {
+  return rowsFrom(parsed.laps);
+}
+
 export function getSession(parsed: DecodedFit): FitRow {
-  return parsed?.sessions?.[0] ?? parsed?.activity?.sessions?.[0] ?? {};
+  return getSessionFromNormalised(normaliseDecodedFit(parsed));
 }
 
 export function getRecords(parsed: DecodedFit): FitRow[] {
-  return Array.isArray(parsed?.records) ? parsed.records : [];
+  return getRecordsFromNormalised(normaliseDecodedFit(parsed));
 }
 
 export function getLaps(parsed: DecodedFit): FitRow[] {
-  return Array.isArray(parsed?.laps) ? parsed.laps : [];
+  return getLapsFromNormalised(normaliseDecodedFit(parsed));
 }
 
 export function isRunningSession(session: FitRow): boolean {
@@ -77,9 +158,10 @@ export function unionKeys(rows: FitRow[], exclude: string[] = []): string[] {
 }
 
 export function extractGroups(parsed: DecodedFit): DecodedGroup[] {
-  if (!parsed || typeof parsed !== "object") return [];
+  const normalised = normaliseDecodedFit(parsed);
+  if (!normalised || typeof normalised !== "object") return [];
   const priority = ["activity", "sessions", "laps", "records", "events", "device_infos", "sports", "time_in_zone"];
-  return Object.entries(parsed)
+  return Object.entries(normalised)
     .filter(([key]) => !["profileVersion", "protocolVersion"].includes(key))
     .map(([key, value]) => {
       const rows: FitRow[] = Array.isArray(value)
@@ -109,9 +191,9 @@ function getEndTime(parsed: DecodedFit, session: FitRow): unknown {
   return session?.timestamp ?? parsed?.activity?.timestamp ?? null;
 }
 
-export function buildSummary(parsed: DecodedFit): ActivitySummary {
-  const session = getSession(parsed);
-  const records = getRecords(parsed);
+function buildSummaryFromNormalised(parsed: DecodedFit): ActivitySummary {
+  const session = getSessionFromNormalised(parsed);
+  const records = getRecordsFromNormalised(parsed);
   const timerTime = firstNumber(session.total_timer_time, parsed?.activity?.total_timer_time);
   const elapsedTime = firstNumber(session.total_elapsed_time, timerTime);
   const distance = firstNumber(session.total_distance, records.at(-1)?.distance);
@@ -134,20 +216,25 @@ export function buildSummary(parsed: DecodedFit): ActivitySummary {
     totalAscent: firstNumber(session.total_ascent),
     totalDescent: firstNumber(session.total_descent),
     recordFields: unionKeys(records),
-    lapCount: getLaps(parsed).length,
+    lapCount: getLapsFromNormalised(parsed).length,
     recordCount: records.length,
     decodedSectionCount: extractGroups(parsed).length,
   };
 }
 
+export function buildSummary(parsed: DecodedFit): ActivitySummary {
+  return buildSummaryFromNormalised(normaliseDecodedFit(parsed));
+}
+
 export function analyseDecodedFit(source: ActivitySource, parsed: DecodedFit): AnalysedActivity {
+  const normalised = normaliseDecodedFit(parsed);
   return {
     source,
-    parsed,
-    summary: buildSummary(parsed),
-    records: getRecords(parsed),
-    laps: getLaps(parsed),
-    groups: extractGroups(parsed),
+    parsed: normalised,
+    summary: buildSummaryFromNormalised(normalised),
+    records: getRecordsFromNormalised(normalised),
+    laps: getLapsFromNormalised(normalised),
+    groups: extractGroups(normalised),
   };
 }
 
@@ -266,15 +353,24 @@ export function buildRoute(parsed: DecodedFit): RoutePoint[] {
     .filter((point): point is RoutePoint => point !== null);
 }
 
-export function serialisable(value: unknown, seen = new WeakSet<object>()): unknown {
-  if (value instanceof Date) return value.toISOString();
-  if (value && typeof value === "object") {
-    if (seen.has(value)) return "[Circular]";
-    seen.add(value);
-    if (Array.isArray(value)) return value.map((item) => serialisable(item, seen));
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, serialisable(item, seen)]));
+export function serialisable(value: unknown): unknown {
+  const ancestors = new WeakSet<object>();
+
+  function visit(current: unknown): unknown {
+    if (current instanceof Date) return current.toISOString();
+    if (current && typeof current === "object") {
+      if (ancestors.has(current)) return "[Circular]";
+      ancestors.add(current);
+      const result = Array.isArray(current)
+        ? current.map((item) => visit(item))
+        : Object.fromEntries(Object.entries(current).map(([key, item]) => [key, visit(item)]));
+      ancestors.delete(current);
+      return result;
+    }
+    return current;
   }
-  return value;
+
+  return visit(value);
 }
 
 function csvEscape(value: unknown): string {

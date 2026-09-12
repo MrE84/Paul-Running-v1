@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ProductionWorkoutPublishError } from "../integrations/production-publisher";
 import type { TrainingApiActor } from "./contracts";
 import { getTrainingApiRuntime } from "./runtime";
+import { ANALYSIS_COOKIE, validBrowserSession } from "./browser-session";
 import {
   TrainingApiError,
   type ApplyPlanApiInput,
@@ -28,8 +29,12 @@ function authenticate(request: NextRequest): TrainingApiActor {
   }
   const header = request.headers.get("authorization") ?? "";
   const supplied = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!supplied || !secureEqual(supplied, configured)) {
+  const browserSession = !header && validBrowserSession(request.cookies.get(ANALYSIS_COOKIE)?.value, configured);
+  if (!browserSession && (!supplied || !secureEqual(supplied, configured))) {
     throw new TrainingApiError(401, "UNAUTHORIZED", "A valid Bearer token is required.");
+  }
+  if (browserSession && !["GET", "HEAD"].includes(request.method) && request.headers.get("origin") !== request.nextUrl.origin) {
+    throw new TrainingApiError(403, "FORBIDDEN", "Same-origin request required.");
   }
   return {
     type: "ai_client",
@@ -40,7 +45,7 @@ function authenticate(request: NextRequest): TrainingApiActor {
 }
 
 function ok(data: unknown, status = 200) {
-  return NextResponse.json({ data }, { status });
+  return NextResponse.json({ data }, { status, headers: { "Cache-Control": "private, no-store", "Vary": "Cookie, Authorization" } });
 }
 
 function errorResponse(error: unknown, requestId?: string) {
@@ -105,6 +110,9 @@ export async function handleTrainingApiRequest(
           "GET /api/v1/zones",
           "GET /api/v1/calendar-items",
           "GET /api/v1/activities",
+          "GET /api/v1/activities?view=summary",
+          "GET /api/v1/activities/{id}/analysis",
+          "GET /api/v1/activities/{id}/raw",
           "POST /api/v1/activities/import",
           "GET|POST /api/v1/workouts",
           "GET|PATCH /api/v1/workouts/{id}",
@@ -159,7 +167,13 @@ export async function handleTrainingApiRequest(
     if (method === "GET" && path.length === 1 && path[0] === "activities") {
       const rawLimit = Number(request.nextUrl.searchParams.get("limit") ?? "20");
       const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(0, Math.floor(rawLimit))) : 20;
-      return ok(await service.listActivities(athleteId, limit));
+      return ok(request.nextUrl.searchParams.get("view") === "summary"
+        ? await service.listActivitySummaries(athleteId, limit)
+        : await service.listActivities(athleteId, limit));
+    }
+    if (method === "GET" && path.length === 3 && path[0] === "activities") {
+      if (path[2] === "analysis") return ok(await service.getActivityAnalysis(athleteId, path[1], request.nextUrl.searchParams.get("recompute") === "1"));
+      if (path[2] === "raw") return ok((await service.getActivity(athleteId, path[1])).normalizedData);
     }
     if (method === "POST" && path.length === 2 && path[0] === "activities" && path[1] === "import") {
       if (!actor.idempotencyKey) {

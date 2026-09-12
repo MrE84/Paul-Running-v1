@@ -7,7 +7,9 @@ import {
   buildRoute,
   buildSummary,
   extractGroups,
+  normaliseDecodedFit,
   rowsToCsv,
+  serialisable,
 } from "./core";
 
 const parsed = {
@@ -72,6 +74,52 @@ const parsed = {
   device_infos: [{ manufacturer: "garmin", product_name: "fenix 5" }],
 };
 
+const legacyPersistedBothModeOutput = {
+  protocolVersion: 2,
+  profileVersion: 2110,
+  activity: {
+    sessions: [{
+      sport: "running",
+      sub_sport: "road",
+      start_time: "2026-09-05T08:33:41.000Z",
+      timestamp: "2026-09-05T09:00:41.000Z",
+      total_timer_time: 1620,
+      total_elapsed_time: 1650,
+      total_distance: 5000,
+      enhanced_avg_speed: 5000 / 1620,
+      avg_heart_rate: 154,
+      max_heart_rate: 178,
+      avg_cadence: 86,
+      laps: [{
+        start_time: "2026-09-05T08:33:41.000Z",
+        total_timer_time: 300,
+        total_distance: 1000,
+        avg_heart_rate: 148,
+        records: [{
+          timestamp: "2026-09-05T08:33:41.000Z",
+          elapsed_time: 0,
+          distance: 0,
+          heart_rate: 140,
+          enhanced_speed: 2.8,
+          position_lat: 618_000_000,
+          position_long: -25_000_000,
+        }, {
+          timestamp: "2026-09-05T08:38:41.000Z",
+          elapsed_time: 300,
+          distance: 1000,
+          heart_rate: 155,
+          enhanced_speed: 3.3,
+          position_lat: 618_020_000,
+          position_long: -24_980_000,
+        }],
+      }],
+    }],
+  },
+  sessions: ["[Circular]"],
+  laps: ["[Circular]"],
+  records: ["[Circular]", "[Circular]"],
+};
+
 test("summary preserves FIT Explorer running metrics and doubles running cadence", () => {
   const summary = buildSummary(parsed);
   assert.equal(summary.distance, 5000);
@@ -124,4 +172,39 @@ test("records and laps can still be exported as CSV", () => {
   const csv = rowsToCsv(parsed.laps);
   assert.match(csv, /start_time,total_timer_time,total_distance,avg_heart_rate/);
   assert.match(csv, /2026-09-05T08:33:41.000Z,300,1000,148/);
+});
+
+test("normalises legacy mode-both persistence from nested activity data", () => {
+  const normalised = normaliseDecodedFit(legacyPersistedBothModeOutput);
+  const analysis = analyseDecodedFit({ id: "legacy", name: "legacy.fit", origin: "backend" }, legacyPersistedBothModeOutput);
+
+  assert.equal(normalised.sessions[0].sport, "running");
+  assert.equal(normalised.laps[0].total_distance, 1000);
+  assert.equal(normalised.records[0].heart_rate, 140);
+  assert.deepEqual(analysis.summary.recordFields.sort(), [
+    "distance",
+    "elapsed_time",
+    "enhanced_speed",
+    "heart_rate",
+    "position_lat",
+    "position_long",
+    "timestamp",
+  ]);
+  assert.equal(analysis.summary.distance, 5000);
+  assert.equal(buildChartSeries(analysis.parsed, "heart_rate", "metric").length, 2);
+  assert.equal(buildRoute(analysis.parsed).length, 2);
+});
+
+test("serialises shared mode-both references without mistaking them for cycles", () => {
+  const session = { sport: "running", laps: [] as Record<string, unknown>[] };
+  const lap = { total_distance: 1000, records: [] as Record<string, unknown>[] };
+  const record = { timestamp: "2026-09-05T08:33:41.000Z", heart_rate: 140 };
+  lap.records.push(record);
+  session.laps.push(lap);
+  const both = { activity: { sessions: [session] }, sessions: [session], laps: [lap], records: [record] };
+  const persisted = serialisable(both) as typeof both;
+
+  assert.equal((persisted.records[0] as Record<string, unknown>).heart_rate, 140);
+  assert.equal((persisted.laps[0] as Record<string, unknown>).total_distance, 1000);
+  assert.equal((persisted.sessions[0] as Record<string, unknown>).sport, "running");
 });
