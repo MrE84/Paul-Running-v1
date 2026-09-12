@@ -48,8 +48,8 @@ test("race-week control-surface fixtures are Garmin-safe and omit Wednesday", ()
 
 test("route-aware race fixture is 21.1 km and centres exactly on 1:50:00", () => {
   const summary = summarizeWorkout(asRevision(2));
-  assert.equal(summary.totalDistanceMeters?.minimum, 21100);
-  assert.equal(summary.totalDistanceMeters?.maximum, 21100);
+  assert.equal(summary.totalDistanceMeters?.min, 21100);
+  assert.equal(summary.totalDistanceMeters?.max, 21100);
   assert.equal(CHELTENHAM_RACE_CENTER_SECONDS, 6600);
 });
 
