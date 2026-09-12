@@ -2,7 +2,7 @@ import Link from "next/link";
 
 const modules = [
   ["Athlete Profile", "LT1, LT2, zones, PBs and training capacities", null],
-  ["Training Calendar", "Planned and completed sessions with explicit dates and times", null],
+  ["Training Calendar", "Planned sessions, sync state and protected Garmin delivery controls", "/training-calendar"],
   ["Workout Builder", "Structured intervals, threshold, easy, long-run and stride sessions", null],
   ["Training Plans", "Build and apply multi-week plans with versioned changes", null],
   ["QA Engine", "Validate dates, targets, repeats, pace maths and Garmin-safe structure", null],
@@ -38,7 +38,7 @@ export default function Home() {
       <section className="status">
         <div>
           <span className="statusLabel">Current phase</span>
-          <strong>Training &amp; Analysis Core</strong>
+          <strong>AI Coaching &amp; Automation</strong>
         </div>
         <div>
           <span className="statusLabel">Source of truth</span>
