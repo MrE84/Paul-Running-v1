@@ -192,7 +192,7 @@ export class TrainingApiService {
   }
   async getActivityWeather(athleteId: string, id: string, refresh = false, fetchImpl: typeof fetch = fetch) {
     const projection = await this.getActivityAnalysis(athleteId, id);
-    if (!refresh && projection.weather) return projection;
+    if (!refresh && projection.weather && projection.weather.status !== "failed") return projection;
     const weather = await fetchHistoricalWeather(projection, fetchImpl);
     const enriched = applyWeatherChannels(projection, weather);
     enriched.derived = {

@@ -72,6 +72,18 @@ function maximum(values: Array<number | null>): number | null {
   return valid.length ? Math.max(...valid) : null;
 }
 
+function precipitationTotal(samples: WeatherSample[]): number | null {
+  const byObservation = new Map<string, number[]>();
+  for (const sample of samples) {
+    if (!finite(sample.precipitationMm)) continue;
+    const values = byObservation.get(sample.observedAt) ?? [];
+    values.push(sample.precipitationMm);
+    byObservation.set(sample.observedAt, values);
+  }
+  const hourlyRouteMeans = [...byObservation.values()].map(values => values.reduce((sum, value) => sum + value, 0) / values.length);
+  return hourlyRouteMeans.length ? hourlyRouteMeans.reduce((sum, value) => sum + value, 0) : null;
+}
+
 export function travelBearing(from: { latitude: number; longitude: number }, to: { latitude: number; longitude: number }): number {
   const radians = Math.PI / 180;
   const latitude1 = from.latitude * radians;
@@ -196,7 +208,7 @@ export async function fetchHistoricalWeather(projection: AnalysisProjection, fet
         temperatureC: mean(samples.map(sample => sample.temperatureC)),
         apparentTemperatureC: mean(samples.map(sample => sample.apparentTemperatureC)),
         relativeHumidityPercent: mean(samples.map(sample => sample.relativeHumidityPercent)),
-        precipitationMm: samples.reduce((sum, sample) => sum + (sample.precipitationMm ?? 0), 0),
+        precipitationMm: precipitationTotal(samples),
         windSpeedMps: mean(samples.map(sample => sample.windSpeedMps)),
         windGustMps: maximum(samples.map(sample => sample.windGustMps)),
         headwindMps: mean(samples.map(sample => sample.headwindMps)),

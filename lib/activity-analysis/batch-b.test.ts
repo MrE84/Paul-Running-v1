@@ -121,6 +121,8 @@ test("efficiency reports speed-to-HR drift for whole and selected ranges", () =>
   assert.ok(whole?.speedPerHeartBeat);
   assert.ok(Number.isFinite(whole?.aerobicDecouplingPercent));
   assert.deepEqual(selected?.range, [300, 1200]);
+  assert.equal(efficiencyAnalysis(activity, [300, 300]), null);
+  assert.equal(efficiencyAnalysis(activity, [300, 301]), null);
 });
 
 test("terrain, internal load and peak signals are transparent and range-aware", () => {
@@ -152,7 +154,7 @@ test("historical route weather is versioned and projected into separate ambient 
     hourly: {
       time: ["2026-09-12T08:00", "2026-09-12T09:00"],
       temperature_2m: [14, 15], apparent_temperature: [13, 14], relative_humidity_2m: [72, 68],
-      dew_point_2m: [9, 9], precipitation: [0, 0.2], surface_pressure: [1008, 1009],
+      dew_point_2m: [9, 9], precipitation: [0.1, 0.2], surface_pressure: [1008, 1009],
       cloud_cover: [60, 50], wind_speed_10m: [4, 5], wind_gusts_10m: [7, 8], wind_direction_10m: [180, 190],
     },
   }), { status: 200, headers: { "Content-Type": "application/json" } });
@@ -160,6 +162,7 @@ test("historical route weather is versioned and projected into separate ambient 
   assert.equal(weather.status, "available");
   assert.ok(weather.samples.length > 1);
   assert.equal(weather.summary.temperatureC, 14);
+  assert.equal(weather.summary.precipitationMm, 0.1);
   const enriched = applyWeatherChannels(activity, weather);
   assert.equal(enriched.weather?.version, weather.version);
   assert.equal(enriched.streams.channels.ambient_temperature?.[0], 14);

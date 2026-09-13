@@ -39,15 +39,15 @@ function download(name: string, rows: unknown[][]) {
   URL.revokeObjectURL(url);
 }
 
-function intervalRows(intervals: AnalysisInterval[]) {
+function intervalRows(projection: AnalysisProjection, intervals: AnalysisInterval[]) {
   return [
     ["label", "source", "phase", "start_seconds", "end_seconds", "duration_seconds", "distance_meters", "pace_seconds_per_km", "average_hr_bpm", "average_cadence_spm", "average_power_watts", "elevation_gain_meters", "target", "compliance_percent"],
     ...intervals.map(interval => [
       interval.label,
       interval.source,
       interval.phase,
-      interval.start,
-      interval.end,
+      projection.streams.elapsed[interval.start] ?? "",
+      projection.streams.elapsed[interval.end] ?? "",
       interval.metrics.durationSeconds,
       interval.metrics.distanceMeters,
       interval.metrics.averagePaceSecPerKm,
@@ -83,7 +83,7 @@ export function IntervalsPanel({
       <div><span>WORKOUT INTELLIGENCE</span><h3>Intervals, laps and planned execution</h3><p>Recorded, detected, planned and custom segments share the same chart and map selection.</p></div>
       <div className={styles.actions}>
         <button disabled={!selection || selection[0] === selection[1]} onClick={() => selection && setCustom(existing => [...existing, customInterval(projection, selection, existing.length + 1)])}>Save selected interval</button>
-        <button disabled={!visible.length} onClick={() => download(`${projection.activity.id}-intervals.csv`, intervalRows(visible))}>Export CSV</button>
+        <button disabled={!visible.length} onClick={() => download(`${projection.activity.id}-intervals.csv`, intervalRows(projection, visible))}>Export CSV</button>
       </div>
     </div>
     {intelligence.plannedActual && <div className={styles.summaryStrip}>
@@ -133,15 +133,19 @@ function DensityHeatmap({ cells, x, y, units, onSelect }: { cells: HeatmapCell[]
 export function ZonesPanel({ projection, selection, units, onSelect }: { projection: AnalysisProjection; selection: IndexRange | null; units: UnitSystem; onSelect: (range: IndexRange) => void }) {
   const available = Object.keys(projection.streams.channels) as Channel[];
   const zoned = Object.keys(projection.zones) as Channel[];
-  const [channel, setChannel] = useState<Channel>(zoned.includes("heart_rate") ? "heart_rate" : zoned[0] ?? available[0]);
-  const [scatterX, setScatterX] = useState<Channel>(available.includes("heart_rate") ? "heart_rate" : available[0]);
-  const [scatterY, setScatterY] = useState<Channel>(available.includes("pace") ? "pace" : available[1] ?? available[0]);
+  const [channel, setChannel] = useState<Channel>(zoned.includes("heart_rate") ? "heart_rate" : zoned[0] ?? available[0] ?? "heart_rate");
+  const [scatterX, setScatterX] = useState<Channel>(available.includes("heart_rate") ? "heart_rate" : available[0] ?? "heart_rate");
+  const [scatterY, setScatterY] = useState<Channel>(available.includes("pace") ? "pace" : available[1] ?? available[0] ?? "heart_rate");
   const [relationshipView, setRelationshipView] = useState<"scatter" | "heatmap">("scatter");
   const distribution = useMemo(() => zoneDistribution(projection, channel, selection), [projection, channel, selection]);
   const bins = useMemo(() => histogram(projection, channel, selection), [projection, channel, selection]);
   const scatter = useMemo(() => scatterSamples(projection, scatterX, scatterY, selection), [projection, scatterX, scatterY, selection]);
   const heatmap = useMemo(() => densityHeatmap(scatter), [scatter]);
   const tallest = Math.max(1, ...bins.map(bin => bin.count));
+  if (!available.length) return <section className={styles.panel}>
+    <div className={styles.heading}><div><span>DISTRIBUTIONS</span><h3>Zones, histogram and relationships</h3><p>No sampled channels were present in this activity.</p></div></div>
+    <p className={styles.empty}>This activity has summary information only. Recover or re-import its detailed FIT data to use charts and distributions.</p>
+  </section>;
   return <section className={styles.panel}>
     <div className={styles.heading}><div><span>DISTRIBUTIONS</span><h3>Zones, histogram and relationships</h3><p>{selection ? "Calculated from the selected range." : "Calculated from the complete activity."} Missing streams remain hidden.</p></div></div>
     <div className={styles.filters}><label>Distribution channel<select value={channel} onChange={event => setChannel(event.target.value as Channel)}>{available.map(key => <option key={key} value={key}>{CHANNELS[key].label}</option>)}</select></label></div>
