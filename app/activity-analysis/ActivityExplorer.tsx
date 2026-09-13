@@ -38,13 +38,15 @@ type StoredActivity = {
 
 type ActivityImportResult = {
   imported: number;
+  repaired: number;
+  alreadyComplete: number;
   alreadyImported: number;
   failed: number;
   pagesProcessed: number;
   items: Array<{
     externalId: string;
     activityId?: string;
-    status: "imported" | "already_imported" | "failed";
+    status: "imported" | "repaired" | "already_complete" | "failed";
     errorMessage?: string;
   }>;
 };
@@ -477,7 +479,7 @@ export default function ActivityExplorer() {
         .filter(Boolean)
         .join(" · ");
       setSyncMessage(
-        `Intervals.icu sync complete: ${result.imported} new, ${result.alreadyImported} already present, ${result.failed} failed. ${loaded.length} canonical activities loaded.${failureDetails ? ` ${failureDetails}` : ""}`,
+        `Intervals.icu sync complete: ${result.imported} new, ${result.repaired} repaired, ${result.alreadyComplete} already complete, ${result.failed} failed. ${loaded.length} canonical activities loaded.${failureDetails ? ` ${failureDetails}` : ""}`,
       );
     } catch (error) {
       setSyncMessage(errorText(error));

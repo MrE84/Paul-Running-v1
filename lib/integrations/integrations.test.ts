@@ -337,7 +337,7 @@ test("completed activities are listed, fetched, ingested locally and deduplicate
   const first = await coordinator.importNextPage();
   const second = await coordinator.importNextPage();
   assert.equal(first.items[0]?.status, "imported");
-  assert.equal(second.items[0]?.status, "already_imported");
+  assert.equal(second.items[0]?.status, "already_complete");
   assert.equal(fetchDetailCalls, 1);
   assert.equal(stored.length, 1);
   const reference = await state.findExternalReferenceByExternalId(

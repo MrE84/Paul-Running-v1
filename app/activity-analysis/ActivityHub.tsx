@@ -7,7 +7,20 @@ import type { ActivityListItem } from "../../lib/activity-analysis/projection";
 import styles from "./activity-hub.module.css";
 
 type ApiEnvelope<T> = { data?: T; error?: { message?: string } };
-type ActivityImportResult = { imported: number; alreadyImported: number; failed: number };
+type ActivityImportResult = {
+  imported: number;
+  repaired: number;
+  alreadyComplete: number;
+  failed: number;
+  items: Array<{ externalId: string; status: "imported" | "repaired" | "already_complete" | "failed"; errorMessage?: string }>;
+};
+
+const readinessLabel = {
+  complete: "Analysis ready",
+  partial: "Partial FIT",
+  summary_only: "Summary only",
+  invalid: "Repair needed",
+} as const;
 
 function dateLabel(value: string | null): string {
   if (!value) return "Date unavailable";
@@ -74,21 +87,22 @@ export default function ActivityHub() {
     try {
       const rows = await api<ActivityListItem[]>("activities?view=summary&limit=40");
       setActivities(rows);
-      if (announce) setMessage(rows.length ? `${rows.length} recent activities ready. Raw FIT data has not been downloaded.` : "No canonical activities are stored yet.");
+      if (announce) setMessage(rows.length ? `${rows.length} recent activities loaded. Readiness is calculated without sending raw FIT payloads.` : "No canonical activities are stored yet.");
     } catch (error) {
       setAuthenticated(false);
       setMessage(error instanceof Error ? error.message : String(error));
     } finally { setBusy(false); }
   }
 
-  async function sync() {
+  async function runImport(operation: "import" | "repair") {
     setBusy(true);
     try {
-      const requestKey = typeof crypto !== "undefined" && "randomUUID" in crypto ? `activity-import-${crypto.randomUUID()}` : `activity-import-${Date.now()}`;
-      const result = await api<ActivityImportResult>("activities/import", { method: "POST", headers: { "Idempotency-Key": requestKey }, body: JSON.stringify({ maxPages: 1 }) });
+      const requestKey = typeof crypto !== "undefined" && "randomUUID" in crypto ? `activity-${operation}-${crypto.randomUUID()}` : `activity-${operation}-${Date.now()}`;
+      const result = await api<ActivityImportResult>(`activities/${operation}`, { method: "POST", headers: { "Idempotency-Key": requestKey }, body: JSON.stringify({ maxPages: operation === "repair" ? 3 : 1 }) });
       const rows = await api<ActivityListItem[]>("activities?view=summary&limit=40");
       setActivities(rows);
-      setMessage(`Sync complete: ${result.imported} new · ${result.alreadyImported} existing · ${result.failed} failed.`);
+      const failures = result.items.filter(item => item.status === "failed").slice(0, 3).map(item => `${item.externalId}: ${item.errorMessage ?? "repair failed"}`);
+      setMessage(`${operation === "repair" ? "Repair" : "Sync"} complete: ${result.imported} new · ${result.repaired} repaired · ${result.alreadyComplete} already complete · ${result.failed} failed.${failures.length ? ` ${failures.join(" · ")}` : ""}`);
     } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
     finally { setBusy(false); }
   }
@@ -103,6 +117,7 @@ export default function ActivityHub() {
     if (!needle) return activities;
     return activities.filter(item => [item.title, item.sport, item.startedAt].filter(Boolean).some(value => String(value).toLowerCase().includes(needle)));
   }, [activities, query]);
+  const repairable = activities.filter(item => item.readiness && item.readiness.state !== "complete").length;
 
   return <main className={styles.page}>
     <header className={styles.header}>
@@ -117,7 +132,7 @@ export default function ActivityHub() {
     <section className={styles.authCard}>
       <div><strong>Canonical Garmin library</strong><span>{authenticated ? "Secure HTTP-only activity session active. The API token is not stored in browser JavaScript storage." : "Authenticate once for this activity-analysis session."}</span></div>
       <div className={styles.authControls}>
-        {!authenticated ? <><input type="password" value={token} placeholder="PAUL_RUNNING_API_TOKEN" autoComplete="off" onChange={event => setToken(event.target.value)} onKeyDown={event => { if (event.key === "Enter") void establishSession(); }} /><button disabled={busy || !token.trim()} onClick={() => void establishSession()}>{busy ? "Opening…" : "Open library"}</button></> : <><button disabled={busy} onClick={() => void loadActivities()}>{busy ? "Working…" : "Refresh"}</button><button disabled={busy} onClick={() => void sync()}>Sync latest</button><button disabled={busy} onClick={() => void signOut()}>Close session</button></>}
+        {!authenticated ? <><input type="password" value={token} placeholder="PAUL_RUNNING_API_TOKEN" autoComplete="off" onChange={event => setToken(event.target.value)} onKeyDown={event => { if (event.key === "Enter") void establishSession(); }} /><button disabled={busy || !token.trim()} onClick={() => void establishSession()}>{busy ? "Opening…" : "Open library"}</button></> : <><button disabled={busy} onClick={() => void loadActivities()}>{busy ? "Working…" : "Refresh"}</button><button disabled={busy} onClick={() => void runImport("import")}>Sync latest</button><button disabled={busy || repairable === 0} title={repairable ? `Repair ${repairable} incomplete activities from the provider` : "No incomplete activities in this list"} onClick={() => void runImport("repair")}>Repair incomplete{repairable ? ` (${repairable})` : ""}</button><button disabled={busy} onClick={() => void signOut()}>Close session</button></>}
       </div>
       <small>{message}</small>
     </section>
@@ -127,8 +142,9 @@ export default function ActivityHub() {
       {!filtered.length ? <div className={styles.empty}>{authenticated ? "No matching recent activities." : "Open the canonical library, or use the local FIT explorer without signing in."}</div> : <div className={styles.grid}>{filtered.map(item => {
         const speed = item.distance !== null && item.duration ? item.distance / item.duration : null;
         return <Link key={item.id} href={`/activity-analysis/${encodeURIComponent(item.id)}`} className={styles.activityCard}>
-          <div className={styles.activityTop}><div><span>{dateLabel(item.startedAt)}</span><h3>{item.title}</h3></div><span className={styles.open}>Open →</span></div>
+          <div className={styles.activityTop}><div><span>{dateLabel(item.startedAt)}</span><h3>{item.title}</h3></div><div className={styles.cardStatus}><span className={styles.readiness} data-state={item.readiness?.state ?? "invalid"}>{readinessLabel[item.readiness?.state ?? "invalid"]}</span><span className={styles.open}>Open →</span></div></div>
           <div className={styles.metrics}><span><small>Distance</small><strong>{formatDistance(item.distance, "metric")}</strong></span><span><small>Time</small><strong>{formatDuration(item.duration)}</strong></span><span><small>Avg pace</small><strong>{formatPace(speed, "metric")}</strong></span><span><small>Sport</small><strong>{item.sport.replaceAll("_", " ")}</strong></span></div>
+          {item.readiness && <p className={styles.readinessDetail}>{item.readiness.recordCount.toLocaleString()} records · {item.readiness.lapCount.toLocaleString()} laps · {item.readiness.gpsPointCount.toLocaleString()} GPS points · {item.readiness.channelCount.toLocaleString()} channels · {item.readiness.rawSectionCount.toLocaleString()} FIT sections · source hash {item.readiness.sourceFileHashAvailable ? "recorded" : "missing"}{item.readiness.reasons[0] ? ` · ${item.readiness.reasons[0]}` : ""}</p>}
         </Link>;
       })}</div>}
     </section>

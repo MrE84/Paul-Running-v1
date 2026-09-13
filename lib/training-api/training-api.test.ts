@@ -155,6 +155,10 @@ test("activity reads are latest-first and bounded", async () => {
   ];
   const { service } = harness({ activities });
   assert.deepEqual((await service.listActivities(athlete.id, 2)).map((item) => item.id), ["a3", "a2"]);
+  const summaries = await service.listActivitySummaries(athlete.id, 2);
+  assert.deepEqual(summaries.map((item) => item.id), ["a3", "a2"]);
+  assert.equal(summaries[0].readiness?.state, "invalid");
+  assert.equal("normalizedData" in summaries[0], false);
   const olderWindow = await service.getActivityTrends(athlete.id, {
     from: "2026-09-01T00:00:00.000Z",
     to: "2026-09-01T23:59:59.999Z",

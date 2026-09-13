@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { gunzipSync } from "node:zlib";
 import {
   analyseFitBytes,
+  assessActivityData,
   normaliseDate,
   safeNumber,
   serialisable,
@@ -38,6 +39,9 @@ export interface ProductionActivityImporterConfig {
 export interface ProductionActivityImportResult extends ActivityImportBatchResult {
   pagesProcessed: number;
   imported: number;
+  repaired: number;
+  alreadyComplete: number;
+  /** Compatibility alias for clients created before completeness-aware imports. */
   alreadyImported: number;
   failed: number;
 }
@@ -58,6 +62,10 @@ function asRecord(value: unknown): Record<string, unknown> {
 function optionalNumber(value: unknown): number | undefined {
   const number = safeNumber(value);
   return number === null ? undefined : number;
+}
+
+class ActivityImportValidationError extends Error {
+  override name = "ACTIVITY_IMPORT_INVALID_FIT";
 }
 
 export class ProductionActivityImporter {
@@ -99,7 +107,14 @@ export class ProductionActivityImporter {
     });
 
     const sink: ActivityImportSink = {
-      ingest: async ({ athleteId, provider, activity }) => {
+      inspectExisting: async (activityId) => {
+        const existing = await this.store.getActivity(activityId);
+        if (!existing) return { needsRepair: true, state: "invalid" };
+        const readiness = assessActivityData(existing);
+        return { needsRepair: readiness.state !== "complete", state: readiness.state };
+      },
+      ingest: async ({ athleteId, provider, activity, existingActivityId }) => {
+        const existing = existingActivityId ? await this.store.getActivity(existingActivityId) : undefined;
         const rawFile = await this.client.downloadActivityFile(activity.externalId);
         const decodedBytes = fitBytes(rawFile.data);
         const analysed = await this.analyseFit(decodedBytes, activity);
@@ -108,36 +123,54 @@ export class ProductionActivityImporter {
         const endedAt = normaliseDate(analysed.summary.end)?.toISOString();
         const session = analysed.summary.session;
         const avgSpeed = analysed.summary.avgSpeed;
+        const avgHr = optionalNumber(session.avg_heart_rate);
+        const maxHr = optionalNumber(session.max_heart_rate);
         const normalizedData = asRecord(serialisable(analysed.parsed));
+        const summary: Activity["summary"] = {
+          ...(existing?.summary ?? {}),
+          ...(analysed.summary.timerTime === null ? {} : { durationSeconds: analysed.summary.timerTime }),
+          ...(analysed.summary.distance === null ? {} : { distanceMeters: analysed.summary.distance }),
+          ...(avgHr === undefined ? {} : { avgHrBpm: avgHr }),
+          ...(maxHr === undefined ? {} : { maxHrBpm: maxHr }),
+          ...(avgSpeed === null || avgSpeed <= 0 ? {} : { avgPaceSecPerKm: 1000 / avgSpeed }),
+          ...(analysed.summary.avgCadence === null ? {} : { avgCadenceSpm: analysed.summary.avgCadence }),
+          ...(analysed.summary.totalAscent === null ? {} : { elevationGainMeters: analysed.summary.totalAscent }),
+        };
 
         const persisted: Activity = {
-          id: this.runtime.idFactory(),
+          id: existingActivityId ?? this.runtime.idFactory(),
           athleteId,
+          ...(existing?.calendarItemId ? { calendarItemId: existing.calendarItemId } : {}),
           sport: activity.sport,
           startedAt,
-          endedAt,
-          summary: {
-            durationSeconds: analysed.summary.timerTime ?? undefined,
-            distanceMeters: analysed.summary.distance ?? undefined,
-            avgHrBpm: optionalNumber(session.avg_heart_rate),
-            maxHrBpm: optionalNumber(session.max_heart_rate),
-            avgPaceSecPerKm: avgSpeed !== null && avgSpeed > 0 ? 1000 / avgSpeed : undefined,
-            avgCadenceSpm: analysed.summary.avgCadence ?? undefined,
-            elevationGainMeters: analysed.summary.totalAscent ?? undefined,
-          },
+          endedAt: endedAt ?? existing?.endedAt,
+          summary,
           normalizedData,
           sourceFileName: `${activity.externalId}.fit`,
           sourceFileSha256: createHash("sha256").update(rawFile.data).digest("hex"),
           sourceMetadata: {
+            ...(existing?.sourceMetadata ?? {}),
             provider,
             externalId: activity.externalId,
             sourceFileUrl: activity.sourceFileUrl,
             intervalsActivity: serialisable(activity.sourceMetadata),
             fileRateLimit: rawFile.rateLimit,
+            ...(existingActivityId ? {
+              repair: {
+                repairedAt: now,
+                previousUpdatedAt: existing?.updatedAt,
+                previousCompleteness: existing ? assessActivityData(existing).state : "invalid",
+                preservedActivityId: true,
+              },
+            } : {}),
           },
-          createdAt: now,
+          createdAt: existing?.createdAt ?? now,
           updatedAt: now,
         };
+        const readiness = assessActivityData(persisted);
+        if (readiness.state === "invalid" || readiness.state === "summary_only") {
+          throw new ActivityImportValidationError();
+        }
         await this.store.saveActivity(persisted);
         return { activityId: persisted.id };
       },
@@ -173,10 +206,16 @@ export class ProductionActivityImporter {
           nextCursor: cursor,
           pagesProcessed,
           imported: items.filter((item) => item.status === "imported").length,
-          alreadyImported: items.filter((item) => item.status === "already_imported").length,
+          repaired: items.filter((item) => item.status === "repaired").length,
+          alreadyComplete: items.filter((item) => item.status === "already_complete").length,
+          alreadyImported: items.filter((item) => item.status === "already_complete").length,
           failed: items.filter((item) => item.status === "failed").length,
         };
       },
     );
+  }
+
+  async repairRecent(maxPages = 1): Promise<ProductionActivityImportResult> {
+    return this.importRecent(maxPages);
   }
 }

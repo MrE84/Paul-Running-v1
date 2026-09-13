@@ -322,12 +322,12 @@ export class PostgresTrainingStore implements TrainingApiStore, IntegrationState
 
   async listActivitySummaries(athleteId: string, limit = 20): Promise<ActivityListItem[]> {
     const result = await this.query<DocumentRow>(
-      `select payload - 'normalizedData' as payload from training_api_documents
+      `select payload from training_api_documents
        where kind = 'activity' and athlete_id = $1
        order by sort_key desc nulls last, entity_id asc limit $2`,
       [athleteId, Math.max(0, Math.min(100, limit))],
     );
-    return result.rows.map(row => activityListItem(row.payload as Omit<Activity, "normalizedData">));
+    return result.rows.map(row => activityListItem(row.payload as Activity));
   }
 
   async getActivity(id: string): Promise<Activity | undefined> { return this.read<Activity>("activity", id); }
