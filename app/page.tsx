@@ -2,9 +2,9 @@ import Link from "next/link";
 
 const modules = [
   ["Athlete Profile", "LT1, LT2, zones, PBs and training capacities", null],
-  ["Training Calendar", "Planned sessions, sync state and protected Garmin delivery controls", "/training-calendar"],
+  ["Training Calendar", "Month view of past, current and upcoming sessions with protected Garmin delivery controls", "/training-calendar"],
   ["Workout Builder", "Structured intervals, threshold, easy, long-run and stride sessions", null],
-  ["Training Plans", "Build and apply multi-week plans with versioned changes", null],
+  ["Training Plans", "Review coach-created plans and approval gates before they alter the canonical calendar", "/training-plans"],
   ["QA Engine", "Validate dates, targets, repeats, pace maths and Garmin-safe structure", null],
   ["Activity Analysis", "FIT Activity Explorer integrated with private browser-local decoding", "/activity-analysis"],
   ["Garmin Sync", "Intervals.icu initially, behind a replaceable connector layer", null],
@@ -25,6 +25,15 @@ export default function Home() {
           <span>ChatGPT / Web App</span><b>→</b><span>Paul&apos;s Running</span><b>→</b><span>QA</span><b>→</b><span>Garmin bridge</span><b>→</b><span>Watch</span>
         </div>
       </section>
+
+      <Link href="/training-plans" className="approvalBanner">
+        <div>
+          <span className="approvalLabel">PLAN APPROVAL WORKFLOW</span>
+          <strong>Post-Half Recovery Week</strong>
+          <p>Review the 21–27 September recovery plan and open its post-race approval-and-sync workflow.</p>
+        </div>
+        <span className="approvalCta">Review plan →</span>
+      </Link>
 
       <section className="grid" aria-label="Platform modules">
         {modules.map(([title, text, href]) => {

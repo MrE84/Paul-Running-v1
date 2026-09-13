@@ -1,4 +1,4 @@
-.page { width: min(1100px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 56px; }
+.page { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 56px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .back { color: var(--muted); text-decoration: none; font-weight: 700; }
 .back:hover { color: var(--text); }
@@ -9,19 +9,49 @@
 .panel { margin-top: 16px; padding: 24px; border: 1px solid var(--border); border-radius: 20px; background: rgba(15,27,45,.88); }
 .panel h2 { margin: 0 0 8px; }
 .inline { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
-.headingRow { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
-.headingRow p { margin: 6px 0 0; }
+.headingRow, .calendarHeading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.headingRow p, .calendarHeading p { margin: 6px 0 0; }
 .input, .inputSmall { border: 1px solid var(--border); background: #08111f; color: var(--text); border-radius: 12px; padding: 11px 12px; font: inherit; }
 .input { flex: 1 1 340px; }
 .inputSmall { min-width: 150px; }
 .primary, .secondary { appearance: none; border-radius: 12px; padding: 11px 14px; font: inherit; font-weight: 800; cursor: pointer; }
 .primary { border: 1px solid rgba(88,214,141,.45); background: rgba(88,214,141,.14); color: var(--text); }
 .secondary { border: 1px solid rgba(85,168,255,.35); background: rgba(85,168,255,.1); color: var(--text); }
-.primary:hover, .secondary:hover { transform: translateY(-1px); }
-.primary:disabled, .secondary:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+.primary:hover, .secondary:hover, .syncButton:hover { transform: translateY(-1px); }
+.primary:disabled, .secondary:disabled, .syncButton:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 .message { margin: 14px 0 0; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.035); }
 .statusRow { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 12px; color: var(--muted); font-size: .9rem; }
 .statusRow strong { color: var(--text); }
+.sectionEyebrow { display: block; margin-bottom: 6px; color: var(--green); font-size: .72rem; font-weight: 800; letter-spacing: .12em; }
+.monthControls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 18px 0 12px; color: var(--muted); font-size: .82rem; }
+.legend span { display: inline-flex; align-items: center; gap: 7px; }
+.legendDot { width: 9px; height: 9px; border-radius: 50%; background: var(--blue); }
+.legendPlanned { background: var(--blue); }
+.legendCompleted { background: var(--green); }
+.legendSkipped { background: #d9a657; }
+.calendarViewport { overflow-x: auto; padding-bottom: 4px; }
+.weekHeader, .monthGrid { min-width: 910px; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.weekHeader { border: 1px solid var(--border); border-bottom: 0; border-radius: 14px 14px 0 0; overflow: hidden; }
+.weekHeader div { padding: 9px 10px; border-right: 1px solid var(--border); background: rgba(255,255,255,.035); color: var(--muted); font-size: .78rem; font-weight: 800; text-align: center; text-transform: uppercase; letter-spacing: .06em; }
+.weekHeader div:last-child { border-right: 0; }
+.monthGrid { border-left: 1px solid var(--border); border-top: 1px solid var(--border); }
+.dayCell { min-height: 148px; padding: 9px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); background: rgba(7,16,29,.72); }
+.outsideMonth { background: rgba(7,16,29,.36); color: rgba(245,248,252,.48); }
+.todayCell { box-shadow: inset 0 0 0 2px rgba(88,214,141,.55); }
+.dayHeader { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 22px; margin-bottom: 7px; }
+.dayHeader > span { font-size: .82rem; font-weight: 800; }
+.dayHeader strong { color: var(--green); font-size: .66rem; text-transform: uppercase; letter-spacing: .06em; }
+.dayEvents { display: grid; gap: 6px; }
+.monthEvent { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--border); border-left-width: 3px; border-radius: 10px; background: rgba(255,255,255,.035); }
+.monthEvent strong { font-size: .76rem; line-height: 1.25; overflow-wrap: anywhere; }
+.eventTopline { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.eventTopline span, .eventTopline small, .deliveryState { color: var(--muted); font-size: .66rem; }
+.eventTopline small { text-transform: capitalize; }
+.plannedEvent { border-left-color: var(--blue); }
+.completedEvent { border-left-color: var(--green); background: rgba(88,214,141,.055); }
+.skippedEvent, .canceledEvent { border-left-color: #d9a657; opacity: .78; }
+.syncButton { appearance: none; justify-self: start; margin-top: 2px; padding: 4px 6px; border: 1px solid rgba(85,168,255,.25); border-radius: 7px; background: rgba(85,168,255,.08); color: var(--muted); font: inherit; font-size: .63rem; font-weight: 800; cursor: pointer; }
 .calendarList { display: grid; gap: 10px; margin-top: 18px; }
 .calendarItem { display: grid; grid-template-columns: 190px minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: rgba(255,255,255,.025); }
 .dateBlock, .workoutBlock { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -30,8 +60,9 @@
 .empty { margin: 18px 0 0; padding: 18px; border: 1px dashed var(--border); border-radius: 14px; text-align: center; }
 
 @media (max-width: 760px) {
-  .page { width: min(100% - 20px, 1100px); padding-top: 20px; }
-  .headingRow { align-items: stretch; flex-direction: column; }
+  .page { width: min(100% - 20px, 1180px); padding-top: 20px; }
+  .headingRow, .calendarHeading { align-items: stretch; flex-direction: column; }
+  .monthControls { justify-content: flex-start; }
   .calendarItem { grid-template-columns: 1fr; }
   .calendarItem button { justify-self: start; }
   .hero, .panel { padding: 20px; }

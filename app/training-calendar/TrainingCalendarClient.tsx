@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { buildMonthGrid, monthLabel, monthQueryRange, shiftMonthKey } from "../../lib/calendar/month-grid";
 import { advancedLunchWalkSteps, RACE_WEEK_2026 } from "../../lib/workouts/race-week";
 import { classifyRaceWeekCalendar } from "../../lib/workouts/race-week-reconcile";
 import styles from "./training-calendar.module.css";
@@ -49,10 +50,31 @@ type CalendarSnapshot = {
 };
 
 const RACE_WEEK_START_DATE = "2026-09-14";
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function errorText(value: unknown): string {
   if (value instanceof Error) return value.message;
   return String(value);
+}
+
+function londonDateKey(date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
+function statusClass(status: string): string {
+  switch (status) {
+    case "completed": return styles.completedEvent;
+    case "skipped": return styles.skippedEvent;
+    case "canceled": return styles.canceledEvent;
+    default: return styles.plannedEvent;
+  }
 }
 
 export default function TrainingCalendarClient() {
@@ -65,6 +87,7 @@ export default function TrainingCalendarClient() {
   const [message, setMessage] = useState("Enter the production API token to load protected training data.");
   const [lunchDate, setLunchDate] = useState("");
   const [lunchTime, setLunchTime] = useState("");
+  const [monthKey, setMonthKey] = useState(() => londonDateKey().slice(0, 7));
 
   async function api<T>(path: string, init: RequestInit = {}, idempotencyKey?: string): Promise<T> {
     if (!token.trim()) throw new Error("Enter the production API token first.");
@@ -84,12 +107,10 @@ export default function TrainingCalendarClient() {
     return payload.data;
   }
 
-  async function loadCalendarSnapshot(): Promise<CalendarSnapshot> {
-    const now = new Date();
-    const from = new Date(now.getTime() - 2 * 86400000).toISOString();
-    const to = new Date(now.getTime() + 45 * 86400000).toISOString();
+  async function loadCalendarSnapshot(targetMonth = monthKey): Promise<CalendarSnapshot> {
+    const range = monthQueryRange(targetMonth);
     const [items, workoutList] = await Promise.all([
-      api<CalendarItem[]>(`calendar-items?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+      api<CalendarItem[]>(`calendar-items?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`),
       api<Workout[]>("workouts"),
     ]);
     return {
@@ -99,8 +120,8 @@ export default function TrainingCalendarClient() {
     };
   }
 
-  async function refreshCalendar(): Promise<CalendarSnapshot> {
-    const snapshot = await loadCalendarSnapshot();
+  async function refreshCalendar(targetMonth = monthKey): Promise<CalendarSnapshot> {
+    const snapshot = await loadCalendarSnapshot(targetMonth);
     setWorkouts(snapshot.workoutMap);
     setCalendar(snapshot.items);
 
@@ -123,10 +144,10 @@ export default function TrainingCalendarClient() {
     try {
       const found = await api<Capabilities>("capabilities");
       setCapabilities(found);
-      await refreshCalendar();
+      await refreshCalendar(monthKey);
       setMessage(
         found.integrations.intervalsIcuPublishingConfigured
-          ? "Connected. PostgreSQL and Intervals.icu publishing are available."
+          ? `Connected. Loaded ${monthLabel(monthKey)} from Paul’s Running.`
           : "Connected to Paul’s Running. Intervals.icu publishing is not configured: add INTERVALS_ICU_API_KEY to Vercel Production, then redeploy once.",
       );
     } catch (error) {
@@ -137,10 +158,40 @@ export default function TrainingCalendarClient() {
     }
   }
 
+  async function moveMonth(delta: number) {
+    const nextMonth = shiftMonthKey(monthKey, delta);
+    setMonthKey(nextMonth);
+    if (!capabilities) return;
+    setBusy(true);
+    try {
+      await refreshCalendar(nextMonth);
+      setMessage(`Loaded ${monthLabel(nextMonth)}.`);
+    } catch (error) {
+      setMessage(errorText(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function goToCurrentMonth() {
+    const current = londonDateKey().slice(0, 7);
+    setMonthKey(current);
+    if (!capabilities) return;
+    setBusy(true);
+    try {
+      await refreshCalendar(current);
+      setMessage(`Loaded ${monthLabel(current)}.`);
+    } catch (error) {
+      setMessage(errorText(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function populateRaceWeek() {
     setBusy(true);
     try {
-      const snapshot = await loadCalendarSnapshot();
+      const snapshot = await loadCalendarSnapshot("2026-09");
       const reconciliation = classifyRaceWeekCalendar(
         RACE_WEEK_2026,
         RACE_WEEK_START_DATE,
@@ -244,7 +295,8 @@ export default function TrainingCalendarClient() {
         }
       }
 
-      await refreshCalendar();
+      setMonthKey("2026-09");
+      await refreshCalendar("2026-09");
       const cleanupText = supersededCount > 0
         ? ` Superseded ${supersededCount} duplicate calendar ${supersededCount === 1 ? "record" : "records"}.`
         : " No duplicate calendar records found.";
@@ -268,7 +320,7 @@ export default function TrainingCalendarClient() {
         { method: "POST" },
         `web-publish-${itemId}`,
       );
-      await refreshCalendar();
+      await refreshCalendar(monthKey);
       setMessage(
         result.eligible
           ? `Publish evaluated: ${result.deliveryState}${result.externalId ? ` · external ${result.externalId}` : ""}.`
@@ -348,7 +400,9 @@ export default function TrainingCalendarClient() {
         { method: "POST" },
         `advanced-lunch-walk-${scheduleKey}-publish`,
       );
-      await refreshCalendar();
+      const targetMonth = lunchDate.slice(0, 7);
+      setMonthKey(targetMonth);
+      await refreshCalendar(targetMonth);
       setMessage(
         result.deliveryState === "sent"
           ? `Lunch walk sent to Intervals.icu${result.externalId ? ` as ${result.externalId}` : ""}. Check Garmin Connect / Fenix 5 next.`
@@ -368,6 +422,22 @@ export default function TrainingCalendarClient() {
     [calendar],
   );
 
+  const calendarByDate = useMemo(() => {
+    const grouped: Record<string, CalendarItem[]> = {};
+    for (const item of sortedCalendar) {
+      (grouped[item.scheduledLocalDate] ??= []).push(item);
+    }
+    return grouped;
+  }, [sortedCalendar]);
+
+  const currentMonthCalendar = useMemo(
+    () => sortedCalendar.filter((item) => item.scheduledLocalDate.startsWith(monthKey)),
+    [monthKey, sortedCalendar],
+  );
+
+  const monthCells = useMemo(() => buildMonthGrid(monthKey), [monthKey]);
+  const todayKey = londonDateKey();
+
   return (
     <main className={styles.page}>
       <div className={styles.topbar}>
@@ -377,7 +447,7 @@ export default function TrainingCalendarClient() {
 
       <section className={styles.hero}>
         <h1>Training Calendar</h1>
-        <p>Protected controls over the existing Paul&apos;s Running API. The token stays only in this page&apos;s memory and is never stored in localStorage.</p>
+        <p>Month-by-month view of Paul&apos;s Running canonical plan, including past, current and future sessions. Garmin delivery remains a separate protected state.</p>
       </section>
 
       <section className={styles.panel}>
@@ -404,35 +474,78 @@ export default function TrainingCalendarClient() {
       </section>
 
       <section className={styles.panel}>
-        <div className={styles.headingRow}>
+        <div className={styles.calendarHeading}>
           <div>
-            <h2>Race week</h2>
-            <p>Monday rehearsal · Saturday optional shakeout · Sunday Cheltenham Half. Wednesday is deliberately omitted.</p>
+            <span className={styles.sectionEyebrow}>TRAINING OVERVIEW</span>
+            <h2>{monthLabel(monthKey)}</h2>
+            <p>Navigate backwards to review previous planned or completed sessions, or forwards to see what is coming next.</p>
           </div>
-          <button className={styles.primary} onClick={populateRaceWeek} disabled={busy || !capabilities}>Repair &amp; sync race week</button>
+          <div className={styles.monthControls}>
+            <button className={styles.secondary} onClick={() => void moveMonth(-1)} disabled={busy}>← Previous</button>
+            <button className={styles.secondary} onClick={() => void goToCurrentMonth()} disabled={busy}>Today</button>
+            <button className={styles.secondary} onClick={() => void moveMonth(1)} disabled={busy}>Next →</button>
+          </div>
         </div>
-      </section>
 
-      <section className={styles.panel}>
-        <h2>Advanced Lunch Break Walk</h2>
-        <p>The original 15:00 test slot has passed. Choose a new future slot; this creates five automatic 2-minute steps and immediately evaluates delivery.</p>
-        <div className={styles.inline}>
-          <input className={styles.inputSmall} type="date" value={lunchDate} onChange={(event) => setLunchDate(event.target.value)} />
-          <input className={styles.inputSmall} type="time" value={lunchTime} onChange={(event) => setLunchTime(event.target.value)} />
-          <button className={styles.secondary} onClick={createLunchWalk} disabled={busy || !capabilities}>Create &amp; send test</button>
+        <div className={styles.legend} aria-label="Calendar status legend">
+          <span><i className={`${styles.legendDot} ${styles.legendPlanned}`} />Planned</span>
+          <span><i className={`${styles.legendDot} ${styles.legendCompleted}`} />Completed</span>
+          <span><i className={`${styles.legendDot} ${styles.legendSkipped}`} />Skipped / canceled</span>
         </div>
+
+        <div className={styles.calendarViewport}>
+          <div className={styles.weekHeader}>
+            {WEEKDAYS.map((day) => <div key={day}>{day}</div>)}
+          </div>
+          <div className={styles.monthGrid}>
+            {monthCells.map((cell) => {
+              const items = calendarByDate[cell.date] ?? [];
+              const cellClass = [
+                styles.dayCell,
+                cell.inMonth ? "" : styles.outsideMonth,
+                cell.date === todayKey ? styles.todayCell : "",
+              ].filter(Boolean).join(" ");
+              return (
+                <div className={cellClass} key={cell.date}>
+                  <div className={styles.dayHeader}>
+                    <span>{cell.day}</span>
+                    {cell.date === todayKey && <strong>Today</strong>}
+                  </div>
+                  <div className={styles.dayEvents}>
+                    {items.map((item) => {
+                      const status = sync[item.id];
+                      const workout = workouts[item.workout.id];
+                      return (
+                        <article className={`${styles.monthEvent} ${statusClass(item.status)}`} key={item.id}>
+                          <div className={styles.eventTopline}>
+                            <span>{item.scheduledLocalTime}</span>
+                            <small>{item.status}</small>
+                          </div>
+                          <strong>{workout?.currentRevision.name ?? item.workout.id}</strong>
+                          <span className={styles.deliveryState}>Garmin: {status?.state ?? "planned"}</span>
+                          <button className={styles.syncButton} onClick={() => void publishItem(item.id)} disabled={busy || !capabilities}>Evaluate sync</button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {!capabilities && <p className={styles.empty}>Connect above to load the protected training schedule into the month view.</p>}
       </section>
 
       <section className={styles.panel}>
         <div className={styles.headingRow}>
-          <div><h2>Canonical schedule</h2><p>Delivery state is separate from the planned calendar record.</p></div>
-          <button className={styles.secondary} onClick={() => void refreshCalendar()} disabled={busy || !capabilities}>Refresh</button>
+          <div><h2>{monthLabel(monthKey)} details</h2><p>Detailed canonical records and Garmin delivery state for this month.</p></div>
+          <button className={styles.secondary} onClick={() => void refreshCalendar(monthKey)} disabled={busy || !capabilities}>Refresh</button>
         </div>
-        {sortedCalendar.length === 0 ? (
-          <p className={styles.empty}>{capabilities ? "No calendar items in the current view." : "Connect to load the protected calendar."}</p>
+        {currentMonthCalendar.length === 0 ? (
+          <p className={styles.empty}>{capabilities ? "No calendar items scheduled in this month." : "Connect to load the protected calendar."}</p>
         ) : (
           <div className={styles.calendarList}>
-            {sortedCalendar.map((item) => {
+            {currentMonthCalendar.map((item) => {
               const status = sync[item.id];
               const workout = workouts[item.workout.id];
               return (
@@ -453,6 +566,26 @@ export default function TrainingCalendarClient() {
             })}
           </div>
         )}
+      </section>
+
+      <section className={styles.panel}>
+        <div className={styles.headingRow}>
+          <div>
+            <h2>Race week controls</h2>
+            <p>Monday rehearsal · Saturday optional shakeout · Sunday Cheltenham Half. Wednesday is deliberately omitted.</p>
+          </div>
+          <button className={styles.primary} onClick={populateRaceWeek} disabled={busy || !capabilities}>Repair &amp; sync race week</button>
+        </div>
+      </section>
+
+      <section className={styles.panel}>
+        <h2>Advanced Lunch Break Walk</h2>
+        <p>Choose a future slot; this creates five automatic 2-minute steps and immediately evaluates delivery.</p>
+        <div className={styles.inline}>
+          <input className={styles.inputSmall} type="date" value={lunchDate} onChange={(event) => setLunchDate(event.target.value)} />
+          <input className={styles.inputSmall} type="time" value={lunchTime} onChange={(event) => setLunchTime(event.target.value)} />
+          <button className={styles.secondary} onClick={createLunchWalk} disabled={busy || !capabilities}>Create &amp; send test</button>
+        </div>
       </section>
     </main>
   );

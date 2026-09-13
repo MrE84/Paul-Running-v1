@@ -1,0 +1,30 @@
+.page { width: min(1120px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 56px; }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
+.back { color: var(--muted); text-decoration: none; font-weight: 700; }
+.back:hover { color: var(--text); }
+.badge { padding: 7px 10px; border: 1px solid rgba(88,214,141,.3); border-radius: 999px; color: var(--green); font-size: .72rem; font-weight: 800; letter-spacing: .1em; }
+.hero { padding: 34px; border: 1px solid var(--border); border-radius: 24px; background: linear-gradient(145deg, rgba(19,35,58,.96), rgba(10,20,34,.96)); }
+.eyebrow, .sectionEyebrow { color: var(--green); font-size: .75rem; font-weight: 800; letter-spacing: .12em; }
+.hero h1 { max-width: 800px; margin: 10px 0 14px; font-size: clamp(2.2rem, 5.7vw, 4.5rem); line-height: 1; letter-spacing: -.045em; }
+.hero p, .section p { color: var(--muted); line-height: 1.6; }
+.section { margin-top: 16px; padding: 24px; border: 1px solid var(--border); border-radius: 20px; background: rgba(15,27,45,.88); }
+.sectionHeading { display: flex; justify-content: space-between; align-items: center; gap: 18px; }
+.sectionHeading h2 { margin: 6px 0 0; font-size: 1.5rem; }
+.status { padding: 7px 10px; border: 1px solid rgba(85,168,255,.35); border-radius: 999px; background: rgba(85,168,255,.08); color: var(--blue); font-size: .7rem; font-weight: 800; letter-spacing: .08em; white-space: nowrap; }
+.planGrid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 14px; margin-top: 18px; }
+.planSummary, .actionCard { padding: 20px; border: 1px solid var(--border); border-radius: 16px; background: rgba(255,255,255,.025); }
+.planSummary > strong, .actionCard > strong { display: block; margin-bottom: 8px; font-size: 1.05rem; }
+.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.meta span { padding: 7px 9px; border-radius: 999px; background: rgba(255,255,255,.04); color: var(--muted); font-size: .78rem; }
+.primaryLink, .secondaryLink { display: inline-block; margin-top: 10px; padding: 11px 14px; border-radius: 12px; font-weight: 800; text-decoration: none; transition: transform .16s ease, border-color .16s ease; }
+.primaryLink { border: 1px solid rgba(88,214,141,.45); background: rgba(88,214,141,.14); color: var(--text); }
+.secondaryLink { border: 1px solid rgba(85,168,255,.35); background: rgba(85,168,255,.1); color: var(--text); }
+.primaryLink:hover, .secondaryLink:hover { transform: translateY(-1px); }
+.supporting { margin: 14px 0 0; }
+
+@media (max-width: 760px) {
+  .page { width: min(100% - 20px, 1120px); padding-top: 20px; }
+  .hero, .section { padding: 20px; }
+  .sectionHeading { align-items: flex-start; flex-direction: column; }
+  .planGrid { grid-template-columns: 1fr; }
+}
