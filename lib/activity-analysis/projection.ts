@@ -103,7 +103,8 @@ export function projectActivity(source: ActivitySource, decoded: DecodedFit, con
   if (rows.length !== records.length) flags.add("Duplicate timestamps merged; original messages retained in Raw data.");
   if (ordered.some((r, i) => i > 0 && r.index < ordered[i - 1].index)) flags.add("Out-of-order samples sorted by elapsed time.");
   const elapsed: number[] = [], distance: Values = [], latitude: Values = [], longitude: Values = [], breakBefore: boolean[] = [];
-  const channels = Object.fromEntries(Object.keys(CHANNELS).map(k => [k, []])) as Record<Channel, Values>;
+  const channels = {} as Record<Channel, Values>;
+  for (const key of Object.keys(CHANNELS) as Channel[]) channels[key] = [];
   let lastDistance = 0;
   rows.forEach(({ r, seconds }, i) => {
     elapsed.push(round(seconds)!);

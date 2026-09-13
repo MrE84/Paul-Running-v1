@@ -38,7 +38,7 @@ const Chart = memo(function Chart(props: Omit<TimelineProps, "mode"> & { compact
       width: Math.max(240, element.clientWidth), height: compact ? 145 : 350,
       padding: [12, 12, 0, 4], legend: { show: false }, scales,
       cursor: { y: false, drag: { x: true, y: false, setScale: false }, points: { size: 5 } },
-      select: { show: true },
+      select: { show: true, left: 0, top: 0, width: 0, height: 0 },
       series: [{}, ...channels.map(k => ({ label: CHANNELS[k].label, scale: k, stroke: CHANNELS[k].color, width: 1.5, spanGaps: false, points: { show: false } }))],
       axes: [
         { stroke: "#8c9bb0", grid: { stroke: "#1e2c3e", width: 1 }, ticks: { show: false }, size: 30, font: "10px system-ui", values: (_u, values) => values.map(v => axis === "time" ? formatDuration(v) : `${v.toFixed(1)}`) },
