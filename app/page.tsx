@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { athleteProfile } from "@/lib/athlete-profile";
+import { athleteProfile } from "../lib/athlete-profile";
 
 const modules = [
   ["Training Calendar", "Month view of past, current and upcoming sessions with protected Garmin delivery controls", "/training-calendar"],
