@@ -1,8 +1,10 @@
 import type { Activity, ZoneSet } from "../domain/contracts";
 import type { ActivitySource, DecodedFit } from "./contracts";
+import type { ActivityIntelligence } from "./intelligence";
+import type { WeatherEnrichment } from "./weather";
 import { analyseDecodedFit, firstNumber, normaliseDate, safeNumber, semicirclesToDegrees } from "./core";
 
-export const PROJECTION_VERSION = "1.0.0";
+export const PROJECTION_VERSION = "1.2.0";
 export const CHANNELS = {
   heart_rate: { label: "Heart rate", unit: "bpm", color: "#fb7185" },
   pace: { label: "Pace", unit: "min/km", color: "#60a5fa" },
@@ -15,6 +17,11 @@ export const CHANNELS = {
   vertical_oscillation: { label: "Vertical oscillation", unit: "mm", color: "#f0abfc" },
   ground_contact_time: { label: "Ground contact", unit: "ms", color: "#a5b4fc" },
   respiration_rate: { label: "Respiration", unit: "/min", color: "#67e8f9" },
+  ambient_temperature: { label: "Ambient temperature", unit: "°C", color: "#fb923c" },
+  humidity: { label: "Humidity", unit: "%", color: "#22d3ee" },
+  wind_speed: { label: "Wind speed", unit: "m/s", color: "#a7f3d0" },
+  headwind: { label: "Headwind", unit: "m/s", color: "#fda4af" },
+  precipitation: { label: "Precipitation", unit: "mm", color: "#7dd3fc" },
 } as const;
 export type Channel = keyof typeof CHANNELS;
 export type Values = Array<number | null>;
@@ -50,6 +57,8 @@ export interface AnalysisProjection {
   zones: Partial<Record<Channel, AnalysisZone[]>>;
   provenance: { sourceFields: string[]; algorithms: Record<string, string> };
   quality: { flags: string[]; inputRecords: number; samples: number; missing: Partial<Record<Channel, number>> };
+  intelligence?: ActivityIntelligence;
+  weather?: WeatherEnrichment;
   /** Future enrichment results are independently versioned; absent != zero. */
   derived: Record<"intervals" | "zones" | "weather" | "bestEfforts" | "efficiency" | "plannedActual", { version: string; status: "pending" | "available"; sourceChannels: Channel[] }>;
 }
@@ -131,6 +140,11 @@ export function projectActivity(source: ActivitySource, decoded: DecodedFit, con
       vertical_oscillation: nonnegative(safeNumber(r.vertical_oscillation)),
       ground_contact_time: nonnegative(firstNumber(r.ground_contact_time, r.stance_time)),
       respiration_rate: positive(safeNumber(r.respiration_rate)),
+      ambient_temperature: null,
+      humidity: null,
+      wind_speed: null,
+      headwind: null,
+      precipitation: null,
     };
     for (const key of Object.keys(CHANNELS) as Channel[]) channels[key].push(round(values[key]));
   });

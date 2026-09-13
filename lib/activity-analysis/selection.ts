@@ -6,7 +6,9 @@ export function channelUnit(key: Channel, units: UnitSystem): string {
   if (units === "imperial") {
     if (key === "pace") return "min/mi";
     if (key === "altitude") return "ft";
-    if (key === "temperature") return "°F";
+    if (key === "temperature" || key === "ambient_temperature") return "°F";
+    if (key === "wind_speed" || key === "headwind") return "mph";
+    if (key === "precipitation") return "in";
   }
   return CHANNELS[key].unit;
 }
@@ -15,14 +17,16 @@ export function displayValue(key: Channel, value: number | null, units: UnitSyst
   if (units === "imperial") {
     if (key === "pace") return value * 1.609344;
     if (key === "altitude") return value * 3.28084;
-    if (key === "temperature") return value * 1.8 + 32;
+    if (key === "temperature" || key === "ambient_temperature") return value * 1.8 + 32;
+    if (key === "wind_speed" || key === "headwind") return value * 2.236936;
+    if (key === "precipitation") return value / 25.4;
   }
   return value;
 }
 export function formatChannel(key: Channel, value: number | null | undefined, units: UnitSystem): string {
   if (value == null) return "—";
   const n = displayValue(key, value, units)!;
-  return key === "pace" ? formatDuration(n) : n.toFixed(key === "speed" || key === "grade" || key === "temperature" || key === "vertical_oscillation" ? 1 : 0);
+  return key === "pace" ? formatDuration(n) : n.toFixed(key === "speed" || key === "grade" || key === "temperature" || key === "ambient_temperature" || key === "wind_speed" || key === "headwind" || key === "precipitation" || key === "vertical_oscillation" ? 1 : 0);
 }
 export function rangeSummary(p: AnalysisProjection, range: IndexRange | null) {
   const [start, end] = range ?? [0, p.streams.elapsed.length - 1];

@@ -3,4 +3,6 @@ export * from "./core";
 export * from "./browser";
 export * from "./projection";
 export * from "./selection";
+export * from "./intelligence";
+export * from "./weather";
 export * from "./sample";

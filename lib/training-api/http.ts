@@ -112,6 +112,7 @@ export async function handleTrainingApiRequest(
           "GET /api/v1/activities",
           "GET /api/v1/activities?view=summary",
           "GET /api/v1/activities/{id}/analysis",
+          "GET /api/v1/activities/{id}/weather",
           "GET /api/v1/activities/{id}/raw",
           "POST /api/v1/activities/import",
           "GET|POST /api/v1/workouts",
@@ -173,6 +174,7 @@ export async function handleTrainingApiRequest(
     }
     if (method === "GET" && path.length === 3 && path[0] === "activities") {
       if (path[2] === "analysis") return ok(await service.getActivityAnalysis(athleteId, path[1], request.nextUrl.searchParams.get("recompute") === "1"));
+      if (path[2] === "weather") return ok(await service.getActivityWeather(athleteId, path[1], request.nextUrl.searchParams.get("refresh") === "1"));
       if (path[2] === "raw") return ok((await service.getActivity(athleteId, path[1])).normalizedData);
     }
     if (method === "POST" && path.length === 2 && path[0] === "activities" && path[1] === "import") {

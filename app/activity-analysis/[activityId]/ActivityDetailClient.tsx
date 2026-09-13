@@ -44,6 +44,11 @@ export default function ActivityDetailClient({ activityId }: { activityId: strin
   const previous = index >= 0 ? recent[index + 1] : undefined;
   const next = index > 0 ? recent[index - 1] : undefined;
   const loadRaw = useCallback(() => api<DecodedFit>(`activities/${encodeURIComponent(activityId)}/raw`), [activityId]);
+  const loadWeather = useCallback(async () => {
+    const enriched = await api<AnalysisProjection>(`activities/${encodeURIComponent(activityId)}/weather`);
+    setProjection(enriched);
+    return enriched;
+  }, [activityId]);
 
   if (loading) return <main className={styles.state}><Link href="/activity-analysis">← Activity Analysis</Link><strong>Building activity workspace…</strong><span>The server is loading the versioned projection; raw FIT messages remain lazy.</span></main>;
   if (error || !projection) return <main className={styles.state}><Link href="/activity-analysis">← Activity Analysis</Link><strong>{error || "Activity unavailable"}</strong><span>Your secure activity session may have expired. Return to Activity Analysis and open the library again.</span><button onClick={() => void load()}>Retry</button></main>;
@@ -57,6 +62,6 @@ export default function ActivityDetailClient({ activityId }: { activityId: strin
         {next ? <Link href={`/activity-analysis/${encodeURIComponent(next.id)}`}>Newer →</Link> : <span className={styles.disabled}>Newer →</span>}
       </div>
     </header>
-    <section className={styles.workspace}><ActivityWorkspace projection={projection} units={units} loadRaw={loadRaw} /></section>
+    <section className={styles.workspace}><ActivityWorkspace projection={projection} units={units} loadRaw={loadRaw} loadWeather={loadWeather} /></section>
   </main>;
 }

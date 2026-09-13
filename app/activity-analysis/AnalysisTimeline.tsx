@@ -7,17 +7,19 @@ import { CHANNELS, nearestIndex, type AnalysisProjection, type Axis, type Channe
 import { channelUnit, chartSamples, displayValue } from "../../lib/activity-analysis/selection";
 import { formatDuration } from "../../lib/activity-analysis/core";
 import type { UnitSystem } from "../../lib/activity-analysis/contracts";
+import type { AnalysisInterval } from "../../lib/activity-analysis/intelligence";
 import styles from "./analysis.module.css";
 
 export interface TimelineProps {
   projection: AnalysisProjection; channels: Channel[]; axis: Axis; mode: "stacked" | "overlay";
   units: UnitSystem; smoothing: number; resolution: number; zones: boolean;
+  plannedIntervals?: AnalysisInterval[];
   hover: number | null; selection: IndexRange | null; zoom: IndexRange | null;
   onHover: (index: number | null) => void; onSelect: (range: IndexRange | null) => void;
 }
 
 const Chart = memo(function Chart(props: Omit<TimelineProps, "mode"> & { compact: boolean }) {
-  const { projection, channels, axis, units, smoothing, resolution, zones, compact, hover, selection, zoom, onHover, onSelect } = props;
+  const { projection, channels, axis, units, smoothing, resolution, zones, plannedIntervals = [], compact, hover, selection, zoom, onHover, onSelect } = props;
   const container = useRef<HTMLDivElement>(null);
   const plotRef = useRef<uPlot | null>(null);
   const current = useRef({ hover, selection, zoom, onHover, onSelect });
@@ -61,17 +63,27 @@ const Chart = memo(function Chart(props: Omit<TimelineProps, "mode"> & { compact
           current.current.onSelect([Math.min(start, end), Math.max(start, end)]);
         }],
         drawClear: [(u) => {
-          if (!zones) return;
           const k = channels[0];
-          const bands = projection.zones[k];
-          if (!bands?.length) return;
           const ctx = u.ctx, box = u.bbox;
           ctx.save(); ctx.beginPath(); ctx.rect(box.left, box.top, box.width, box.height); ctx.clip();
-          bands.forEach(z => {
-            const min = displayValue(k, z.lower, units) ?? u.scales[k].min!;
-            const max = displayValue(k, z.upper, units) ?? u.scales[k].max!;
-            const y0 = u.valToPos(min, k, true), y1 = u.valToPos(max, k, true);
-            ctx.fillStyle = `${z.color}15`; ctx.fillRect(box.left, Math.min(y0, y1), box.width, Math.abs(y1 - y0));
+          if (zones) projection.zones[k]?.forEach(z => {
+              const min = displayValue(k, z.lower, units) ?? u.scales[k].min!;
+              const max = displayValue(k, z.upper, units) ?? u.scales[k].max!;
+              const y0 = u.valToPos(min, k, true), y1 = u.valToPos(max, k, true);
+              ctx.fillStyle = `${z.color}15`; ctx.fillRect(box.left, Math.min(y0, y1), box.width, Math.abs(y1 - y0));
+            });
+          plannedIntervals.filter(interval => interval.target?.channel === k).forEach(interval => {
+            const target = interval.target!;
+            const start = xAt(interval.start), end = xAt(interval.end);
+            const low = displayValue(k, target.lower, units), high = displayValue(k, target.upper, units);
+            if (start === null || end === null || low === null || high === null) return;
+            const x0 = u.valToPos(start, "x", true), x1 = u.valToPos(end, "x", true);
+            const y0 = u.valToPos(low, k, true), y1 = u.valToPos(high, k, true);
+            ctx.fillStyle = "#fbbf2424";
+            ctx.strokeStyle = "#fbbf24aa";
+            ctx.lineWidth = 1;
+            ctx.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.max(2, Math.abs(y1 - y0)));
+            ctx.strokeRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.max(2, Math.abs(y1 - y0)));
           });
           ctx.restore();
         }],
@@ -81,7 +93,7 @@ const Chart = memo(function Chart(props: Omit<TimelineProps, "mode"> & { compact
     const resize = new ResizeObserver(() => chart.setSize({ width: Math.max(240, element.clientWidth), height: compact ? 145 : 350 }));
     resize.observe(element);
     return () => { cancelAnimationFrame(frame); resize.disconnect(); plotRef.current = null; chart.destroy(); };
-  }, [projection, channels, axis, units, samples, distanceAxis, distanceValues, compact, zones]);
+  }, [projection, channels, axis, units, samples, distanceAxis, distanceValues, compact, zones, plannedIntervals]);
 
   useEffect(() => {
     const chart = plotRef.current;

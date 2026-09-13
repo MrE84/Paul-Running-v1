@@ -11,7 +11,7 @@ test("Batch A projection is deterministic, versioned and does not mutate normali
   const before = JSON.stringify(decoded);
   const first = projectActivity(source, decoded);
   const second = projectActivity(source, decoded);
-  assert.equal(first.version, "1.0.0");
+  assert.equal(first.version, "1.2.0");
   assert.deepEqual(first, second);
   assert.equal(JSON.stringify(decoded), before);
   assert.equal(first.quality.inputRecords, 181);
