@@ -4,6 +4,7 @@ import type { Activity, Athlete, CapacityRevision, ZoneSet } from "../domain/con
 import { InMemoryIntegrationStateStore } from "../integrations/state";
 import { InMemoryTrainingApiStore } from "./store";
 import { TrainingApiError, TrainingApiService } from "./service";
+import { sampleFit } from "../activity-analysis/sample";
 
 const athlete: Athlete = {
   id: "athlete-1",
@@ -154,6 +155,41 @@ test("activity reads are latest-first and bounded", async () => {
   ];
   const { service } = harness({ activities });
   assert.deepEqual((await service.listActivities(athlete.id, 2)).map((item) => item.id), ["a3", "a2"]);
+});
+
+test("activity analysis caches versioned intelligence and route weather separately from device temperature", async () => {
+  const activity: Activity = {
+    id: "weather-run",
+    athleteId: athlete.id,
+    sport: "running",
+    startedAt: "2026-09-10T08:00:00.000Z",
+    summary: { durationSeconds: 600 },
+    normalizedData: sampleFit(600),
+    sourceMetadata: { name: "Weather run" },
+    createdAt: "2026-09-11T12:00:00.000Z",
+    updatedAt: "2026-09-11T12:00:00.000Z",
+  };
+  const { service, store } = harness({ activities: [activity] });
+  const projection = await service.getActivityAnalysis(athlete.id, activity.id);
+  assert.equal(projection.intelligence?.version, "1.1.0");
+  let fetchCalls = 0;
+  const fetchImpl = async () => {
+    fetchCalls += 1;
+    if (fetchCalls <= 10) return new Response(JSON.stringify({ reason: "Temporary weather provider failure" }), { status: 503 });
+    return new Response(JSON.stringify({ hourly: {
+      time: ["2026-09-10T08:00"], temperature_2m: [12], apparent_temperature: [11],
+      relative_humidity_2m: [70], dew_point_2m: [7], precipitation: [0], surface_pressure: [1012],
+      cloud_cover: [20], wind_speed_10m: [3], wind_gusts_10m: [5], wind_direction_10m: [180],
+    } }), { status: 200 });
+  };
+  const failed = await service.getActivityWeather(athlete.id, activity.id, false, fetchImpl as typeof fetch);
+  assert.equal(failed.weather?.status, "failed");
+  const enriched = await service.getActivityWeather(athlete.id, activity.id, false, fetchImpl as typeof fetch);
+  assert.equal(enriched.weather?.status, "available");
+  assert.ok(fetchCalls > 10);
+  assert.equal(enriched.streams.channels.ambient_temperature?.[0], 12);
+  assert.equal(enriched.streams.channels.temperature?.[0], projection.streams.channels.temperature?.[0]);
+  assert.equal((await store.getAnalysisCache(activity.id))?.projection.weather?.version, enriched.weather?.version);
 });
 
 test("sync status is a separate projection from canonical calendar status", async () => {

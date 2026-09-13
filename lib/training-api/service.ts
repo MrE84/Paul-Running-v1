@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
+import { buildActivityIntelligence } from "../activity-analysis/intelligence";
 import { activityListItem, projectActivity, PROJECTION_VERSION } from "../activity-analysis/projection";
+import { applyWeatherChannels, fetchHistoricalWeather, WEATHER_VERSION } from "../activity-analysis/weather";
 import type {
   Activity,
   AuditEvent,
@@ -168,12 +170,47 @@ export class TrainingApiService {
   async getActivityAnalysis(athleteId: string, id: string, recompute = false) {
     const activity = await this.getActivity(athleteId, id);
     const zones = await this.store.listZoneSets(athleteId);
-    const fingerprint = createHash("sha256").update(JSON.stringify([PROJECTION_VERSION, activity, zones])).digest("hex");
+    const calendarItem = activity.calendarItemId ? await this.store.getCalendarItem(activity.calendarItemId) : undefined;
+    const workout = calendarItem?.athleteId === athleteId
+      ? await this.store.getWorkoutRevision(calendarItem.workout.id, calendarItem.workout.version)
+      : undefined;
+    const fingerprint = createHash("sha256").update(JSON.stringify([PROJECTION_VERSION, activity, zones, calendarItem, workout])).digest("hex");
     const cached = recompute ? undefined : await this.store.getAnalysisCache(id);
     if (cached?.fingerprint === fingerprint && cached.projection.version === PROJECTION_VERSION) return cached.projection;
     const projection = projectActivity({ id, name: activity.sourceFileName ?? `${id}.fit`, origin: "backend" }, activity.normalizedData, activityListItem(activity), zones);
+    projection.intelligence = buildActivityIntelligence(projection, workout);
+    projection.derived = {
+      ...projection.derived,
+      intervals: { version: projection.intelligence.version, status: projection.intelligence.intervals.length ? "available" : "pending", sourceChannels: ["speed"] },
+      zones: { version: projection.intelligence.version, status: projection.intelligence.zoneDistributions.length ? "available" : "pending", sourceChannels: Object.keys(projection.zones) as Array<keyof typeof projection.streams.channels> },
+      bestEfforts: { version: projection.intelligence.version, status: projection.intelligence.bestEfforts.length ? "available" : "pending", sourceChannels: ["speed"] },
+      efficiency: { version: projection.intelligence.version, status: projection.intelligence.efficiency ? "available" : "pending", sourceChannels: ["heart_rate", "speed"] },
+      plannedActual: { version: projection.intelligence.version, status: projection.intelligence.plannedActual ? "available" : "pending", sourceChannels: projection.intelligence.plannedActual ? ["heart_rate", "pace", "power", "cadence"] : [] },
+    };
     await this.store.saveAnalysisCache(id, athleteId, { fingerprint, projection });
     return projection;
+  }
+  async getActivityWeather(athleteId: string, id: string, refresh = false, fetchImpl: typeof fetch = fetch) {
+    const projection = await this.getActivityAnalysis(athleteId, id);
+    if (!refresh && projection.weather && projection.weather.status !== "failed") return projection;
+    const weather = await fetchHistoricalWeather(projection, fetchImpl);
+    const enriched = applyWeatherChannels(projection, weather);
+    enriched.derived = {
+      ...enriched.derived,
+      weather: {
+        version: WEATHER_VERSION,
+        status: weather.status === "available" ? "available" : "pending",
+        sourceChannels: weather.status === "available"
+          ? ["ambient_temperature", "humidity", "wind_speed", "headwind", "precipitation"]
+          : [],
+      },
+    };
+    const cache = await this.store.getAnalysisCache(id);
+    await this.store.saveAnalysisCache(id, athleteId, {
+      fingerprint: cache?.fingerprint ?? createHash("sha256").update(JSON.stringify([PROJECTION_VERSION, projection.activity])).digest("hex"),
+      projection: enriched,
+    });
+    return enriched;
   }
   async listWorkouts(athleteId: string) { await this.requireAthlete(athleteId); return this.store.listWorkouts(athleteId); }
   async listPlans(athleteId: string) { await this.requireAthlete(athleteId); return this.store.listPlans(athleteId); }

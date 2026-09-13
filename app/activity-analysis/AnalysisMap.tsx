@@ -15,6 +15,11 @@ interface Props {
 }
 const emptyCollection = { type: "FeatureCollection" as const, features: [] };
 
+function moveCoordinate(longitude: number, latitude: number, bearing: number, distanceDegrees: number): [number, number] {
+  const angle = bearing * Math.PI / 180;
+  return [longitude + Math.sin(angle) * distanceDegrees / Math.max(.2, Math.cos(latitude * Math.PI / 180)), latitude + Math.cos(angle) * distanceDegrees];
+}
+
 export default memo(function AnalysisMap({ projection, hover, selection, onHover, onSelect, units }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<LibreMap | null>(null);
@@ -64,6 +69,9 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
       instance.addLayer({ id: "route-selection", type: "line", source: "route", filter: ["==", ["get", "index"], -1], paint: { "line-color": "#ffffff", "line-width": 7, "line-opacity": .8 } });
       instance.addSource("markers", { type: "geojson", data: emptyCollection });
       instance.addLayer({ id: "lap-markers", type: "circle", source: "markers", paint: { "circle-radius": ["case", ["==", ["get", "kind"], "lap"], 4, 7], "circle-color": ["match", ["get", "kind"], "start", "#6ee7b7", "finish", "#fb7185", "#94a3b8"], "circle-stroke-color": "#0c1422", "circle-stroke-width": 2 } });
+      instance.addSource("weather", { type: "geojson", data: emptyCollection });
+      instance.addLayer({ id: "weather-arrows", type: "line", source: "weather", paint: { "line-color": ["case", ["get", "selected"], "#ffffff", "#7dd3fc"], "line-width": ["case", ["get", "selected"], 4, 2], "line-opacity": .9 } });
+      instance.addLayer({ id: "weather-markers", type: "circle", source: "weather", paint: { "circle-radius": 3, "circle-color": "#7dd3fc", "circle-stroke-color": "#122033", "circle-stroke-width": 1 } });
       instance.addSource("cursor", { type: "geojson", data: emptyCollection });
       instance.addLayer({ id: "cursor", type: "circle", source: "cursor", paint: { "circle-radius": 8, "circle-color": "#ffffff", "circle-stroke-color": "#60a5fa", "circle-stroke-width": 3 } });
       setReady(true);
@@ -81,7 +89,7 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     instance.on("error", () => setError("Some map tiles could not load. The recorded route and analysis are still available."));
     const observer = new ResizeObserver(() => instance.resize()); observer.observe(container.current);
     return () => { observer.disconnect(); instance.remove(); map.current = null; };
-  }, [projection]);
+  }, [projection.activity.id]);
 
   useEffect(() => {
     const m = map.current;
@@ -109,6 +117,24 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     });
     (m.getSource("markers") as GeoJSONSource).setData({ type: "FeatureCollection", features: markers });
   }, [features, ready, points, projection]);
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !ready) return;
+    const weather = (projection.weather?.samples ?? []).filter(sample => pointIndices.has(sample.index) && sample.windDirectionDegrees !== null).map(sample => {
+      const direction = (sample.windDirectionDegrees! + 180) % 360;
+      const tip = moveCoordinate(sample.longitude, sample.latitude, direction, .00045);
+      const left = moveCoordinate(tip[0], tip[1], direction + 150, .00016);
+      const right = moveCoordinate(tip[0], tip[1], direction - 150, .00016);
+      return {
+        type: "Feature" as const,
+        properties: { selected: Boolean(selection && sample.index >= selection[0] && sample.index <= selection[1]), index: sample.index },
+        geometry: { type: "MultiLineString" as const, coordinates: [
+          [[sample.longitude, sample.latitude], tip], [left, tip], [right, tip],
+        ] },
+      };
+    });
+    (m.getSource("weather") as GeoJSONSource).setData({ type: "FeatureCollection", features: weather });
+  }, [projection.weather, ready, pointIndices, selection]);
   useEffect(() => { if (ready) fitRoute(); }, [points, ready]);
   useEffect(() => {
     if (!map.current || !ready) return;
@@ -135,7 +161,7 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     {error && <p role="status" className={styles.quiet}>{error}</p>}
     {!points.length && <p className={styles.quiet}>The privacy mask covers this route. Reduce the radius to see more.</p>}
     <div className={styles.mapLegend}><span>{formatChannel(metric, limits.min, units)}</span><i /><span>{formatChannel(metric, limits.max, units)}</span></div>
-    <p className={styles.quiet}>Start <span style={{ color: "#6ee7b7" }}>●</span> · Finish <span style={{ color: "#fb7185" }}>●</span> · Click a lap marker to select it.</p>
+    <p className={styles.quiet}>Start <span style={{ color: "#6ee7b7" }}>●</span> · Finish <span style={{ color: "#fb7185" }}>●</span>{projection.weather?.status === "available" ? " · Blue arrows show wind direction" : ""} · Click a lap marker to select it.</p>
     <details className={styles.details}><summary>Map privacy & detail <span>{radius ? `${radius} m masked` : "Mask off"}</span></summary>
       <div className={styles.toolbar}><label>Hide start / finish<select aria-label="Endpoint privacy radius" value={radius} onChange={e => setRadius(Number(e.target.value))}>{[0, 100, 200, 500, 1000].map(v => <option key={v} value={v}>{v ? `${v} m` : "Off"}</option>)}</select></label>
         <label>Route detail<select value={density} onChange={e => setDensity(Number(e.target.value))}><option value={1000}>Light</option><option value={2000}>Balanced</option><option value={10000}>Detailed</option></select></label></div>
