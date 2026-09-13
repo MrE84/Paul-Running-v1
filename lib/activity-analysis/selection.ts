@@ -104,11 +104,22 @@ export function routeSamples(p: AnalysisProjection, endpointRadius: number, regi
   const masks = [...regions];
   if (endpointRadius && first && last) masks.push(...[first, last].map(v => ({ latitude: v.lat, longitude: v.lon, radius: endpointRadius })));
   let segment = 0;
+  let hiddenGap = false;
+  let previousVisibleIndex: number | null = null;
   const visible: RouteSample[] = [];
   for (const point of all) {
-    if (!point || masks.some(m => metresBetween(point, { lat: m.latitude, lon: m.longitude }) < m.radius)) { segment++; continue; }
-    if (p.streams.breakBefore[point.index]) segment++;
+    // Missing coordinates are common in provider-normalised streams where GPS is sampled less
+    // frequently than physiology. Do not split the route for isolated null coordinate rows.
+    if (!point) continue;
+    if (masks.some(m => metresBetween(point, { lat: m.latitude, lon: m.longitude }) < m.radius)) {
+      hiddenGap = true;
+      continue;
+    }
+    const elapsedGap = previousVisibleIndex === null ? 0 : p.streams.elapsed[point.index] - p.streams.elapsed[previousVisibleIndex];
+    if (visible.length && (hiddenGap || p.streams.breakBefore[point.index] || elapsedGap > 30)) segment++;
     visible.push({ ...point, segment });
+    hiddenGap = false;
+    previousVisibleIndex = point.index;
   }
   const step = Math.max(1, Math.ceil(visible.length / density));
   const laps = new Set(p.laps.flatMap(l => [l.start, l.end]));
