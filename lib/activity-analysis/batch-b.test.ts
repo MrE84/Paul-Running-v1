@@ -162,7 +162,7 @@ test("historical route weather is versioned and projected into separate ambient 
   assert.equal(weather.status, "available");
   assert.ok(weather.samples.length > 1);
   assert.equal(weather.summary.temperatureC, 14);
-  assert.equal(weather.summary.precipitationMm, 0.1);
+  assert.ok(Math.abs((weather.summary.precipitationMm ?? 0) - 0.1) < 1e-9);
   const enriched = applyWeatherChannels(activity, weather);
   assert.equal(enriched.weather?.version, weather.version);
   assert.equal(enriched.streams.channels.ambient_temperature?.[0], 14);
