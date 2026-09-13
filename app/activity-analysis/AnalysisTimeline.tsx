@@ -6,6 +6,7 @@ import "uplot/dist/uPlot.min.css";
 import { CHANNELS, nearestIndex, type AnalysisProjection, type Axis, type Channel, type IndexRange } from "../../lib/activity-analysis/projection";
 import { channelUnit, chartSamples, displayValue } from "../../lib/activity-analysis/selection";
 import { formatDuration } from "../../lib/activity-analysis/core";
+import { clampPointerX, touchGestureIntent, type TouchGestureIntent } from "../../lib/activity-analysis/touch";
 import type { UnitSystem } from "../../lib/activity-analysis/contracts";
 import type { AnalysisInterval } from "../../lib/activity-analysis/intelligence";
 import styles from "./analysis.module.css";
@@ -18,21 +19,36 @@ export interface TimelineProps {
   onHover: (index: number | null) => void; onSelect: (range: IndexRange | null) => void;
 }
 
+type TouchState = {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  intent: TouchGestureIntent;
+};
+
 const Chart = memo(function Chart(props: Omit<TimelineProps, "mode"> & { compact: boolean }) {
   const { projection, channels, axis, units, smoothing, resolution, zones, plannedIntervals = [], compact, hover, selection, zoom, onHover, onSelect } = props;
   const container = useRef<HTMLDivElement>(null);
   const plotRef = useRef<uPlot | null>(null);
   const current = useRef({ hover, selection, zoom, onHover, onSelect });
+  const touch = useRef<TouchState | null>(null);
   current.current = { hover, selection, zoom, onHover, onSelect };
   const samples = useMemo(() => chartSamples(projection, channels, axis, resolution, smoothing, units), [projection, channels, axis, resolution, smoothing, units]);
   const distanceAxis = useMemo(() => projection.streams.distance.flatMap((d, i) => d === null ? [] : [{ value: d / (units === "metric" ? 1000 : 1609.344), index: i }]), [projection, units]);
   const distanceValues = useMemo(() => distanceAxis.map(p => p.value), [distanceAxis]);
   const xAt = (i: number) => axis === "time" ? projection.streams.elapsed[i] : projection.streams.distance[i] === null ? null : projection.streams.distance[i] / (units === "metric" ? 1000 : 1609.344);
+  const indexAt = (x: number) => axis === "time" ? nearestIndex(projection.streams.elapsed, x) : distanceAxis[nearestIndex(distanceValues, x)]?.index ?? 0;
+  const inspectAtClientX = (clientX: number) => {
+    const chart = plotRef.current;
+    if (!chart) return;
+    const rect = chart.over.getBoundingClientRect();
+    const plotX = clampPointerX(clientX, rect.left, rect.width);
+    current.current.onHover(indexAt(chart.posToVal(plotX, "x")));
+  };
 
   useEffect(() => {
     if (!container.current || samples.data[0].length < 2) return;
     const element = container.current;
-    const indexAt = (x: number) => axis === "time" ? nearestIndex(projection.streams.elapsed, x) : distanceAxis[nearestIndex(distanceValues, x)]?.index ?? 0;
     let frame = 0;
     const scales: Record<string, uPlot.Scale> = { x: { time: false } };
     channels.forEach(k => { scales[k] = { auto: true, ...(k === "pace" ? { dir: -1 as const } : {}) }; });
@@ -117,19 +133,36 @@ const Chart = memo(function Chart(props: Omit<TimelineProps, "mode"> & { compact
     chart.setCursor({ left: value === null ? -10 : chart.valToPos(value, "x"), top: -10 }, false);
   }, [hover, samples, axis, units]);
 
-  const touchStart = useRef<number | null>(null);
   return <div className={styles.chartRow}>
     <div className={styles.chartLabels}>{channels.map(k => <span style={{ color: CHANNELS[k].color }} key={k}>{CHANNELS[k].label} <small>{channelUnit(k, units)}</small></span>)}</div>
-    {samples.data[0].length < 2 ? <p className={styles.quiet}>Not enough aligned samples for this axis.</p> : <div ref={container} className={styles.plot} role="img" aria-label={`${channels.map(k => CHANNELS[k].label).join(", ")} timeline`}
-      onPointerDown={event => { if (event.pointerType === "touch") touchStart.current = event.clientX; }}
+    {samples.data[0].length < 2 ? <p className={styles.quiet}>Not enough aligned samples for this axis.</p> : <div ref={container} className={styles.plot} style={{ touchAction: "pan-y" }} role="img" aria-label={`${channels.map(k => CHANNELS[k].label).join(", ")} timeline`}
+      onPointerDown={event => {
+        if (event.pointerType !== "touch") return;
+        touch.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, intent: "pending" };
+        inspectAtClientX(event.clientX);
+      }}
+      onPointerMove={event => {
+        const state = touch.current;
+        if (event.pointerType !== "touch" || !state || state.pointerId !== event.pointerId) return;
+        if (state.intent === "pending") {
+          state.intent = touchGestureIntent(event.clientX - state.startX, event.clientY - state.startY);
+          if (state.intent === "scroll") {
+            touch.current = null;
+            return;
+          }
+          if (state.intent === "scrub") event.currentTarget.setPointerCapture(event.pointerId);
+        }
+        if (state.intent === "scrub") inspectAtClientX(event.clientX);
+      }}
       onPointerUp={event => {
-        if (touchStart.current === null || !plotRef.current) return;
-        const u = plotRef.current, rect = u.over.getBoundingClientRect();
-        const a = u.posToVal(Math.max(0, Math.min(rect.width, touchStart.current - rect.left)), "x");
-        const b = u.posToVal(Math.max(0, Math.min(rect.width, event.clientX - rect.left)), "x");
-        const idx = (x: number) => axis === "time" ? nearestIndex(projection.streams.elapsed, x) : distanceAxis[nearestIndex(distanceValues, x)]?.index ?? 0;
-        if (Math.abs(event.clientX - touchStart.current) > 8) onSelect([Math.min(idx(a), idx(b)), Math.max(idx(a), idx(b))]); else onHover(idx(b));
-        touchStart.current = null;
+        const state = touch.current;
+        if (event.pointerType !== "touch" || !state || state.pointerId !== event.pointerId) return;
+        if (state.intent !== "scroll") inspectAtClientX(event.clientX);
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        touch.current = null;
+      }}
+      onPointerCancel={event => {
+        if (touch.current?.pointerId === event.pointerId) touch.current = null;
       }} />}
   </div>;
 });
@@ -138,6 +171,6 @@ export default memo(function AnalysisTimeline(props: TimelineProps) {
   const groups = useMemo(() => props.mode === "overlay" ? [props.channels] : props.channels.map(k => [k]), [props.channels, props.mode]);
   if (!props.channels.length) return <p className={styles.empty}>Choose at least one available channel.</p>;
   return <div className={styles.timeline}>{groups.map(keys => <Chart key={keys.join("-")} {...props} channels={keys} compact={props.mode === "stacked"} />)}
-    <p className={styles.axisCaption}>{props.axis === "time" ? "Elapsed time" : `Distance (${props.units === "metric" ? "km" : "mi"})`} · Drag to select a range</p>
+    <p className={styles.axisCaption}>{props.axis === "time" ? "Elapsed time" : `Distance (${props.units === "metric" ? "km" : "mi"})`} · Mouse drag selects · touch drag inspects</p>
   </div>;
 });
