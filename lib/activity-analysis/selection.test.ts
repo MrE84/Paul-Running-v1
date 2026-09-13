@@ -72,3 +72,51 @@ test("routeSamples keeps privacy-masked sections disconnected", () => {
   assert.equal(points.length, 2);
   assert.deepEqual(points.map(point => point.segment), [0, 1]);
 });
+
+test("routeSamples renders the changing degree coordinates reported in PAU-38", () => {
+  const latitude = [
+    51.9382652733475,
+    51.93852477706969,
+    51.93854841403663,
+    51.93855159915984,
+    51.938542295247316,
+    51.9385034032166,
+    51.93848378956318,
+    51.93847071379423,
+    51.938464092090726,
+    51.938458140939474,
+    51.93843886256218,
+    51.938344314694405,
+    51.93821934051812,
+    51.93819587118924,
+    51.93817407824099,
+    51.93814977072179,
+    51.93812387064099,
+  ];
+  const longitude = [
+    -2.066009296104312,
+    -2.0660135708749294,
+    -2.065968392416835,
+    -2.065876191481948,
+    -2.0658212061971426,
+    -2.065720623359084,
+    -2.0657164324074984,
+    -2.065714420750737,
+    -2.065704111009836,
+    -2.0656549092382193,
+    -2.065695058554411,
+    -2.065695896744728,
+    -2.065713331103325,
+    -2.065715342760086,
+    -2.065706290304661,
+    -2.065700925886631,
+    -2.0656998362392187,
+  ];
+  const elapsed = [0, 4, 6, 9, 11, 15, 16, 17, 18, 22, 35, 40, 45, 46, 47, 48, 49];
+  const p = projection({ latitude, longitude, elapsed, breakBefore: new Array(elapsed.length).fill(false) });
+
+  const points = routeSamples(p, 0, [], 2000);
+  assert.equal(points.length, latitude.length);
+  assert.ok(points.every(point => point.segment === 0));
+  assert.notDeepEqual([points[0].lat, points[0].lon], [points.at(-1)!.lat, points.at(-1)!.lon]);
+});
