@@ -24,17 +24,18 @@ export class SignedAgentReadError extends Error {
   }
 }
 
-function canonicalQuery(url: URL) {
-  const entries = [...url.searchParams.entries()]
-    .filter(([key]) => key !== "_agentSig")
-    .sort(([ak, av], [bk, bv]) => ak.localeCompare(bk) || av.localeCompare(bv));
-  const params = new URLSearchParams();
-  for (const [key, value] of entries) params.append(key, value);
-  return params.toString();
-}
-
+/**
+ * Language-neutral signed-read contract. The signature binds the method, exact
+ * API path, timestamp and nonce. Query options remain constrained by the signed
+ * activity path and the existing server-side API validation/bounds.
+ */
 export function canonicalAgentReadRequest(url: URL) {
-  return `GET\n${url.pathname}\n${canonicalQuery(url)}`;
+  return [
+    "GET",
+    url.pathname,
+    url.searchParams.get("_agentTs") ?? "",
+    url.searchParams.get("_agentNonce") ?? "",
+  ].join("\n");
 }
 
 function cleanUrl(url: URL) {
