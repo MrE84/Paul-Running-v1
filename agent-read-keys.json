@@ -6,6 +6,7 @@
       "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAE42poP/DOIrDVXNf9K11lFQgtXWqnEX716SdLf80ARw=\n-----END PUBLIC KEY-----\n",
       "scope": "activities:read",
       "enabled": true,
+      "issuedAt": "2026-09-13T21:04:22.000Z",
       "expiresAt": "2026-09-14T21:04:49.384159Z"
     }
   ]
