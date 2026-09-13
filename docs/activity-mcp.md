@@ -38,13 +38,16 @@ Signed requests use these query parameters:
 - `_agentNonce` — high-entropy per-request nonce
 - `_agentSig` — URL-safe base64 Ed25519 signature
 
-The canonical signed message is:
+The canonical signed message is deliberately language-neutral:
 
 ```text
 GET
-<pathname>
-<all query parameters except _agentSig, sorted by key then value>
+<exact pathname>
+<_agentTs>
+<_agentNonce>
 ```
+
+This binds the request to one exact activity API path and a short validity window without depending on language-specific query-string collation. Query options such as `elapsedSeconds`, `limit` and `recompute` remain subject to the server's existing validation and bounds; changing them cannot expand the signed identity beyond the exact activity path.
 
 After verification, the server removes the four transport-auth parameters and internally delegates to the existing bearer-protected training API. Existing browser-session and bearer-token authentication therefore remain authoritative and unchanged.
 
