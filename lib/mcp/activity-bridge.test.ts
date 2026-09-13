@@ -14,7 +14,7 @@ function request(body: unknown, token = "test-token") {
 
 const projection: AnalysisProjection = {
   version: "test",
-  source: { id: "src-1", name: "Saturday run.fit", origin: "server" },
+  source: { id: "src-1", name: "Saturday run.fit", origin: "backend" },
   activity: { id: "i185832465", title: "Saturday run", sport: "running", startedAt: "2026-09-12T07:32:00.000Z", distance: 5000, duration: 1500 },
   summary: { distance: 5000, duration: 1500, elapsed: 1500, speed: 3.33, heartRate: 165, cadence: 172, ascent: 42, calories: 350 },
   streams: {
