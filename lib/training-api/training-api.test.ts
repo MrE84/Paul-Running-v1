@@ -172,13 +172,21 @@ test("activity analysis caches versioned intelligence and route weather separate
   const { service, store } = harness({ activities: [activity] });
   const projection = await service.getActivityAnalysis(athlete.id, activity.id);
   assert.equal(projection.intelligence?.version, "1.1.0");
-  const fetchImpl = async () => new Response(JSON.stringify({ hourly: {
-    time: ["2026-09-10T08:00"], temperature_2m: [12], apparent_temperature: [11],
-    relative_humidity_2m: [70], dew_point_2m: [7], precipitation: [0], surface_pressure: [1012],
-    cloud_cover: [20], wind_speed_10m: [3], wind_gusts_10m: [5], wind_direction_10m: [180],
-  } }), { status: 200 });
+  let fetchCalls = 0;
+  const fetchImpl = async () => {
+    fetchCalls += 1;
+    if (fetchCalls <= 10) return new Response(JSON.stringify({ reason: "Temporary weather provider failure" }), { status: 503 });
+    return new Response(JSON.stringify({ hourly: {
+      time: ["2026-09-10T08:00"], temperature_2m: [12], apparent_temperature: [11],
+      relative_humidity_2m: [70], dew_point_2m: [7], precipitation: [0], surface_pressure: [1012],
+      cloud_cover: [20], wind_speed_10m: [3], wind_gusts_10m: [5], wind_direction_10m: [180],
+    } }), { status: 200 });
+  };
+  const failed = await service.getActivityWeather(athlete.id, activity.id, false, fetchImpl as typeof fetch);
+  assert.equal(failed.weather?.status, "failed");
   const enriched = await service.getActivityWeather(athlete.id, activity.id, false, fetchImpl as typeof fetch);
   assert.equal(enriched.weather?.status, "available");
+  assert.ok(fetchCalls > 10);
   assert.equal(enriched.streams.channels.ambient_temperature?.[0], 12);
   assert.equal(enriched.streams.channels.temperature?.[0], projection.streams.channels.temperature?.[0]);
   assert.equal((await store.getAnalysisCache(activity.id))?.projection.weather?.version, enriched.weather?.version);

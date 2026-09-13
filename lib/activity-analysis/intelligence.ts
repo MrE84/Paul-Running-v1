@@ -515,6 +515,7 @@ function efficiencyRatio(projection: AnalysisProjection, range: IndexRange): num
 export function efficiencyAnalysis(projection: AnalysisProjection, inputRange?: IndexRange | null): EfficiencyAnalysis | null {
   if (!projection.streams.channels.heart_rate || !projection.streams.channels.speed || projection.streams.elapsed.length < 3) return null;
   const range = boundedRange(projection, inputRange);
+  if (range[1] - range[0] < 2) return null;
   const midpointElapsed = (projection.streams.elapsed[range[0]] + projection.streams.elapsed[range[1]]) / 2;
   const midpoint = Math.max(range[0] + 1, Math.min(range[1] - 1, nearestIndex(projection.streams.elapsed, midpointElapsed)));
   const whole = rangeSummary(projection, range);
