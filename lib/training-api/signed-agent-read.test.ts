@@ -56,13 +56,19 @@ test("signed activity read validates and strips transport credentials before del
   assert.equal(result.cleanUrl.searchParams.has("_agentSig"), false);
 });
 
-test("tampering with signed query parameters invalidates the signature", async () => {
+test("tampering with the signed activity path invalidates the signature", async () => {
   const url = signedUrl("/api/v1/activities/i185832465/sample", { elapsedSeconds: "1123" });
-  url.searchParams.set("elapsedSeconds", "1124");
+  url.pathname = "/api/v1/activities/iDIFFERENT/sample";
   await assert.rejects(
     () => authorizeSignedActivityRead(new NextRequest(url), { now, fetchImpl: registryFetch() }),
     (error: unknown) => error instanceof SignedAgentReadError && error.code === "AGENT_SIGNATURE_INVALID",
   );
+});
+
+test("signed activity query options remain available for server-side validation", async () => {
+  const url = signedUrl("/api/v1/activities/i185832465/sample", { elapsedSeconds: "1123" });
+  const result = await authorizeSignedActivityRead(new NextRequest(url), { now, fetchImpl: registryFetch() });
+  assert.equal(result.cleanUrl.searchParams.get("elapsedSeconds"), "1123");
 });
 
 test("signed activity read rejects expired requests", async () => {
