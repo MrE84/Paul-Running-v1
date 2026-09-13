@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "keys": [
+    {
+      "id": "chatgpt-20260913-210422",
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAE42poP/DOIrDVXNf9K11lFQgtXWqnEX716SdLf80ARw=\n-----END PUBLIC KEY-----\n",
+      "scope": "activities:read",
+      "enabled": true,
+      "expiresAt": "2026-09-14T21:04:49.384159Z"
+    }
+  ]
+}
