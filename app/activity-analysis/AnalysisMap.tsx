@@ -4,7 +4,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, Map as LibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { osmTileLayout, projectRoutePaths, type OsmTile, type ScreenRoutePath } from "../../lib/activity-analysis/map-fallback";
+import { osmTileLayout, projectRoutePaths, resolveRunnerPosition, type OsmTile, type ScreenRoutePath } from "../../lib/activity-analysis/map-fallback";
 import { CHANNELS, type AnalysisProjection, type Channel, type IndexRange } from "../../lib/activity-analysis/projection";
 import { formatChannel, routeSamples, type PrivacyRegion } from "../../lib/activity-analysis/selection";
 import type { UnitSystem } from "../../lib/activity-analysis/contracts";
@@ -19,10 +19,11 @@ interface Props {
 
 type OverlayLine = { key: string; x1: number; y1: number; x2: number; y2: number; color: string };
 type OverlayMarker = { kind: "start" | "finish"; x: number; y: number };
-type BrowserOverlay = { paths: ScreenRoutePath[]; lines: OverlayLine[]; markers: OverlayMarker[]; tiles: OsmTile[] };
+type OverlayRunner = { x: number; y: number; bearing: number; index: number };
+type BrowserOverlay = { paths: ScreenRoutePath[]; lines: OverlayLine[]; markers: OverlayMarker[]; runner: OverlayRunner | null; tiles: OsmTile[] };
 
 const emptyCollection = { type: "FeatureCollection" as const, features: [] };
-const emptyOverlay: BrowserOverlay = { paths: [], lines: [], markers: [], tiles: [] };
+const emptyOverlay: BrowserOverlay = { paths: [], lines: [], markers: [], runner: null, tiles: [] };
 
 function moveCoordinate(longitude: number, latitude: number, bearing: number, distanceDegrees: number): [number, number] {
   const angle = bearing * Math.PI / 180;
@@ -59,6 +60,8 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
   const initialPrivacyHandled = useRef(false);
   const refreshOverlayRef = useRef<(() => void) | null>(null);
   const tilesRef = useRef(false);
+  const hoverRef = useRef<number | null>(hover);
+  hoverRef.current = hover;
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [tileError, setTileError] = useState(false);
@@ -72,6 +75,7 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
   const regions = privacy.regions;
   const latest = useRef({ onHover, onSelect }); latest.current = { onHover, onSelect };
   const points = useMemo(() => routeSamples(projection, radius, regions, density), [projection, radius, regions, density]);
+  const runnerPoints = useMemo(() => routeSamples(projection, radius, regions, Number.MAX_SAFE_INTEGER), [projection, radius, regions]);
   const pointIndices = useMemo(() => new Set(points.map(p => p.index)), [points]);
   const gpsSamples = useMemo(() => projection.streams.latitude.reduce<number>((count, lat, index) => count + (lat !== null && projection.streams.longitude[index] !== null ? 1 : 0), 0), [projection]);
   const baseRoute = useMemo(() => baseRouteCollection(points), [points]);
@@ -94,8 +98,8 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     const kind = i === 0 ? "start" : i === points.length - 1 ? "finish" : lap ? "lap" : null;
     return kind ? [{ type: "Feature" as const, properties: { kind, start: lap?.start, end: lap?.end }, geometry: { type: "Point" as const, coordinates: [p.lon, p.lat] } }] : [];
   }) }), [points, projection.laps]);
-  const routeData = useRef({ features, markers, baseRoute, points });
-  routeData.current = { features, markers, baseRoute, points };
+  const routeData = useRef({ features, markers, baseRoute, points, runnerPoints });
+  routeData.current = { features, markers, baseRoute, points, runnerPoints };
 
   useEffect(() => {
     if (initialPrivacyHandled.current) return;
@@ -147,6 +151,11 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
       const overlayMarkers: OverlayMarker[] = [];
       if (first) { const screen = project(first.lon, first.lat); overlayMarkers.push({ kind: "start", x: screen.x, y: screen.y }); }
       if (last) { const screen = project(last.lon, last.lat); overlayMarkers.push({ kind: "finish", x: screen.x, y: screen.y }); }
+      const runnerPosition = resolveRunnerPosition(current.runnerPoints, hoverRef.current, projection.streams.elapsed);
+      const runner = runnerPosition ? (() => {
+        const screen = project(runnerPosition.lon, runnerPosition.lat);
+        return Number.isFinite(screen.x) && Number.isFinite(screen.y) ? { x: screen.x, y: screen.y, bearing: runnerPosition.bearing, index: runnerPosition.index } : null;
+      })() : null;
       const center = instance.getCenter();
       const mapContainer = instance.getContainer();
       const tileLayout = tilesRef.current ? osmTileLayout({
@@ -156,7 +165,7 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
         width: mapContainer.clientWidth,
         height: mapContainer.clientHeight,
       }) : [];
-      setBrowserOverlay({ paths, lines, markers: overlayMarkers, tiles: tileLayout });
+      setBrowserOverlay({ paths, lines, markers: overlayMarkers, runner, tiles: tileLayout });
     };
     const scheduleOverlay = () => {
       if (frame) cancelAnimationFrame(frame);
@@ -279,14 +288,14 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
   }, [selection, ready]);
 
   useEffect(() => {
+    const runner = resolveRunnerPosition(runnerPoints, hover, projection.streams.elapsed);
+    refreshOverlayRef.current?.();
     const m = map.current;
     if (!m || !ready || !m.isStyleLoaded()) return;
     const cursorSource = m.getSource("cursor") as GeoJSONSource | undefined;
     if (!cursorSource) return;
-    const lat = hover === null ? null : projection.streams.latitude[hover], lon = hover === null ? null : projection.streams.longitude[hover];
-    const visible = hover !== null && (pointIndices.has(hover) || routeSamples(projection, radius, regions, Number.MAX_SAFE_INTEGER).some(p => p.index === hover));
-    cursorSource.setData({ type: "FeatureCollection", features: visible && lat != null && lon != null ? [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [lon, lat] } }] : [] });
-  }, [hover, ready, projection, radius, regions, pointIndices]);
+    cursorSource.setData({ type: "FeatureCollection", features: runner ? [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [runner.lon, runner.lat] } }] : [] });
+  }, [hover, ready, projection.streams.elapsed, runnerPoints]);
 
   if (!projection.streams.latitude.some(v => v !== null)) return <section className={styles.panel}><h3>Indoor activity</h3><p className={styles.empty}>No GPS was recorded. Explore your pace, heart rate and laps in the timeline.</p></section>;
 
@@ -307,15 +316,21 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
         {browserOverlay.paths.map(path => <path key={`base-${path.segment}`} d={path.d} fill="none" stroke="#38bdf8" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" opacity=".9" />)}
         {browserOverlay.lines.map(line => <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={line.color} strokeWidth="4" strokeLinecap="round" />)}
         {browserOverlay.markers.map(marker => <circle key={marker.kind} cx={marker.x} cy={marker.y} r="7" fill={marker.kind === "start" ? "#6ee7b7" : "#fb7185"} stroke="#0c1422" strokeWidth="2" />)}
+        {browserOverlay.runner && <g transform={`translate(${browserOverlay.runner.x} ${browserOverlay.runner.y})`}>
+          <g transform={`rotate(${browserOverlay.runner.bearing})`}><path d="M0 -24 L5 -15 L-5 -15 Z" fill="#ffffff" stroke="#071523" strokeWidth="1.5" /></g>
+          <circle r="15" fill="#071523" stroke="#ffffff" strokeWidth="2.5" />
+          <circle r="12" fill="#12314d" stroke="#60a5fa" strokeWidth="1.5" />
+          <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="18">🏃</text>
+        </g>}
       </svg>
       {tiles && <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style={{ position: "absolute", right: 4, bottom: 3, zIndex: 6, fontSize: 9, color: "#d8e7f7", background: "rgba(6,17,29,.8)", padding: "2px 4px", borderRadius: 3 }}>© OpenStreetMap contributors</a>}
     </div>
     {error && <p role="status" className={styles.quiet}>{error}</p>}
     {tileError && tiles && <p role="status" className={styles.quiet}>Some OpenStreetMap tile images were blocked or unavailable. The recorded GPS route remains visible independently.</p>}
     {!points.length && <p className={styles.quiet}>No route points are currently visible. Set start / finish privacy to Off or clear custom masks.</p>}
-    <p className={styles.quiet}>GPS samples {gpsSamples.toLocaleString()} · visible route points {points.length.toLocaleString()} · base route segments {baseRoute.features.length.toLocaleString()} · coloured segments {features.features.length.toLocaleString()} · browser overlay {browserOverlay.paths.length ? "active" : "waiting"} · street tiles {tiles ? browserOverlay.tiles.length.toLocaleString() : "off"} · map {ready ? "ready" : "loading"}</p>
+    <p className={styles.quiet}>GPS samples {gpsSamples.toLocaleString()} · visible route points {points.length.toLocaleString()} · base route segments {baseRoute.features.length.toLocaleString()} · coloured segments {features.features.length.toLocaleString()} · runner {hover === null ? "waiting for chart scrub" : browserOverlay.runner ? "synced" : "hidden at route gap"} · browser overlay {browserOverlay.paths.length ? "active" : "waiting"} · street tiles {tiles ? browserOverlay.tiles.length.toLocaleString() : "off"} · map {ready ? "ready" : "loading"}</p>
     <div className={styles.mapLegend}><span>{formatChannel(metric, limits.min, units)}</span><i /><span>{formatChannel(metric, limits.max, units)}</span></div>
-    <p className={styles.quiet}>Start <span style={{ color: "#6ee7b7" }}>●</span> · Finish <span style={{ color: "#fb7185" }}>●</span>{projection.weather?.status === "available" ? " · Blue arrows show wind direction" : ""} · Click a lap marker to select it.</p>
+    <p className={styles.quiet}>Scrub any chart to move the runner along the same GPS moment. Start <span style={{ color: "#6ee7b7" }}>●</span> · Finish <span style={{ color: "#fb7185" }}>●</span>{projection.weather?.status === "available" ? " · Blue arrows show wind direction" : ""} · Click a lap marker to select it.</p>
     <details className={styles.details}><summary>Map privacy & detail <span>{radius ? `${radius} m masked` : "Mask off"}</span></summary>
       <div className={styles.toolbar}><label>Route detail<select value={density} onChange={e => setDensity(Number(e.target.value))}><option value={1000}>Light</option><option value={2000}>Balanced</option><option value={10000}>Detailed</option></select></label></div>
       <p className={styles.quiet}>Hover a route point, then mask it below to hide a 200 m home region for this session. Masks hide points and connecting segments; original data and raw exports remain complete.</p>
