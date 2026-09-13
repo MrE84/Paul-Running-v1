@@ -4,6 +4,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONSource, Map as LibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { osmTileLayout, projectRoutePaths, type OsmTile, type ScreenRoutePath } from "../../lib/activity-analysis/map-fallback";
 import { CHANNELS, type AnalysisProjection, type Channel, type IndexRange } from "../../lib/activity-analysis/projection";
 import { formatChannel, routeSamples, type PrivacyRegion } from "../../lib/activity-analysis/selection";
 import type { UnitSystem } from "../../lib/activity-analysis/contracts";
@@ -15,7 +16,13 @@ interface Props {
   privacy: { endpointRadius: number; regions: PrivacyRegion[] };
   onPrivacyChange: (privacy: { endpointRadius: number; regions: PrivacyRegion[] }) => void;
 }
+
+type OverlayLine = { key: string; x1: number; y1: number; x2: number; y2: number; color: string };
+type OverlayMarker = { kind: "start" | "finish"; x: number; y: number };
+type BrowserOverlay = { paths: ScreenRoutePath[]; lines: OverlayLine[]; markers: OverlayMarker[]; tiles: OsmTile[] };
+
 const emptyCollection = { type: "FeatureCollection" as const, features: [] };
+const emptyOverlay: BrowserOverlay = { paths: [], lines: [], markers: [], tiles: [] };
 
 function moveCoordinate(longitude: number, latitude: number, bearing: number, distanceDegrees: number): [number, number] {
   const angle = bearing * Math.PI / 180;
@@ -50,12 +57,17 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<LibreMap | null>(null);
   const initialPrivacyHandled = useRef(false);
+  const refreshOverlayRef = useRef<(() => void) | null>(null);
+  const tilesRef = useRef(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
+  const [tileError, setTileError] = useState(false);
+  const [browserOverlay, setBrowserOverlay] = useState<BrowserOverlay>(emptyOverlay);
   const [metric, setMetric] = useState<Channel>(projection.streams.channels.heart_rate ? "heart_rate" : "pace");
   const [colourMode, setColourMode] = useState("intensity");
   const [density, setDensity] = useState(2000);
   const [tiles, setTiles] = useState(projection.source.origin === "backend");
+  tilesRef.current = tiles;
   const radius = privacy.endpointRadius;
   const regions = privacy.regions;
   const latest = useRef({ onHover, onSelect }); latest.current = { onHover, onSelect };
@@ -95,17 +107,66 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     if (!container.current || !projection.streams.latitude.some(v => v !== null)) return;
     setReady(false);
     setError("");
+    setBrowserOverlay(emptyOverlay);
     let instance: LibreMap;
+    let frame = 0;
     try {
-      instance = new maplibregl.Map({ container: container.current, attributionControl: false,
-        style: { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#122033" } }] },
-        center: [0, 0], zoom: 1,
+      instance = new maplibregl.Map({
+        container: container.current,
+        attributionControl: false,
+        dragRotate: false,
+        style: { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "rgba(18,32,51,0)" } }] },
+        center: [0, 0],
+        zoom: 1,
       });
-    } catch { setError("The map needs WebGL. Try another browser; all charts and lap analysis remain available."); return; }
+    } catch {
+      setError("The map needs WebGL. Try another browser; all charts and lap analysis remain available.");
+      return;
+    }
     map.current = instance;
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
     instance.addControl(new maplibregl.FullscreenControl(), "top-right");
-    instance.addControl(new maplibregl.AttributionControl({ compact: false }), "bottom-right");
+
+    const refreshOverlay = () => {
+      const current = routeData.current;
+      const project = (longitude: number, latitude: number) => {
+        const screen = instance.project([longitude, latitude]);
+        return { x: screen.x, y: screen.y };
+      };
+      const paths = projectRoutePaths(current.points, project);
+      const lines = current.features.features.flatMap((feature, index): OverlayLine[] => {
+        const coordinates = feature.geometry.coordinates;
+        if (coordinates.length !== 2) return [];
+        const a = project(coordinates[0][0], coordinates[0][1]);
+        const b = project(coordinates[1][0], coordinates[1][1]);
+        if (![a.x, a.y, b.x, b.y].every(Number.isFinite)) return [];
+        return [{ key: `${index}-${feature.properties.index}`, x1: a.x, y1: a.y, x2: b.x, y2: b.y, color: String(feature.properties.color ?? "#60a5fa") }];
+      });
+      const first = current.points[0];
+      const last = current.points[current.points.length - 1];
+      const overlayMarkers: OverlayMarker[] = [];
+      if (first) { const screen = project(first.lon, first.lat); overlayMarkers.push({ kind: "start", x: screen.x, y: screen.y }); }
+      if (last) { const screen = project(last.lon, last.lat); overlayMarkers.push({ kind: "finish", x: screen.x, y: screen.y }); }
+      const center = instance.getCenter();
+      const mapContainer = instance.getContainer();
+      const tileLayout = tilesRef.current ? osmTileLayout({
+        longitude: center.lng,
+        latitude: center.lat,
+        zoom: instance.getZoom(),
+        width: mapContainer.clientWidth,
+        height: mapContainer.clientHeight,
+      }) : [];
+      setBrowserOverlay({ paths, lines, markers: overlayMarkers, tiles: tileLayout });
+    };
+    const scheduleOverlay = () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(refreshOverlay);
+    };
+    refreshOverlayRef.current = scheduleOverlay;
+    instance.on("move", scheduleOverlay);
+    instance.on("zoom", scheduleOverlay);
+    instance.on("resize", scheduleOverlay);
+
     instance.on("load", () => {
       try {
         const current = routeData.current;
@@ -128,9 +189,13 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
         instance.addLayer({ id: "cursor", type: "circle", source: "cursor", paint: { "circle-radius": 8, "circle-color": "#ffffff", "circle-stroke-color": "#60a5fa", "circle-stroke-width": 3 } });
         setReady(true);
         fitPoints(instance, current.points);
+        scheduleOverlay();
       } catch (loadError) {
         const detail = loadError instanceof Error ? `: ${loadError.message}` : "";
-        setError(`The route map could not initialise${detail}`);
+        setError(`MapLibre source rendering is unavailable${detail}. Browser route fallback is active.`);
+        setReady(true);
+        fitPoints(instance, routeData.current.points);
+        scheduleOverlay();
       }
     });
     instance.on("mousemove", "route-hit", event => {
@@ -145,38 +210,45 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     });
     instance.on("error", event => {
       const detail = event.error?.message ? `: ${event.error.message}` : "";
-      setError(`MapLibre reported an error${detail}`);
+      setError(`MapLibre source warning${detail}. Browser route fallback remains active.`);
     });
-    const observer = new ResizeObserver(() => instance.resize()); observer.observe(container.current);
-    return () => { observer.disconnect(); instance.remove(); map.current = null; };
+    const observer = new ResizeObserver(() => { instance.resize(); scheduleOverlay(); });
+    observer.observe(container.current);
+    return () => {
+      observer.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+      refreshOverlayRef.current = null;
+      instance.remove();
+      map.current = null;
+    };
   }, [projection.activity.id]);
-
-  useEffect(() => {
-    const m = map.current;
-    if (!m || !ready || !m.isStyleLoaded()) return;
-    if (tiles && !m.getSource("basemap")) {
-      m.addSource("basemap", { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>' });
-      const layer = { id: "basemap", type: "raster" as const, source: "basemap", paint: { "raster-opacity": .7, "raster-saturation": -.75, "raster-brightness-max": .8 } };
-      if (m.getLayer("route-base-line")) m.addLayer(layer, "route-base-line"); else m.addLayer(layer);
-    } else if (!tiles && m.getSource("basemap")) { m.removeLayer("basemap"); m.removeSource("basemap"); }
-  }, [tiles, ready]);
 
   function fitRoute() {
     const m = map.current;
     if (!m) return;
     fitPoints(m, points);
+    refreshOverlayRef.current?.();
   }
+
   useEffect(() => {
     const m = map.current;
-    if (!m || !ready || !m.isStyleLoaded()) return;
+    if (!m || !ready || !m.isStyleLoaded()) { refreshOverlayRef.current?.(); return; }
     const baseSource = m.getSource("route-base") as GeoJSONSource | undefined;
     const routeSource = m.getSource("route") as GeoJSONSource | undefined;
     const markerSource = m.getSource("markers") as GeoJSONSource | undefined;
-    if (!baseSource || !routeSource || !markerSource) return;
-    baseSource.setData(baseRoute);
-    routeSource.setData(features);
-    markerSource.setData(markers);
+    if (baseSource && routeSource && markerSource) {
+      baseSource.setData(baseRoute);
+      routeSource.setData(features);
+      markerSource.setData(markers);
+    }
+    refreshOverlayRef.current?.();
   }, [baseRoute, features, markers, ready]);
+
+  useEffect(() => {
+    setTileError(false);
+    refreshOverlayRef.current?.();
+  }, [tiles]);
+
   useEffect(() => {
     const m = map.current;
     if (!m || !ready || !m.isStyleLoaded()) return;
@@ -197,24 +269,27 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     });
     weatherSource.setData({ type: "FeatureCollection", features: weather });
   }, [projection.weather, ready, pointIndices, selection]);
+
   useEffect(() => { if (ready) fitRoute(); }, [points, ready]);
+
   useEffect(() => {
     const m = map.current;
     if (!m || !ready || !m.getLayer("route-selection")) return;
     m.setFilter("route-selection", selection ? ["all", [">=", ["get", "index"], selection[0]], ["<=", ["get", "end"], selection[1]]] : ["==", ["get", "index"], -1]);
   }, [selection, ready]);
+
   useEffect(() => {
     const m = map.current;
     if (!m || !ready || !m.isStyleLoaded()) return;
     const cursorSource = m.getSource("cursor") as GeoJSONSource | undefined;
     if (!cursorSource) return;
-    // Reapply the privacy predicate at full resolution, never snap a hidden point onto the map.
     const lat = hover === null ? null : projection.streams.latitude[hover], lon = hover === null ? null : projection.streams.longitude[hover];
     const visible = hover !== null && (pointIndices.has(hover) || routeSamples(projection, radius, regions, Number.MAX_SAFE_INTEGER).some(p => p.index === hover));
     cursorSource.setData({ type: "FeatureCollection", features: visible && lat != null && lon != null ? [{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [lon, lat] } }] : [] });
   }, [hover, ready, projection, radius, regions, pointIndices]);
 
   if (!projection.streams.latitude.some(v => v !== null)) return <section className={styles.panel}><h3>Indoor activity</h3><p className={styles.empty}>No GPS was recorded. Explore your pace, heart rate and laps in the timeline.</p></section>;
+
   return <section className={styles.panel} aria-label="Route analysis">
     <div className={styles.panelHeading}><div><span className={styles.eyebrow}>THE ROUTE</span><h3>Every turn, in context</h3></div><button onClick={fitRoute}>Fit route</button></div>
     <div className={styles.toolbar}>
@@ -223,10 +298,22 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
       <label>Start / finish privacy<select aria-label="Endpoint privacy radius" value={radius} onChange={e => onPrivacyChange({ ...privacy, endpointRadius: Number(e.target.value) })}>{[0, 100, 200, 500, 1000].map(v => <option key={v} value={v}>{v ? `${v} m` : "Off"}</option>)}</select></label>
       <label className={styles.check}><input type="checkbox" checked={tiles} onChange={e => setTiles(e.target.checked)} />Street map</label>
     </div>
-    <div ref={container} className={styles.map} aria-label="Interactive activity map" />
+    <div style={{ position: "relative", overflow: "hidden", borderRadius: 12, background: "#122033" }}>
+      {tiles && <div aria-hidden="true" style={{ position: "absolute", inset: 1, overflow: "hidden", zIndex: 1, pointerEvents: "none", borderRadius: 11 }}>
+        {browserOverlay.tiles.map(tile => <img key={tile.key} src={tile.url} alt="" draggable={false} onError={() => setTileError(true)} style={{ position: "absolute", left: tile.left, top: tile.top, width: tile.size + 1, height: tile.size + 1, maxWidth: "none", opacity: .82, filter: "saturate(.75) brightness(.72)" }} />)}
+      </div>}
+      <div ref={container} className={styles.map} aria-label="Interactive activity map" style={{ position: "relative", background: "transparent" }} />
+      <svg aria-hidden="true" width="100%" height="100%" style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none" }}>
+        {browserOverlay.paths.map(path => <path key={`base-${path.segment}`} d={path.d} fill="none" stroke="#38bdf8" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" opacity=".9" />)}
+        {browserOverlay.lines.map(line => <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={line.color} strokeWidth="4" strokeLinecap="round" />)}
+        {browserOverlay.markers.map(marker => <circle key={marker.kind} cx={marker.x} cy={marker.y} r="7" fill={marker.kind === "start" ? "#6ee7b7" : "#fb7185"} stroke="#0c1422" strokeWidth="2" />)}
+      </svg>
+      {tiles && <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style={{ position: "absolute", right: 4, bottom: 3, zIndex: 6, fontSize: 9, color: "#d8e7f7", background: "rgba(6,17,29,.8)", padding: "2px 4px", borderRadius: 3 }}>© OpenStreetMap contributors</a>}
+    </div>
     {error && <p role="status" className={styles.quiet}>{error}</p>}
+    {tileError && tiles && <p role="status" className={styles.quiet}>Some OpenStreetMap tile images were blocked or unavailable. The recorded GPS route remains visible independently.</p>}
     {!points.length && <p className={styles.quiet}>No route points are currently visible. Set start / finish privacy to Off or clear custom masks.</p>}
-    <p className={styles.quiet}>GPS samples {gpsSamples.toLocaleString()} · visible route points {points.length.toLocaleString()} · base route segments {baseRoute.features.length.toLocaleString()} · coloured segments {features.features.length.toLocaleString()} · map {ready ? "ready" : "loading"}</p>
+    <p className={styles.quiet}>GPS samples {gpsSamples.toLocaleString()} · visible route points {points.length.toLocaleString()} · base route segments {baseRoute.features.length.toLocaleString()} · coloured segments {features.features.length.toLocaleString()} · browser overlay {browserOverlay.paths.length ? "active" : "waiting"} · street tiles {tiles ? browserOverlay.tiles.length.toLocaleString() : "off"} · map {ready ? "ready" : "loading"}</p>
     <div className={styles.mapLegend}><span>{formatChannel(metric, limits.min, units)}</span><i /><span>{formatChannel(metric, limits.max, units)}</span></div>
     <p className={styles.quiet}>Start <span style={{ color: "#6ee7b7" }}>●</span> · Finish <span style={{ color: "#fb7185" }}>●</span>{projection.weather?.status === "available" ? " · Blue arrows show wind direction" : ""} · Click a lap marker to select it.</p>
     <details className={styles.details}><summary>Map privacy & detail <span>{radius ? `${radius} m masked` : "Mask off"}</span></summary>
@@ -235,7 +322,7 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
       <button disabled={hover === null || projection.streams.latitude[hover] === null} onClick={() => {
         if (hover !== null && projection.streams.latitude[hover] !== null && projection.streams.longitude[hover] !== null) onPrivacyChange({ ...privacy, regions: [...regions, { latitude: projection.streams.latitude[hover]!, longitude: projection.streams.longitude[hover]!, radius: 200 }] });
       }}>Mask inspected location</button>{regions.length > 0 && <button onClick={() => onPrivacyChange({ ...privacy, regions: [] })}>Clear {regions.length} home masks</button>}
-      <p className={styles.quiet}>Street tiles are supplied by OpenStreetMap and reveal the viewed map area to that provider. Local FIT files start with street tiles off.</p>
+      <p className={styles.quiet}>Street tiles are supplied directly by OpenStreetMap and reveal the viewed map area to that provider. Local FIT files start with street tiles off.</p>
     </details>
   </section>;
 });
