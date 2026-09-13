@@ -1,10 +1,10 @@
-import ActivityExplorer from "./ActivityExplorer";
+import ActivityHub from "./ActivityHub";
 
 export const metadata = {
   title: "Activity Analysis · Paul's Running",
-  description: "Local-first FIT activity decoding and analysis.",
+  description: "Premium deep-linked Garmin activity analysis with synchronized timeline and route intelligence.",
 };
 
 export default function ActivityAnalysisPage() {
-  return <ActivityExplorer />;
+  return <ActivityHub />;
 }
