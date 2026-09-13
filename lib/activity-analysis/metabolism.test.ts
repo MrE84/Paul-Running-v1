@@ -15,9 +15,9 @@ test("interpolates the athlete-specific HR fat oxidation model", () => {
 });
 
 test("integrates sample-by-sample HR rather than whole-activity average only", () => {
-  const estimate = estimateFatOxidation([0, 60, 120], [135, 140, 165]);
+  const estimate = estimateFatOxidation([0, 10, 20], [135, 140, 165]);
   assert.ok(estimate);
-  assert.ok(estimate.grams > 0.5);
+  assert.ok(estimate.grams > 0.1);
   assert.ok(estimate.gramsLow < estimate.grams);
   assert.ok(estimate.gramsHigh > estimate.grams);
   assert.equal(estimate.coverage, 1);
@@ -26,8 +26,8 @@ test("integrates sample-by-sample HR rather than whole-activity average only", (
 });
 
 test("returns unavailable when no usable HR exists", () => {
-  assert.equal(estimateFatOxidation([0, 60, 120], undefined), null);
-  assert.equal(estimateFatOxidation([0, 60, 120], [null, null, null]), null);
+  assert.equal(estimateFatOxidation([0, 10, 20], undefined), null);
+  assert.equal(estimateFatOxidation([0, 10, 20], [null, null, null]), null);
 });
 
 test("excludes recording gaps instead of inventing metabolic load", () => {
@@ -42,9 +42,9 @@ test("excludes recording gaps instead of inventing metabolic load", () => {
 });
 
 test("supports selected-range estimates", () => {
-  const full = estimateFatOxidation([0, 60, 120, 180], [135, 135, 165, 165]);
-  const selected = estimateFatOxidation([0, 60, 120, 180], [135, 135, 165, 165], { range: [0, 1] });
+  const full = estimateFatOxidation([0, 10, 20, 30], [135, 135, 165, 165]);
+  const selected = estimateFatOxidation([0, 10, 20, 30], [135, 135, 165, 165], { range: [0, 1] });
   assert.ok(full && selected);
   assert.ok(selected.grams < full.grams);
-  assert.equal(selected.coveredSeconds, 60);
+  assert.equal(selected.coveredSeconds, 10);
 });
