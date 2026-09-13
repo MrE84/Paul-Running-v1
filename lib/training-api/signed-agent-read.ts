@@ -88,7 +88,7 @@ export async function authorizeSignedActivityRead(
     throw new SignedAgentReadError(405, "AGENT_READ_ONLY", "Signed agent authentication is limited to GET activity reads.");
   }
   const url = new URL(request.url);
-  if (!url.pathname.startsWith("/api/v1/activities")) {
+  if (url.pathname !== "/api/v1/activities" && !url.pathname.startsWith("/api/v1/activities/")) {
     throw new SignedAgentReadError(403, "AGENT_SCOPE_FORBIDDEN", "Signed agent authentication is limited to activity reads.");
   }
 
