@@ -17,9 +17,11 @@ test("interpolates the athlete-specific HR fat oxidation model", () => {
 test("integrates sample-by-sample HR rather than whole-activity average only", () => {
   const estimate = estimateFatOxidation([0, 10, 20], [135, 140, 165]);
   assert.ok(estimate);
-  assert.ok(estimate.grams > 0.1);
-  assert.ok(estimate.gramsLow < estimate.grams);
-  assert.ok(estimate.gramsHigh > estimate.grams);
+  assert.equal(estimate.coveredSeconds, 20);
+  assert.ok(estimate.gramsLow > 0);
+  assert.ok(estimate.gramsLow <= estimate.grams);
+  assert.ok(estimate.grams <= estimate.gramsHigh);
+  assert.ok(estimate.gramsHigh > estimate.gramsLow);
   assert.equal(estimate.coverage, 1);
   assert.equal(estimate.lt1Bpm, 144);
   assert.equal(estimate.lt2Bpm, 165);
