@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildActivityIntelligence } from "../../lib/activity-analysis/intelligence";
+import { estimateFatOxidation } from "../../lib/activity-analysis/metabolism";
 import { builtInLayout, normalizeLayout, type AnalysisCardId, type AnalysisLayout } from "../../lib/activity-analysis/layout";
 import { applyCorrectionLayers, buildCorrectionLayer, detectAnalysisAnomalies, performanceProfile, privacySafeGpx, QUALITY_VERSION } from "../../lib/activity-analysis/quality";
 import { CHANNELS, type AnalysisProjection, type Axis, type Channel, type IndexRange } from "../../lib/activity-analysis/projection";
@@ -58,6 +59,11 @@ export default function ActivityWorkspace({ projection: p, units, loadRaw, loadW
   const profile = useMemo(() => performanceProfile(p), [p]);
   const stats = useMemo(() => rangeSummary(p, selection), [p, selection]);
   const intelligence = useMemo(() => p.intelligence ?? buildActivityIntelligence(p), [p]);
+  const metabolism = useMemo(() => estimateFatOxidation(
+    p.streams.elapsed,
+    p.streams.channels.heart_rate,
+    { range: selection, breakBefore: p.streams.breakBefore },
+  ), [p.streams.elapsed, p.streams.channels.heart_rate, p.streams.breakBefore, selection]);
   const planned = useMemo(() => intelligence.intervals.filter(interval => interval.source === "planned"), [intelligence]);
   const onHover = useCallback((index: number | null) => setHover(index), []);
   const onSelect = useCallback((range: IndexRange | null) => setSelection(range), []);
@@ -109,6 +115,7 @@ export default function ActivityWorkspace({ projection: p, units, loadRaw, loadW
     ["Heart rate", `${formatChannel("heart_rate", selection ? stats.means.heart_rate : p.summary.heartRate ?? stats.means.heart_rate, units)} bpm`],
     ["Cadence", `${formatChannel("cadence", selection ? stats.means.cadence : p.summary.cadence ?? stats.means.cadence, units)} spm`],
     [selection ? "Average elevation" : "Elevation gain", `${formatChannel("altitude", selection ? stats.means.altitude : p.summary.ascent, units)} ${channelUnit("altitude", units)}`],
+    [selection ? "Selected fat oxidised" : "Est. fat oxidised", metabolism ? `${metabolism.grams.toFixed(0)} g` : "Unavailable"],
   ];
   return <>
     <header className={styles.activityHeader}>
@@ -118,6 +125,7 @@ export default function ActivityWorkspace({ projection: p, units, loadRaw, loadW
     </header>
     <div className={styles.contextLine}><span>{p.activity.calendarItemId ? "Linked to your training plan" : "Completed workout"}</span><span>{p.weather?.status === "available" ? `Ambient ${formatChannel("ambient_temperature", selection ? stats.means.ambient_temperature : p.weather.summary.temperatureC, units)} ${channelUnit("ambient_temperature", units)}` : p.streams.channels.temperature ? `Device ${formatChannel("temperature", stats.means.temperature, units)} ${channelUnit("temperature", units)} · ambient not loaded` : "Ambient weather not loaded"}</span><span>{!hasSamples ? "Detailed FIT data unavailable" : p.quality.flags.length ? "Partial data · details below" : "Ready to explore"}</span></div>
     <div className={styles.metrics} aria-label={selection ? "Selected range metrics" : "Activity metrics"}>{cards.map(([label, value], i) => <article key={label}><span>{label}</span><strong style={{ color: i === 0 ? "#91ebc8" : undefined }}>{value}</strong></article>)}</div>
+    {metabolism ? <div className={styles.contextLine} aria-label="Estimated fat oxidation details"><span>Estimated range {metabolism.gramsLow.toFixed(0)}–{metabolism.gramsHigh.toFixed(0)} g</span><span>≈ {metabolism.kcalFromFat.toFixed(0)} kcal from fat · {(metabolism.coverage * 100).toFixed(0)}% HR coverage</span><span>HR-derived estimate · LT1 {metabolism.lt1Bpm} / LT2 {metabolism.lt2Bpm} bpm · oxidised fat leaves mainly as CO₂ + water</span></div> : hasSamples && <div className={styles.contextLine}><span>Fat oxidation unavailable</span><span>A usable heart-rate stream is required</span><span>No metabolic value is fabricated when HR data is missing</span></div>}
     {!hasSamples && <section className={styles.panel} role="status"><div className={styles.panelHeading}><div><span className={styles.eyebrow}>RECOVERY AVAILABLE</span><h3>{readiness?.state === "invalid" ? "This activity needs its FIT data restored" : "This activity currently has summary data only"}</h3></div></div><p>{readiness?.reasons[0] ?? "Detailed FIT records are not available for analysis."}</p><p>Return to the activity library and choose Repair incomplete. The existing activity link will stay the same, and stored data is replaced only after a successful decode.</p><Link href="/activity-analysis">Open activity library</Link></section>}
     {hasSamples && <WorkspaceLayoutControls sport={p.activity.sport} availableChannels={available} layout={layout} onChange={onLayoutChange} />}
     {hasSamples && <nav className={styles.tabs} aria-label="Analysis views">{visibleViews.map(v => <button key={v} aria-pressed={view === v} className={view === v ? styles.activeTab : ""} onClick={() => setView(v)}>{v}</button>)}</nav>}
