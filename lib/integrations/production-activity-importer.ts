@@ -123,23 +123,28 @@ export class ProductionActivityImporter {
         const endedAt = normaliseDate(analysed.summary.end)?.toISOString();
         const session = analysed.summary.session;
         const avgSpeed = analysed.summary.avgSpeed;
+        const avgHr = optionalNumber(session.avg_heart_rate);
+        const maxHr = optionalNumber(session.max_heart_rate);
         const normalizedData = asRecord(serialisable(analysed.parsed));
+        const summary: Activity["summary"] = {
+          ...(existing?.summary ?? {}),
+          ...(analysed.summary.timerTime === null ? {} : { durationSeconds: analysed.summary.timerTime }),
+          ...(analysed.summary.distance === null ? {} : { distanceMeters: analysed.summary.distance }),
+          ...(avgHr === undefined ? {} : { avgHrBpm: avgHr }),
+          ...(maxHr === undefined ? {} : { maxHrBpm: maxHr }),
+          ...(avgSpeed === null || avgSpeed <= 0 ? {} : { avgPaceSecPerKm: 1000 / avgSpeed }),
+          ...(analysed.summary.avgCadence === null ? {} : { avgCadenceSpm: analysed.summary.avgCadence }),
+          ...(analysed.summary.totalAscent === null ? {} : { elevationGainMeters: analysed.summary.totalAscent }),
+        };
 
         const persisted: Activity = {
           id: existingActivityId ?? this.runtime.idFactory(),
           athleteId,
+          ...(existing?.calendarItemId ? { calendarItemId: existing.calendarItemId } : {}),
           sport: activity.sport,
           startedAt,
-          endedAt,
-          summary: {
-            durationSeconds: analysed.summary.timerTime ?? undefined,
-            distanceMeters: analysed.summary.distance ?? undefined,
-            avgHrBpm: optionalNumber(session.avg_heart_rate),
-            maxHrBpm: optionalNumber(session.max_heart_rate),
-            avgPaceSecPerKm: avgSpeed !== null && avgSpeed > 0 ? 1000 / avgSpeed : undefined,
-            avgCadenceSpm: analysed.summary.avgCadence ?? undefined,
-            elevationGainMeters: analysed.summary.totalAscent ?? undefined,
-          },
+          endedAt: endedAt ?? existing?.endedAt,
+          summary,
           normalizedData,
           sourceFileName: `${activity.externalId}.fit`,
           sourceFileSha256: createHash("sha256").update(rawFile.data).digest("hex"),

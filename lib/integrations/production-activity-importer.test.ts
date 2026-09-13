@@ -121,6 +121,7 @@ test("production activity importer downloads FIT detail, persists canonical anal
   const originalCreatedAt = stored[0].createdAt;
   await store.saveActivity({
     ...stored[0],
+    calendarItemId: "calendar-1",
     normalizedData: {},
     sourceFileSha256: undefined,
     updatedAt: "2026-09-12T16:00:00.000Z",
@@ -131,6 +132,7 @@ test("production activity importer downloads FIT detail, persists canonical anal
   const restored = await store.getActivity(originalId);
   assert.equal(restored?.id, originalId);
   assert.equal(restored?.createdAt, originalCreatedAt);
+  assert.equal(restored?.calendarItemId, "calendar-1");
   assert.equal((restored?.normalizedData.records as unknown[]).length, 2);
   assert.equal(restored?.sourceMetadata.repair && typeof restored.sourceMetadata.repair, "object");
 
