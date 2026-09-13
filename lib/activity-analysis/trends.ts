@@ -136,7 +136,10 @@ function distanceFromEffort(effort: BestEffort): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function fitnessAnswer(points: EfficiencyPoint[]): AthleteTrends["fitnessAnswer"] {
+function fitnessAnswer(points: EfficiencyPoint[], sport?: string): AthleteTrends["fitnessAnswer"] {
+  if (!sport || sport === "all") {
+    return { direction: "insufficient_data", efficiencyChangePercent: null, message: "Choose one sport to compare pace-to-HR efficiency on a consistent scale." };
+  }
   const values = points.map(point => point.speedPerHeartBeat).filter(finite);
   if (values.length < 4) return { direction: "insufficient_data", efficiencyChangePercent: null, message: "At least four activities with overlapping speed and heart-rate data are needed." };
   const split = Math.floor(values.length / 2);
@@ -227,7 +230,8 @@ export function buildAthleteTrends(input: TrendActivity[], options: TrendOptions
   const load: LoadPoint[] = [];
   if (selected.length) {
     const cursor = new Date(`${isoDay(selected[0].projection.activity.startedAt!)}T00:00:00.000Z`);
-    const last = new Date(`${isoDay(selected.at(-1)!.projection.activity.startedAt!)}T00:00:00.000Z`);
+    const finalDay = options.to ? isoDay(options.to) : new Date().toISOString().slice(0, 10);
+    const last = new Date(`${finalDay}T00:00:00.000Z`);
     let fitness = 0;
     let fatigue = 0;
     const fitnessAlpha = 1 - Math.exp(-1 / fitnessDays);
@@ -260,7 +264,7 @@ export function buildAthleteTrends(input: TrendActivity[], options: TrendOptions
     personalBests,
     equipment: [...equipment.values()].sort((a, b) => b.distanceMeters - a.distanceMeters || a.name.localeCompare(b.name)),
     quality: { processedActivities: selected.length, skippedActivities: [] },
-    fitnessAnswer: fitnessAnswer(efficiency),
+    fitnessAnswer: fitnessAnswer(efficiency, options.sport),
     algorithms: {
       internalLoad: "configured-zone-duration-squared-v1; fallback-50-points-per-hour-v1",
       fitnessFatigueForm: `daily-exponential-response-v1; fitness=${fitnessDays}d; fatigue=${fatigueDays}d; form=fitness-fatigue`,

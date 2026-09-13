@@ -301,11 +301,19 @@ export class PostgresTrainingStore implements TrainingApiStore, IntegrationState
     });
   }
 
-  async listActivities(athleteId: string, limit = 20): Promise<Activity[]> {
-    return sortBy(await this.list<Activity>("activity", athleteId), (item) => item.startedAt, "desc").slice(
-      0,
-      Math.max(0, limit),
-    );
+  async listActivities(
+    athleteId: string,
+    limit = 20,
+    filters: { from?: string; to?: string; sport?: string } = {},
+  ): Promise<Activity[]> {
+    return sortBy(
+      (await this.list<Activity>("activity", athleteId))
+        .filter((item) => !filters.from || item.startedAt >= filters.from)
+        .filter((item) => !filters.to || item.startedAt <= filters.to)
+        .filter((item) => !filters.sport || filters.sport === "all" || item.sport === filters.sport),
+      (item) => item.startedAt,
+      "desc",
+    ).slice(0, Math.max(0, limit));
   }
 
   async saveActivity(activity: Activity): Promise<void> {

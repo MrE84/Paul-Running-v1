@@ -235,8 +235,11 @@ export class TrainingApiService {
   }
   async getActivityTrends(athleteId: string, options: TrendOptions = {}, limit = 100) {
     await this.requireAthlete(athleteId);
-    const activities = (await this.store.listActivities(athleteId, Math.max(1, Math.min(250, limit))))
-      .filter(activity => (!options.from || activity.startedAt >= options.from) && (!options.to || activity.startedAt <= options.to) && (!options.sport || options.sport === "all" || activity.sport === options.sport));
+    const activities = await this.store.listActivities(athleteId, Math.max(1, Math.min(250, limit)), {
+      from: options.from,
+      to: options.to,
+      sport: options.sport,
+    });
     const projected = [];
     const skipped: Array<{ activityId: string; message: string }> = [];
     for (const activity of activities) {

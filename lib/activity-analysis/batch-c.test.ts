@@ -67,16 +67,18 @@ test("longitudinal dashboard aggregates periods, load/form, efficiency and PB pr
     activity("run-3", "2026-08-17T08:00:00.000Z", 2000, 1.05),
     activity("run-4", "2026-08-24T08:00:00.000Z", 2000, 1.1),
   ].map((projection, index) => ({ projection, equipment: [index < 2 ? "Evo SL" : "Rocket X 3"] }));
-  const first = buildAthleteTrends(activities, { bucket: "week", fitnessTimeConstantDays: 42, fatigueTimeConstantDays: 7 });
-  const second = buildAthleteTrends(activities, { bucket: "week", fitnessTimeConstantDays: 42, fatigueTimeConstantDays: 7 });
+  const options = { bucket: "week" as const, fitnessTimeConstantDays: 42, fatigueTimeConstantDays: 7, sport: "running", to: "2026-08-31T23:59:59.999Z" };
+  const first = buildAthleteTrends(activities, options);
+  const second = buildAthleteTrends(activities, options);
   assert.deepEqual(first, second);
   assert.equal(first.totals.activities, 4);
   assert.equal(first.volume.length, 4);
-  assert.ok(first.load.length >= 22);
+  assert.equal(first.load.at(-1)?.date, "2026-08-31");
   assert.ok(first.load.some(point => point.load > 0));
   assert.equal(first.equipment.length, 2);
   assert.ok(first.personalBests.some(point => point.distanceMeters === 5000));
   assert.equal(first.fitnessAnswer.direction, "improving");
+  assert.equal(buildAthleteTrends(activities, { bucket: "week" }).fitnessAnswer.direction, "insufficient_data");
   assert.match(first.algorithms.fitnessFatigueForm, /42d.*7d/);
 });
 

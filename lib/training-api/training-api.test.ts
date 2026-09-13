@@ -155,6 +155,13 @@ test("activity reads are latest-first and bounded", async () => {
   ];
   const { service } = harness({ activities });
   assert.deepEqual((await service.listActivities(athlete.id, 2)).map((item) => item.id), ["a3", "a2"]);
+  const olderWindow = await service.getActivityTrends(athlete.id, {
+    from: "2026-09-01T00:00:00.000Z",
+    to: "2026-09-01T23:59:59.999Z",
+    sport: "running",
+  }, 1);
+  assert.equal(olderWindow.quality.processedActivities, 1);
+  assert.equal(olderWindow.totals.activities, 1);
 });
 
 test("activity analysis caches versioned intelligence and route weather separately from device temperature", async () => {

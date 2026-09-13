@@ -98,7 +98,7 @@ function ComparisonChart({ comparison, channel, units }: { comparison: ActivityC
 }
 
 export default function ComparisonWorkspace({ initial }: { initial: InitialComparisonState }) {
-  const validInitialChannels = initial.channels.filter((value): value is Channel => value in CHANNELS).slice(0, 5);
+  const validInitialChannels = initial.channels.filter((value): value is Channel => Object.hasOwn(CHANNELS, value)).slice(0, 5);
   const [activities, setActivities] = useState<ActivityListItem[]>([]);
   const [ids, setIds] = useState<string[]>(initial.ids);
   const [projections, setProjections] = useState<AnalysisProjection[]>([]);
@@ -121,7 +121,7 @@ export default function ComparisonWorkspace({ initial }: { initial: InitialCompa
   useEffect(() => {
     if (ids.length < 2) { setProjections([]); return; }
     let cancelled = false;
-    setLoading(true); setError("");
+    setLoading(true); setError(""); setProjections([]);
     const query = ids.map(id => `id=${encodeURIComponent(id)}`).join("&");
     api<AnalysisProjection[]>(`activities/comparison?${query}`).then(value => { if (!cancelled) setProjections(value); }).catch(value => { if (!cancelled) setError(value instanceof Error ? value.message : String(value)); }).finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
