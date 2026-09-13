@@ -12,6 +12,8 @@ import styles from "./analysis.module.css";
 interface Props {
   projection: AnalysisProjection; hover: number | null; selection: IndexRange | null;
   onHover: (index: number | null) => void; onSelect: (range: IndexRange | null) => void; units: UnitSystem;
+  privacy: { endpointRadius: number; regions: PrivacyRegion[] };
+  onPrivacyChange: (privacy: { endpointRadius: number; regions: PrivacyRegion[] }) => void;
 }
 const emptyCollection = { type: "FeatureCollection" as const, features: [] };
 
@@ -20,17 +22,17 @@ function moveCoordinate(longitude: number, latitude: number, bearing: number, di
   return [longitude + Math.sin(angle) * distanceDegrees / Math.max(.2, Math.cos(latitude * Math.PI / 180)), latitude + Math.cos(angle) * distanceDegrees];
 }
 
-export default memo(function AnalysisMap({ projection, hover, selection, onHover, onSelect, units }: Props) {
+export default memo(function AnalysisMap({ projection, hover, selection, onHover, onSelect, units, privacy, onPrivacyChange }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<LibreMap | null>(null);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [metric, setMetric] = useState<Channel>(projection.streams.channels.heart_rate ? "heart_rate" : "pace");
   const [colourMode, setColourMode] = useState("intensity");
-  const [radius, setRadius] = useState(200);
   const [density, setDensity] = useState(2000);
-  const [regions, setRegions] = useState<PrivacyRegion[]>([]);
   const [tiles, setTiles] = useState(projection.source.origin === "backend");
+  const radius = privacy.endpointRadius;
+  const regions = privacy.regions;
   const latest = useRef({ onHover, onSelect }); latest.current = { onHover, onSelect };
   const points = useMemo(() => routeSamples(projection, radius, regions, density), [projection, radius, regions, density]);
   const pointIndices = useMemo(() => new Set(points.map(p => p.index)), [points]);
@@ -163,12 +165,12 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     <div className={styles.mapLegend}><span>{formatChannel(metric, limits.min, units)}</span><i /><span>{formatChannel(metric, limits.max, units)}</span></div>
     <p className={styles.quiet}>Start <span style={{ color: "#6ee7b7" }}>●</span> · Finish <span style={{ color: "#fb7185" }}>●</span>{projection.weather?.status === "available" ? " · Blue arrows show wind direction" : ""} · Click a lap marker to select it.</p>
     <details className={styles.details}><summary>Map privacy & detail <span>{radius ? `${radius} m masked` : "Mask off"}</span></summary>
-      <div className={styles.toolbar}><label>Hide start / finish<select aria-label="Endpoint privacy radius" value={radius} onChange={e => setRadius(Number(e.target.value))}>{[0, 100, 200, 500, 1000].map(v => <option key={v} value={v}>{v ? `${v} m` : "Off"}</option>)}</select></label>
+      <div className={styles.toolbar}><label>Hide start / finish<select aria-label="Endpoint privacy radius" value={radius} onChange={e => onPrivacyChange({ ...privacy, endpointRadius: Number(e.target.value) })}>{[0, 100, 200, 500, 1000].map(v => <option key={v} value={v}>{v ? `${v} m` : "Off"}</option>)}</select></label>
         <label>Route detail<select value={density} onChange={e => setDensity(Number(e.target.value))}><option value={1000}>Light</option><option value={2000}>Balanced</option><option value={10000}>Detailed</option></select></label></div>
       <p className={styles.quiet}>Hover a route point, then mask it below to hide a 200 m home region for this session. Masks hide points and connecting segments; original data and raw exports remain complete.</p>
       <button disabled={hover === null || projection.streams.latitude[hover] === null} onClick={() => {
-        if (hover !== null && projection.streams.latitude[hover] !== null && projection.streams.longitude[hover] !== null) setRegions(r => [...r, { latitude: projection.streams.latitude[hover]!, longitude: projection.streams.longitude[hover]!, radius: 200 }]);
-      }}>Mask inspected location</button>{regions.length > 0 && <button onClick={() => setRegions([])}>Clear {regions.length} home masks</button>}
+        if (hover !== null && projection.streams.latitude[hover] !== null && projection.streams.longitude[hover] !== null) onPrivacyChange({ ...privacy, regions: [...regions, { latitude: projection.streams.latitude[hover]!, longitude: projection.streams.longitude[hover]!, radius: 200 }] });
+      }}>Mask inspected location</button>{regions.length > 0 && <button onClick={() => onPrivacyChange({ ...privacy, regions: [] })}>Clear {regions.length} home masks</button>}
       <p className={styles.quiet}>Street tiles are supplied by OpenStreetMap and reveal the viewed map area to that provider. Local FIT files start with street tiles off.</p>
     </details>
   </section>;

@@ -107,7 +107,11 @@ export default function ActivityHub() {
   return <main className={styles.page}>
     <header className={styles.header}>
       <div><Link href="/" className={styles.back}>← Paul&apos;s Running</Link><span className={styles.eyebrow}>PREMIUM ACTIVITY INTELLIGENCE</span><h1>Activity Analysis</h1><p>Open a completed Garmin activity directly into synchronized physiology, route and lap analysis. The recent list is summary-only; full FIT data loads only when you explicitly open Raw Data.</p></div>
-      <Link className={styles.secondaryAction} href="/activity-analysis/legacy">Open local FIT explorer</Link>
+      <nav className={styles.headerActions} aria-label="Activity intelligence views">
+        <Link className={styles.primaryAction} href="/activity-analysis/compare">Compare activities</Link>
+        <Link className={styles.secondaryAction} href="/activity-analysis/trends">Performance trends</Link>
+        <Link className={styles.secondaryAction} href="/activity-analysis/legacy">Open local FIT explorer</Link>
+      </nav>
     </header>
 
     <section className={styles.authCard}>

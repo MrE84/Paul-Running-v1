@@ -74,6 +74,16 @@ function errorResponse(error: unknown, requestId?: string) {
   );
 }
 
+function dateBound(value: string | null, endOfDay = false): string | undefined {
+  if (!value) return undefined;
+  const normalized = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? `${value}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`
+    : value;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.valueOf())) throw new TrainingApiError(400, "VALIDATION_FAILED", `Invalid activity-history date: ${value}.`);
+  return date.toISOString();
+}
+
 async function jsonBody<T>(request: NextRequest): Promise<T> {
   try {
     return (await request.json()) as T;
@@ -114,6 +124,8 @@ export async function handleTrainingApiRequest(
           "GET /api/v1/activities/{id}/analysis",
           "GET /api/v1/activities/{id}/weather",
           "GET /api/v1/activities/{id}/raw",
+          "GET /api/v1/activities/comparison?id={id}&id={id}",
+          "GET /api/v1/activity-trends",
           "POST /api/v1/activities/import",
           "GET|POST /api/v1/workouts",
           "GET|PATCH /api/v1/workouts/{id}",
@@ -171,6 +183,34 @@ export async function handleTrainingApiRequest(
       return ok(request.nextUrl.searchParams.get("view") === "summary"
         ? await service.listActivitySummaries(athleteId, limit)
         : await service.listActivities(athleteId, limit));
+    }
+    if (method === "GET" && path.length === 2 && path[0] === "activities" && path[1] === "comparison") {
+      const repeated = request.nextUrl.searchParams.getAll("id");
+      const ids = (repeated.length ? repeated : (request.nextUrl.searchParams.get("ids") ?? "").split(",")).map(value => value.trim()).filter(Boolean);
+      return ok(await service.getActivityComparison(athleteId, ids));
+    }
+    if (method === "GET" && path.length === 1 && path[0] === "activity-trends") {
+      const rawLimit = Number(request.nextUrl.searchParams.get("limit") ?? "100");
+      const fitness = Number(request.nextUrl.searchParams.get("fitnessDays") ?? "42");
+      const fatigue = Number(request.nextUrl.searchParams.get("fatigueDays") ?? "7");
+      const rawBucket = request.nextUrl.searchParams.get("bucket");
+      const sport = request.nextUrl.searchParams.get("sport") ?? undefined;
+      if (!Number.isInteger(rawLimit) || rawLimit < 1 || rawLimit > 250 || !Number.isFinite(fitness) || fitness < 2 || fitness > 120 || !Number.isFinite(fatigue) || fatigue < 1 || fatigue > 60) {
+        throw new TrainingApiError(400, "VALIDATION_FAILED", "Trend limits or fitness/fatigue time constants are outside the supported range.");
+      }
+      if (rawBucket && rawBucket !== "week" && rawBucket !== "month") throw new TrainingApiError(400, "VALIDATION_FAILED", "Trend bucket must be week or month.");
+      if (sport && sport.length > 80) throw new TrainingApiError(400, "VALIDATION_FAILED", "Trend sport filter is too long.");
+      const from = dateBound(request.nextUrl.searchParams.get("from"));
+      const to = dateBound(request.nextUrl.searchParams.get("to"), true);
+      if (from && to && from > to) throw new TrainingApiError(400, "VALIDATION_FAILED", "Trend start date must be before the end date.");
+      return ok(await service.getActivityTrends(athleteId, {
+        from,
+        to,
+        sport,
+        bucket: rawBucket === "month" ? "month" : "week",
+        fitnessTimeConstantDays: fitness,
+        fatigueTimeConstantDays: fatigue,
+      }, rawLimit));
     }
     if (method === "GET" && path.length === 3 && path[0] === "activities") {
       if (path[2] === "analysis") return ok(await service.getActivityAnalysis(athleteId, path[1], request.nextUrl.searchParams.get("recompute") === "1"));
