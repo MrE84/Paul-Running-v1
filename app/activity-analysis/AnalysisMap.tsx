@@ -43,7 +43,7 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
   const latest = useRef({ onHover, onSelect }); latest.current = { onHover, onSelect };
   const points = useMemo(() => routeSamples(projection, radius, regions, density), [projection, radius, regions, density]);
   const pointIndices = useMemo(() => new Set(points.map(p => p.index)), [points]);
-  const gpsSamples = useMemo(() => projection.streams.latitude.reduce((count, lat, index) => count + (lat !== null && projection.streams.longitude[index] !== null ? 1 : 0), 0), [projection]);
+  const gpsSamples = useMemo(() => projection.streams.latitude.reduce<number>((count, lat, index) => count + (lat !== null && projection.streams.longitude[index] !== null ? 1 : 0), 0), [projection]);
   const limits = useMemo(() => {
     let min = Infinity, max = -Infinity;
     for (const v of projection.streams.channels[metric] ?? []) if (v !== null) { min = Math.min(min, v); max = Math.max(max, v); }
