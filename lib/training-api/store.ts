@@ -66,7 +66,15 @@ export class InMemoryTrainingApiStore implements TrainingApiStore {
   async getCalendarItem(id: string) { return this.calendar.get(id); }
   async saveCalendarItem(item: ScheduledCalendarItem) { this.calendar.set(item.id, item); }
   async savePlanApplication(application: PlanApplication, items: ScheduledCalendarItem[]) { this.applications.set(application.id, application); for (const item of items) this.calendar.set(item.id, item); }
-  async listActivities(athleteId: string, limit = 20) { return [...this.activities.values()].filter((item) => item.athleteId === athleteId).sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, Math.max(0, limit)); }
+  async listActivities(athleteId: string, limit = 20, filters: { from?: string; to?: string; sport?: string } = {}) {
+    return [...this.activities.values()]
+      .filter((item) => item.athleteId === athleteId)
+      .filter((item) => !filters.from || item.startedAt >= filters.from)
+      .filter((item) => !filters.to || item.startedAt <= filters.to)
+      .filter((item) => !filters.sport || filters.sport === "all" || item.sport === filters.sport)
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+      .slice(0, Math.max(0, limit));
+  }
   async saveActivity(activity: Activity) { this.activities.set(activity.id, activity); }
   async listActivitySummaries(athleteId: string, limit = 20) { return (await this.listActivities(athleteId, limit)).map(activityListItem); }
   async getActivity(id: string) { return this.activities.get(id); }

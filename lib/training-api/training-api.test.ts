@@ -155,6 +155,13 @@ test("activity reads are latest-first and bounded", async () => {
   ];
   const { service } = harness({ activities });
   assert.deepEqual((await service.listActivities(athlete.id, 2)).map((item) => item.id), ["a3", "a2"]);
+  const olderWindow = await service.getActivityTrends(athlete.id, {
+    from: "2026-09-01T00:00:00.000Z",
+    to: "2026-09-01T23:59:59.999Z",
+    sport: "running",
+  }, 1);
+  assert.equal(olderWindow.quality.processedActivities, 1);
+  assert.equal(olderWindow.totals.activities, 1);
 });
 
 test("activity analysis caches versioned intelligence and route weather separately from device temperature", async () => {
@@ -190,6 +197,29 @@ test("activity analysis caches versioned intelligence and route weather separate
   assert.equal(enriched.streams.channels.ambient_temperature?.[0], 12);
   assert.equal(enriched.streams.channels.temperature?.[0], projection.streams.channels.temperature?.[0]);
   assert.equal((await store.getAnalysisCache(activity.id))?.projection.weather?.version, enriched.weather?.version);
+});
+
+test("comparison and longitudinal reads stay athlete-scoped and expose versioned Batch C analytics", async () => {
+  const base = {
+    athleteId: athlete.id,
+    sport: "running" as const,
+    createdAt: "2026-09-11T12:00:00.000Z",
+    updatedAt: "2026-09-11T12:00:00.000Z",
+  };
+  const activities: Activity[] = [
+    { ...base, id: "history-1", startedAt: "2026-08-01T08:00:00.000Z", summary: { durationSeconds: 900, distanceMeters: 2600 }, normalizedData: sampleFit(900), sourceMetadata: { name: "First run", shoe: "Evo SL" } },
+    { ...base, id: "history-2", startedAt: "2026-08-08T08:00:00.000Z", summary: { durationSeconds: 900, distanceMeters: 2700 }, normalizedData: sampleFit(900), sourceMetadata: { name: "Second run", shoe: "Rocket X 3" } },
+  ];
+  const { service } = harness({ activities });
+  const comparison = await service.getActivityComparison(athlete.id, ["history-1", "history-2"]);
+  assert.deepEqual(comparison.map(item => item.activity.id), ["history-1", "history-2"]);
+  assert.ok(comparison.every(item => item.intelligence?.version));
+  await assert.rejects(service.getActivityComparison(athlete.id, ["history-1", "history-1"]), (error: unknown) => error instanceof TrainingApiError && error.status === 400);
+  const trends = await service.getActivityTrends(athlete.id, { bucket: "week", sport: "running" });
+  assert.equal(trends.version, "1.0.0");
+  assert.equal(trends.totals.activities, 2);
+  assert.deepEqual(trends.equipment.map(item => item.name).sort(), ["Evo SL", "Rocket X 3"]);
+  assert.equal(trends.quality.skippedActivities.length, 0);
 });
 
 test("sync status is a separate projection from canonical calendar status", async () => {

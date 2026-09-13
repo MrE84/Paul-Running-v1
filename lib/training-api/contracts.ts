@@ -78,7 +78,7 @@ export interface TrainingApiStore {
   saveCalendarItem(item: ScheduledCalendarItem): Promise<void>;
   savePlanApplication(application: PlanApplication, items: ScheduledCalendarItem[]): Promise<void>;
 
-  listActivities(athleteId: string, limit?: number): Promise<Activity[]>;
+  listActivities(athleteId: string, limit?: number, filters?: { from?: string; to?: string; sport?: string }): Promise<Activity[]>;
   listActivitySummaries(athleteId: string, limit?: number): Promise<ActivityListItem[]>;
   getActivity(id: string): Promise<Activity | undefined>;
   getAnalysisCache(id: string): Promise<ProjectionCacheEntry | undefined>;

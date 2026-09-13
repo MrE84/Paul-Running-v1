@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { buildActivityIntelligence } from "../activity-analysis/intelligence";
 import { activityListItem, projectActivity, PROJECTION_VERSION } from "../activity-analysis/projection";
 import { applyWeatherChannels, fetchHistoricalWeather, WEATHER_VERSION } from "../activity-analysis/weather";
+import { buildAthleteTrends, type TrendOptions } from "../activity-analysis/trends";
+import { reportAnalysisFailure } from "../activity-analysis/telemetry";
 import type {
   Activity,
   AuditEvent,
@@ -74,6 +76,17 @@ function stableSerialize(value: unknown): string {
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([key, item]) => `${JSON.stringify(key)}:${stableSerialize(item)}`)
     .join(",")}}`;
+}
+
+function equipmentLabels(metadata: Record<string, unknown>): string[] {
+  const candidates = [metadata.equipment, metadata.gear, metadata.shoe, metadata.shoes, metadata.shoeName, metadata.gearName];
+  const labels = candidates.flatMap(value => {
+    if (typeof value === "string") return [value];
+    if (Array.isArray(value)) return value.flatMap(item => typeof item === "string" ? [item] : item && typeof item === "object" && typeof (item as Record<string, unknown>).name === "string" ? [String((item as Record<string, unknown>).name)] : []);
+    if (value && typeof value === "object" && typeof (value as Record<string, unknown>).name === "string") return [String((value as Record<string, unknown>).name)];
+    return [];
+  });
+  return [...new Set(labels.map(value => value.trim()).filter(Boolean))];
 }
 
 export class TrainingApiService {
@@ -211,6 +224,34 @@ export class TrainingApiService {
       projection: enriched,
     });
     return enriched;
+  }
+  async getActivityComparison(athleteId: string, activityIds: string[]) {
+    await this.requireAthlete(athleteId);
+    const ids = [...new Set(activityIds.map(id => id.trim()).filter(Boolean))];
+    if (ids.length < 2 || ids.length > 6 || ids.length !== activityIds.length) {
+      throw new TrainingApiError(400, "VALIDATION_FAILED", "Choose between 2 and 6 unique activities to compare.");
+    }
+    return Promise.all(ids.map(id => this.getActivityAnalysis(athleteId, id)));
+  }
+  async getActivityTrends(athleteId: string, options: TrendOptions = {}, limit = 100) {
+    await this.requireAthlete(athleteId);
+    const activities = await this.store.listActivities(athleteId, Math.max(1, Math.min(250, limit)), {
+      from: options.from,
+      to: options.to,
+      sport: options.sport,
+    });
+    const projected = [];
+    const skipped: Array<{ activityId: string; message: string }> = [];
+    for (const activity of activities) {
+      try {
+        projected.push({ projection: await this.getActivityAnalysis(athleteId, activity.id), equipment: equipmentLabels(activity.sourceMetadata) });
+      } catch (error) {
+        reportAnalysisFailure("trends", error, { activityId: activity.id });
+        skipped.push({ activityId: activity.id, message: "This activity could not be projected and was excluded from the dashboard." });
+      }
+    }
+    const trends = buildAthleteTrends(projected, options);
+    return { ...trends, quality: { processedActivities: projected.length, skippedActivities: skipped } };
   }
   async listWorkouts(athleteId: string) { await this.requireAthlete(athleteId); return this.store.listWorkouts(athleteId); }
   async listPlans(athleteId: string) { await this.requireAthlete(athleteId); return this.store.listPlans(athleteId); }
