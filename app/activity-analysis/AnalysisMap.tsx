@@ -29,9 +29,27 @@ function fitPoints(instance: LibreMap, points: Array<{ lat: number; lon: number 
   instance.fitBounds(bounds, { padding: 45, maxZoom: 15, duration: 0 });
 }
 
+function baseRouteCollection(points: Array<{ lat: number; lon: number; segment: number }>) {
+  const segments = new Map<number, Array<[number, number]>>();
+  for (const point of points) {
+    const coordinates = segments.get(point.segment) ?? [];
+    coordinates.push([point.lon, point.lat]);
+    segments.set(point.segment, coordinates);
+  }
+  return {
+    type: "FeatureCollection" as const,
+    features: [...segments.entries()].flatMap(([segment, coordinates]) => coordinates.length > 1 ? [{
+      type: "Feature" as const,
+      properties: { segment },
+      geometry: { type: "LineString" as const, coordinates },
+    }] : []),
+  };
+}
+
 export default memo(function AnalysisMap({ projection, hover, selection, onHover, onSelect, units, privacy, onPrivacyChange }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<LibreMap | null>(null);
+  const initialPrivacyHandled = useRef(false);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [metric, setMetric] = useState<Channel>(projection.streams.channels.heart_rate ? "heart_rate" : "pace");
@@ -44,6 +62,7 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
   const points = useMemo(() => routeSamples(projection, radius, regions, density), [projection, radius, regions, density]);
   const pointIndices = useMemo(() => new Set(points.map(p => p.index)), [points]);
   const gpsSamples = useMemo(() => projection.streams.latitude.reduce<number>((count, lat, index) => count + (lat !== null && projection.streams.longitude[index] !== null ? 1 : 0), 0), [projection]);
+  const baseRoute = useMemo(() => baseRouteCollection(points), [points]);
   const limits = useMemo(() => {
     let min = Infinity, max = -Infinity;
     for (const v of projection.streams.channels[metric] ?? []) if (v !== null) { min = Math.min(min, v); max = Math.max(max, v); }
@@ -63,8 +82,14 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     const kind = i === 0 ? "start" : i === points.length - 1 ? "finish" : lap ? "lap" : null;
     return kind ? [{ type: "Feature" as const, properties: { kind, start: lap?.start, end: lap?.end }, geometry: { type: "Point" as const, coordinates: [p.lon, p.lat] } }] : [];
   }) }), [points, projection.laps]);
-  const routeData = useRef({ features, markers, points });
-  routeData.current = { features, markers, points };
+  const routeData = useRef({ features, markers, baseRoute, points });
+  routeData.current = { features, markers, baseRoute, points };
+
+  useEffect(() => {
+    if (initialPrivacyHandled.current) return;
+    initialPrivacyHandled.current = true;
+    if (privacy.endpointRadius === 200 && privacy.regions.length === 0) onPrivacyChange({ ...privacy, endpointRadius: 0 });
+  }, [onPrivacyChange, privacy]);
 
   useEffect(() => {
     if (!container.current || !projection.streams.latitude.some(v => v !== null)) return;
@@ -84,9 +109,15 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     instance.on("load", () => {
       try {
         const current = routeData.current;
+        instance.addSource("route-base", { type: "geojson", data: current.baseRoute });
+        instance.addLayer({ id: "route-base-line", type: "line", source: "route-base", paint: { "line-color": "#38bdf8", "line-width": 6, "line-opacity": .9 }, layout: { "line-cap": "round", "line-join": "round" } });
         instance.addSource("route", { type: "geojson", data: current.features });
         instance.addLayer({ id: "route-hit", type: "line", source: "route", paint: { "line-width": 20, "line-opacity": 0 } });
-        instance.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": ["get", "color"], "line-width": 4 }, layout: { "line-cap": "round" } });
+        try {
+          instance.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": ["get", "color"], "line-width": 4 }, layout: { "line-cap": "round" } });
+        } catch {
+          instance.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": "#60a5fa", "line-width": 4 }, layout: { "line-cap": "round" } });
+        }
         instance.addLayer({ id: "route-selection", type: "line", source: "route", filter: ["==", ["get", "index"], -1], paint: { "line-color": "#ffffff", "line-width": 7, "line-opacity": .8 } });
         instance.addSource("markers", { type: "geojson", data: current.markers });
         instance.addLayer({ id: "lap-markers", type: "circle", source: "markers", paint: { "circle-radius": ["case", ["==", ["get", "kind"], "lap"], 4, 7], "circle-color": ["match", ["get", "kind"], "start", "#6ee7b7", "finish", "#fb7185", "#94a3b8"], "circle-stroke-color": "#0c1422", "circle-stroke-width": 2 } });
@@ -112,7 +143,10 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
       const lap = event.features?.[0]?.properties;
       if (lap && lap.kind === "lap") latest.current.onSelect([Number(lap.start), Number(lap.end)]);
     });
-    instance.on("error", () => setError("Some map tiles or layers could not load. The recorded route data is still available below."));
+    instance.on("error", event => {
+      const detail = event.error?.message ? `: ${event.error.message}` : "";
+      setError(`MapLibre reported an error${detail}`);
+    });
     const observer = new ResizeObserver(() => instance.resize()); observer.observe(container.current);
     return () => { observer.disconnect(); instance.remove(); map.current = null; };
   }, [projection.activity.id]);
@@ -122,7 +156,8 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     if (!m || !ready || !m.isStyleLoaded()) return;
     if (tiles && !m.getSource("basemap")) {
       m.addSource("basemap", { type: "raster", tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], tileSize: 256, maxzoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>' });
-      m.addLayer({ id: "basemap", type: "raster", source: "basemap", paint: { "raster-opacity": .7, "raster-saturation": -.75, "raster-brightness-max": .8 } }, "route-hit");
+      const layer = { id: "basemap", type: "raster" as const, source: "basemap", paint: { "raster-opacity": .7, "raster-saturation": -.75, "raster-brightness-max": .8 } };
+      if (m.getLayer("route-base-line")) m.addLayer(layer, "route-base-line"); else m.addLayer(layer);
     } else if (!tiles && m.getSource("basemap")) { m.removeLayer("basemap"); m.removeSource("basemap"); }
   }, [tiles, ready]);
 
@@ -134,12 +169,14 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
   useEffect(() => {
     const m = map.current;
     if (!m || !ready || !m.isStyleLoaded()) return;
+    const baseSource = m.getSource("route-base") as GeoJSONSource | undefined;
     const routeSource = m.getSource("route") as GeoJSONSource | undefined;
     const markerSource = m.getSource("markers") as GeoJSONSource | undefined;
-    if (!routeSource || !markerSource) return;
+    if (!baseSource || !routeSource || !markerSource) return;
+    baseSource.setData(baseRoute);
     routeSource.setData(features);
     markerSource.setData(markers);
-  }, [features, markers, ready]);
+  }, [baseRoute, features, markers, ready]);
   useEffect(() => {
     const m = map.current;
     if (!m || !ready || !m.isStyleLoaded()) return;
@@ -189,7 +226,7 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     <div ref={container} className={styles.map} aria-label="Interactive activity map" />
     {error && <p role="status" className={styles.quiet}>{error}</p>}
     {!points.length && <p className={styles.quiet}>No route points are currently visible. Set start / finish privacy to Off or clear custom masks.</p>}
-    <p className={styles.quiet}>GPS samples {gpsSamples.toLocaleString()} · visible route points {points.length.toLocaleString()} · rendered line segments {features.features.length.toLocaleString()}</p>
+    <p className={styles.quiet}>GPS samples {gpsSamples.toLocaleString()} · visible route points {points.length.toLocaleString()} · base route segments {baseRoute.features.length.toLocaleString()} · coloured segments {features.features.length.toLocaleString()} · map {ready ? "ready" : "loading"}</p>
     <div className={styles.mapLegend}><span>{formatChannel(metric, limits.min, units)}</span><i /><span>{formatChannel(metric, limits.max, units)}</span></div>
     <p className={styles.quiet}>Start <span style={{ color: "#6ee7b7" }}>●</span> · Finish <span style={{ color: "#fb7185" }}>●</span>{projection.weather?.status === "available" ? " · Blue arrows show wind direction" : ""} · Click a lap marker to select it.</p>
     <details className={styles.details}><summary>Map privacy & detail <span>{radius ? `${radius} m masked` : "Mask off"}</span></summary>

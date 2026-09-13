@@ -111,8 +111,20 @@ export function projectActivity(source: ActivitySource, decoded: DecodedFit, con
     if (seconds === null) flags.add("Sample timing unavailable; record order used as seconds.");
     return { r, index, seconds: Math.max(0, seconds ?? index) };
   }).sort((a, b) => a.seconds - b.seconds || a.index - b.index);
-  const rows = ordered.filter((r, i) => i === ordered.length - 1 || r.seconds !== ordered[i + 1].seconds);
-  if (rows.length !== records.length) flags.add("Duplicate timestamps merged; original messages retained in Raw data.");
+  const rows = ordered.reduce<typeof ordered>((merged, current) => {
+    const previous = merged.at(-1);
+    if (!previous || previous.seconds !== current.seconds) {
+      merged.push(current);
+      return merged;
+    }
+    // A provider may emit more than one record for the same elapsed second. Coalesce
+    // non-null fields instead of keeping only the final row, which can silently discard
+    // GPS coordinates while retaining HR/pace from another row at the same timestamp.
+    const nonNullCurrent = Object.fromEntries(Object.entries(current.r).filter(([, value]) => value !== null && value !== undefined));
+    merged[merged.length - 1] = { ...current, r: { ...previous.r, ...nonNullCurrent } };
+    return merged;
+  }, []);
+  if (rows.length !== records.length) flags.add("Duplicate timestamps coalesced field-wise; original messages retained in Raw data.");
   if (ordered.some((r, i) => i > 0 && r.index < ordered[i - 1].index)) flags.add("Out-of-order samples sorted by elapsed time.");
   const elapsed: number[] = [], distance: Values = [], latitude: Values = [], longitude: Values = [], breakBefore: boolean[] = [];
   const channels = {} as Record<Channel, Values>;
