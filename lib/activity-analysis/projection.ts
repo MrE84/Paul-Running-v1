@@ -2,6 +2,7 @@ import type { Activity, ZoneSet } from "../domain/contracts";
 import type { ActivitySource, DecodedFit } from "./contracts";
 import type { ActivityIntelligence } from "./intelligence";
 import type { WeatherEnrichment } from "./weather";
+import { assessActivityData, type ActivityDataReadiness } from "./readiness";
 import { analyseDecodedFit, firstNumber, normaliseDate, safeNumber, semicirclesToDegrees } from "./core";
 
 export const PROJECTION_VERSION = "1.2.0";
@@ -37,6 +38,7 @@ export interface AnalysisZone {
 export interface ActivityListItem {
   id: string; title: string; sport: string; startedAt: string | null;
   distance: number | null; duration: number | null; calendarItemId?: string;
+  readiness?: ActivityDataReadiness;
 }
 export interface AnalysisProjection {
   version: string;
@@ -68,13 +70,14 @@ const positive = (n: number | null) => n !== null && n > 0 ? n : null;
 const nonnegative = (n: number | null) => n !== null && n >= 0 ? n : null;
 const zoneColors = ["#94a3b8", "#60a5fa", "#4ade80", "#fbbf24", "#fb7185", "#c4b5fd"];
 
-export function activityListItem(item: Omit<Activity, "normalizedData">): ActivityListItem {
+export function activityListItem(item: Activity | Omit<Activity, "normalizedData">): ActivityListItem {
   return {
     id: item.id,
     title: typeof item.sourceMetadata.name === "string" ? item.sourceMetadata.name : item.sourceFileName?.replace(/\.fit$/i, "") || `${item.sport} activity`,
     sport: item.sport, startedAt: item.startedAt,
     distance: item.summary.distanceMeters ?? null, duration: item.summary.durationSeconds ?? null,
     ...(item.calendarItemId ? { calendarItemId: item.calendarItemId } : {}),
+    ...("normalizedData" in item ? { readiness: assessActivityData(item) } : {}),
   };
 }
 

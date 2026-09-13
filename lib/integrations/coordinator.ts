@@ -265,16 +265,20 @@ export class ActivityImportCoordinator {
         "activity",
         summary.externalId,
       );
-      if (existing) {
+      const inspection = existing && this.sink.inspectExisting
+        ? await this.sink.inspectExisting(existing.entityId)
+        : existing ? { needsRepair: false, state: "complete" } : undefined;
+      if (existing && !inspection?.needsRepair) {
         items.push({
           externalId: summary.externalId,
           activityId: existing.entityId,
-          status: "already_imported",
+          status: "already_complete",
         });
         continue;
       }
 
-      const idempotencyKey = `${this.connector.provider}:import:activity:${summary.externalId}`;
+      const operation = existing ? "repair" : "import";
+      const idempotencyKey = `${this.connector.provider}:${operation}:activity:${summary.externalId}${existing ? `:${existing.entityId}` : ""}`;
       const now = this.runtime.now();
       const previousJob = await this.state.findSyncJobByIdempotencyKey(idempotencyKey);
       const runningJob: SyncJob = {
@@ -282,7 +286,7 @@ export class ActivityImportCoordinator {
         athleteId: this.athleteId,
         provider: this.connector.provider,
         entityType: "activity",
-        entityId: previousJob?.entityId ?? this.runtime.idFactory(),
+        entityId: existing?.entityId ?? previousJob?.entityId ?? this.runtime.idFactory(),
         operation: "import",
         state: "running",
         idempotencyKey,
@@ -298,20 +302,23 @@ export class ActivityImportCoordinator {
           athleteId: this.athleteId,
           provider: this.connector.provider,
           activity: detail,
+          existingActivityId: existing?.entityId,
         });
         const finishedAt = this.runtime.now();
         const reference: ExternalReference = {
-          id: this.runtime.idFactory(),
+          id: existing?.id ?? this.runtime.idFactory(),
           athleteId: this.athleteId,
           entityType: "activity",
           entityId: ingested.activityId,
           provider: this.connector.provider,
           externalId: detail.externalId,
           providerMetadata: {
+            ...(existing?.providerMetadata ?? {}),
             sourceFileUrl: detail.sourceFileUrl,
             startedAt: detail.startedAt,
+            ...(existing ? { repairedAt: finishedAt, previousCompleteness: inspection?.state } : {}),
           },
-          createdAt: finishedAt,
+          createdAt: existing?.createdAt ?? finishedAt,
           updatedAt: finishedAt,
         };
         await this.state.saveExternalReference(reference);
@@ -325,12 +332,15 @@ export class ActivityImportCoordinator {
         items.push({
           externalId: detail.externalId,
           activityId: ingested.activityId,
-          status: "imported",
+          status: existing ? "repaired" : "imported",
         });
       } catch (error) {
         const finishedAt = this.runtime.now();
-        const code = error instanceof Error ? error.name || "ACTIVITY_IMPORT_FAILED" : "ACTIVITY_IMPORT_FAILED";
-        const message = error instanceof Error ? error.message : String(error);
+        const rawCode = error instanceof Error ? error.name : "";
+        const code = /^[A-Z][A-Z0-9_]{0,63}$/.test(rawCode) ? rawCode : "ACTIVITY_IMPORT_FAILED";
+        const message = code === "ACTIVITY_IMPORT_INVALID_FIT"
+          ? "Downloaded activity file did not contain usable FIT records."
+          : "Activity detail could not be downloaded or decoded.";
         await this.state.saveSyncJob({
           ...runningJob,
           state: "retryable_failure",
@@ -341,6 +351,7 @@ export class ActivityImportCoordinator {
         });
         items.push({
           externalId: summary.externalId,
+          activityId: existing?.entityId,
           status: "failed",
           errorCode: code,
           errorMessage: message,

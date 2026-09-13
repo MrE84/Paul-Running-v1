@@ -31,17 +31,19 @@ export interface IntegrationStateStore {
 }
 
 export interface ActivityImportSink {
+  inspectExisting?(activityId: UUID): Promise<{ needsRepair: boolean; state: string }>;
   ingest(input: {
     athleteId: UUID;
     provider: string;
     activity: ExternalActivityEnvelope;
+    existingActivityId?: UUID;
   }): Promise<{ activityId: UUID }>;
 }
 
 export interface ImportedActivityResult {
   externalId: string;
   activityId?: UUID;
-  status: "imported" | "already_imported" | "failed";
+  status: "imported" | "repaired" | "already_complete" | "failed";
   errorCode?: string;
   errorMessage?: string;
 }

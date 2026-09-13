@@ -121,12 +121,14 @@ export async function handleTrainingApiRequest(
           "GET /api/v1/calendar-items",
           "GET /api/v1/activities",
           "GET /api/v1/activities?view=summary",
+          "GET /api/v1/activities/readiness",
           "GET /api/v1/activities/{id}/analysis",
           "GET /api/v1/activities/{id}/weather",
           "GET /api/v1/activities/{id}/raw",
           "GET /api/v1/activities/comparison?id={id}&id={id}",
           "GET /api/v1/activity-trends",
           "POST /api/v1/activities/import",
+          "POST /api/v1/activities/repair",
           "GET|POST /api/v1/workouts",
           "GET|PATCH /api/v1/workouts/{id}",
           "GET /api/v1/workouts/{id}/qa",
@@ -189,6 +191,11 @@ export async function handleTrainingApiRequest(
       const ids = (repeated.length ? repeated : (request.nextUrl.searchParams.get("ids") ?? "").split(",")).map(value => value.trim()).filter(Boolean);
       return ok(await service.getActivityComparison(athleteId, ids));
     }
+    if (method === "GET" && path.length === 2 && path[0] === "activities" && path[1] === "readiness") {
+      const rawLimit = Number(request.nextUrl.searchParams.get("limit") ?? "40");
+      const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(0, Math.floor(rawLimit))) : 40;
+      return ok(await service.listActivitySummaries(athleteId, limit));
+    }
     if (method === "GET" && path.length === 1 && path[0] === "activity-trends") {
       const rawLimit = Number(request.nextUrl.searchParams.get("limit") ?? "100");
       const fitness = Number(request.nextUrl.searchParams.get("fitnessDays") ?? "42");
@@ -217,7 +224,7 @@ export async function handleTrainingApiRequest(
       if (path[2] === "weather") return ok(await service.getActivityWeather(athleteId, path[1], request.nextUrl.searchParams.get("refresh") === "1"));
       if (path[2] === "raw") return ok((await service.getActivity(athleteId, path[1])).normalizedData);
     }
-    if (method === "POST" && path.length === 2 && path[0] === "activities" && path[1] === "import") {
+    if (method === "POST" && path.length === 2 && path[0] === "activities" && (path[1] === "import" || path[1] === "repair")) {
       if (!actor.idempotencyKey) {
         throw new TrainingApiError(400, "IDEMPOTENCY_KEY_REQUIRED", "Activity import operations require an Idempotency-Key header.");
       }
@@ -236,7 +243,9 @@ export async function handleTrainingApiRequest(
       if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 3) {
         throw new TrainingApiError(400, "VALIDATION_FAILED", "maxPages must be an integer from 1 to 3.");
       }
-      return ok(await runtime.activityImporter.importRecent(maxPages));
+      return ok(path[1] === "repair"
+        ? await runtime.activityImporter.repairRecent(maxPages)
+        : await runtime.activityImporter.importRecent(maxPages));
     }
 
     if (path[0] === "workouts") {
