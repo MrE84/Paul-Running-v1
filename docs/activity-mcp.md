@@ -15,7 +15,7 @@ OAuth discovery is published at:
 - `/.well-known/oauth-protected-resource`
 - `/.well-known/oauth-authorization-server`
 
-The ChatGPT connection uses its stable Client ID Metadata Document, exact stable redirect URI, issuer identification, the `activities:read` scope, one-hour access tokens and renewable 30-day refresh tokens. Authorization codes expire after five minutes and their identifiers are atomically consumed in PostgreSQL to prevent replay. The consent page accepts either the existing secure activity browser session or a direct owner-token check; the owner token is submitted only to Paul's Running and is never returned to ChatGPT.
+The ChatGPT connection uses its stable Client ID Metadata Document and exact stable redirect URI. The Codex plugin client uses OpenAI's separate stable Client ID Metadata Document and an RFC 8252 loopback callback restricted to `localhost` or `127.0.0.1`. Both paths require issuer identification, the `activities:read` scope and S256 PKCE, and receive one-hour access tokens with renewable 30-day refresh tokens. Authorization codes expire after five minutes and their identifiers are atomically consumed in PostgreSQL to prevent replay. The consent page accepts either the existing secure activity browser session or a direct owner-token check; the owner token is submitted only to Paul's Running and is never returned to ChatGPT or Codex.
 
 The endpoint exposes only:
 
