@@ -74,6 +74,23 @@ This project is GPL-3.0 licensed. Do not copy its source into Paul’s Running w
 
 Regardless of the MCP client/provider chosen, Paul’s Running remains canonical and retains its OAuth/auth gateway, full FIT/raw storage, QA, idempotency, audit trail and provider-neutral boundaries.
 
+## Selective adoption decision — PAU-47
+
+The code-level review concluded that running `hhopke/intervals-icu-mcp` as a second production service would save less code than it appears to save. The dedicated Paul’s Running Intervals folder currently consists of roughly 7.3 KB of HTTP client code, 8.6 KB of connector/orchestration code and 13.3 KB of canonical-to-Intervals translation code. Replacing the HTTP client wholesale would therefore remove at most about 25% of that folder before adding an MCP/RPC client and another deployed Python service. Including the production activity importer reduces the theoretical replacement share to about 19%. The practical net reduction would be smaller still.
+
+Therefore the first adoption mode is **selective adaptation, not sidecar replacement**:
+
+- keep the TypeScript `IntervalsIcuClient`, but extend it with the provider-native activity stream and interval endpoints already proven by hhopke;
+- explicitly request `raw_heartrate` and `fixed_heartrate` alongside corrected `heartrate` when validating HR traces;
+- preserve complete returned arrays rather than preview/truncate them;
+- retain original FIT-file download as the canonical ingestion source and use Intervals streams for verification, enrichment or fallback;
+- expose provider workout parse state when Intervals returns `workout_doc`, so a stored-but-unparsed workout is not treated as a clean publication success;
+- keep Paul’s Running translation, QA, stable `external_id`, `SyncJob`, `ExternalReference`, retry and audit logic unchanged.
+
+PAU-44 is **not** replaced by this work. Its local OAuth-protected Activity MCP, canonical activity UUID, FIT/raw retention, versioned projection, point-sample lookup and custom intelligence remain the correct AI-facing source. Intervals-native MCP access is complementary provider access, not canonical analysis storage.
+
+The main simplification is future scope avoidance: Paul’s Running should not independently rebuild every Intervals-native wellness, performance-curve, gear, sport-setting and exploratory query tool. Those can be delegated to a proven provider MCP (community or official) when safe, while only data that must participate in Paul’s Running’s canonical model is persisted locally.
+
 Official MCP/forum reference: https://forum.intervals.icu/t/request-for-official-mcp-support-for-ai-tools-chatgpt-claude/126164
 
 Community references:
