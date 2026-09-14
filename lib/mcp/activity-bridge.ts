@@ -2,6 +2,12 @@ import { timingSafeEqual } from "node:crypto";
 import { nearestIndex, type AnalysisProjection } from "../activity-analysis/projection";
 import { getTrainingApiRuntime, type TrainingApiRuntimeBundle } from "../training-api/runtime";
 import { TrainingApiError } from "../training-api/service";
+import {
+  ACTIVITY_MCP_SCOPE,
+  activityMcpChallenge,
+  validActivityAccessToken,
+  type OAuthOptions,
+} from "./oauth";
 
 const SERVER_INFO = { name: "pauls-running-activity", version: "1.0.0" } as const;
 const LEGACY_PROTOCOL = "2025-11-25";
@@ -18,14 +24,17 @@ type JsonRpcRequest = {
 type BridgeOptions = {
   runtime?: TrainingApiRuntimeBundle;
   token?: string;
+  oauth?: OAuthOptions;
 };
 
-function json(value: unknown, status = 200): Response {
+function json(value: unknown, status = 200, headers?: HeadersInit): Response {
   return new Response(JSON.stringify(value), {
     status,
     headers: {
       "content-type": "application/json; charset=utf-8",
       "cache-control": "private, no-store",
+      vary: "Authorization",
+      ...Object.fromEntries(new Headers(headers)),
     },
   });
 }
@@ -34,8 +43,8 @@ function rpcResult(id: JsonRpcId | undefined, result: unknown): Response {
   return json({ jsonrpc: "2.0", id: id ?? null, result });
 }
 
-function rpcError(id: JsonRpcId | undefined, code: number, message: string, data?: unknown, status = 200): Response {
-  return json({ jsonrpc: "2.0", id: id ?? null, error: { code, message, data } }, status);
+function rpcError(id: JsonRpcId | undefined, code: number, message: string, data?: unknown, status = 200, headers?: HeadersInit): Response {
+  return json({ jsonrpc: "2.0", id: id ?? null, error: { code, message, data } }, status, headers);
 }
 
 function secureEqual(actual: string, expected: string): boolean {
@@ -51,10 +60,13 @@ function configuredToken(options?: BridgeOptions): string {
 }
 
 function authenticate(request: Request, options?: BridgeOptions) {
-  const expected = configuredToken(options);
   const header = request.headers.get("authorization") ?? "";
   const supplied = header.startsWith("Bearer ") ? header.slice(7) : "";
-  if (!supplied || !secureEqual(supplied, expected)) {
+  let expected = "";
+  try { expected = configuredToken(options); } catch { /* OAuth can be configured independently. */ }
+  const legacy = Boolean(supplied && expected && secureEqual(supplied, expected));
+  const oauth = Boolean(supplied && validActivityAccessToken(supplied, request.url, options?.oauth));
+  if (!legacy && !oauth) {
     throw new TrainingApiError(401, "UNAUTHORIZED", "A valid Bearer token is required.");
   }
 }
@@ -92,7 +104,10 @@ function finiteNumber(args: Record<string, unknown>, key: string): number {
 export const activityMcpTools = [
   {
     name: "list_activities",
+    title: "List completed activities",
     description: "List recent completed activities for the primary athlete, including readiness and summary metadata.",
+    securitySchemes: [{ type: "oauth2", scopes: [ACTIVITY_MCP_SCOPE] }],
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -101,7 +116,10 @@ export const activityMcpTools = [
   },
   {
     name: "get_activity_analysis",
+    title: "Get full activity analysis",
     description: "Read the complete versioned activity-analysis projection, including every available elapsed-time sample, GPS coordinate, distance sample and physiological/dynamics channel such as heart rate, pace, speed, elevation and cadence.",
+    securitySchemes: [{ type: "oauth2", scopes: [ACTIVITY_MCP_SCOPE] }],
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -114,7 +132,10 @@ export const activityMcpTools = [
   },
   {
     name: "get_activity_raw",
+    title: "Get decoded FIT activity",
     description: "Read the stored decoded FIT payload for one completed activity. This is the raw normalized source behind the activity-analysis projection.",
+    securitySchemes: [{ type: "oauth2", scopes: [ACTIVITY_MCP_SCOPE] }],
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -124,7 +145,10 @@ export const activityMcpTools = [
   },
   {
     name: "get_activity_sample",
+    title: "Get activity sample",
     description: "Return the nearest recorded sample to a requested elapsed time, including HR, pace, speed, elevation, cadence, GPS, distance and every other channel available at that sample.",
+    securitySchemes: [{ type: "oauth2", scopes: [ACTIVITY_MCP_SCOPE] }],
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -244,7 +268,8 @@ export async function handleActivityMcpRequest(request: Request, options?: Bridg
     return rpcError(body.id, -32601, "Method not found");
   } catch (error) {
     if (error instanceof TrainingApiError) {
-      return rpcError(body?.id, -32001, error.message, { code: error.code, details: error.details }, error.status);
+      const headers = error.status === 401 ? { "WWW-Authenticate": activityMcpChallenge(request.url, options?.oauth) } : undefined;
+      return rpcError(body?.id, -32001, error.message, { code: error.code, details: error.details }, error.status, headers);
     }
     return rpcError(body?.id, -32603, "Internal error", undefined, 500);
   }
