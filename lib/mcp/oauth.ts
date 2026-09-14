@@ -3,6 +3,7 @@ import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto
 export const ACTIVITY_MCP_SCOPE = "activities:read";
 export const CHATGPT_CIMD_CLIENT_ID = "https://chatgpt.com/oauth/client.json";
 export const CHATGPT_OAUTH_REDIRECT_URI = "https://chatgpt.com/connector_platform_oauth_redirect";
+export const CODEX_CIMD_CLIENT_ID = "https://chatgpt.com/oauth/codex/client.json";
 
 const ACCESS_TOKEN_SECONDS = 60 * 60;
 const REFRESH_TOKEN_SECONDS = 30 * 24 * 60 * 60;
@@ -124,8 +125,28 @@ function exactScope(scope: string) {
   return scope.split(/\s+/).filter(Boolean).length === 1 && scope.trim() === ACTIVITY_MCP_SCOPE;
 }
 
+function validCodexLoopbackRedirect(redirectUri: string) {
+  try {
+    const redirect = new URL(redirectUri);
+    return redirect.protocol === "http:"
+      && (redirect.hostname === "127.0.0.1" || redirect.hostname === "localhost")
+      && redirect.pathname === "/callback"
+      && !redirect.username
+      && !redirect.password
+      && !redirect.search
+      && !redirect.hash;
+  } catch {
+    return false;
+  }
+}
+
 function validClient(clientId: string, redirectUri: string) {
-  return clientId === CHATGPT_CIMD_CLIENT_ID && redirectUri === CHATGPT_OAUTH_REDIRECT_URI;
+  return (clientId === CHATGPT_CIMD_CLIENT_ID && redirectUri === CHATGPT_OAUTH_REDIRECT_URI)
+    || (clientId === CODEX_CIMD_CLIENT_ID && validCodexLoopbackRedirect(redirectUri));
+}
+
+function recognizedClient(clientId: string) {
+  return clientId === CHATGPT_CIMD_CLIENT_ID || clientId === CODEX_CIMD_CLIENT_ID;
 }
 
 function validResource(resource: string, requestUrl: string, options?: OAuthOptions) {
@@ -300,7 +321,7 @@ export async function handleOAuthTokenRequest(request: Request, options?: OAuthO
   const grantType = String(form.get("grant_type") ?? "");
   const clientId = String(form.get("client_id") ?? "");
   const resource = String(form.get("resource") ?? "");
-  if (clientId !== CHATGPT_CIMD_CLIENT_ID || !validResource(resource, request.url, options)) {
+  if (!recognizedClient(clientId) || !validResource(resource, request.url, options)) {
     return oauthError("invalid_client", "The OAuth client or resource is not authorized.", 401);
   }
 
@@ -335,7 +356,7 @@ export function validActivityAccessToken(token: string, requestUrl: string, opti
     return Boolean(access
       && access.iss === originFor(requestUrl, options)
       && access.aud === activityMcpResource(requestUrl, options)
-      && access.client_id === CHATGPT_CIMD_CLIENT_ID
+      && recognizedClient(access.client_id)
       && exactScope(access.scope));
   } catch {
     return false;
