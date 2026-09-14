@@ -52,6 +52,22 @@ Configure its bearer credential outside the conversation/model context. The same
 
 Recommended permissions are read access to profile/zones/calendar/workouts/plans plus the named training writes above. No generic network or database permission is required.
 
+## Relationship to Intervals.icu MCP
+
+PAU-46 tracks the newly confirmed official Intervals.icu MCP server, which Intervals.icu says is at the specification stage as of 9 September 2026.
+
+An official Intervals.icu MCP may eventually remove the need for some direct provider-access tools, but it is **not** a replacement for the Paul’s Running MCP by default. The two surfaces have different responsibilities:
+
+- Intervals.icu MCP: provider-native activities, streams, wellness, calendar and related provider data.
+- Paul’s Running MCP: canonical athlete profile, local zones/thresholds, versioned workouts/plans, QA, derived analytics, durable IDs, sync state and cross-provider orchestration.
+
+Any future simplification must preserve the Paul’s Running system-of-record boundary. We may remove redundant Intervals-specific proxy code after the official MCP proves complete sample-level access and safe read/write parity; we should not move canonical planning or analysis state back into Intervals.icu.
+
+The community `HduSy/intervals-mcp-server` is a useful reference because it already supports stdio and Streamable HTTP, but two constraints matter for our design review:
+
+1. Its activity-stream tool currently truncates long streams to first/last five values in the MCP response, so it does not yet provide full trace data to an AI client.
+2. Its Streamable HTTP server has no built-in application-layer authentication, so a remotely exposed instance holding Intervals.icu credentials would require an authenticated gateway or equivalent protection.
+
 ## First live validation
 
 1. Call `get_profile` and `list_calendar`.
