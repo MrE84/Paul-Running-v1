@@ -30,9 +30,14 @@ export interface IntervalsIcuEventPayload {
   external_id: string;
 }
 
+export interface IntervalsIcuWorkoutDoc extends Record<string, unknown> {
+  steps?: unknown[];
+}
+
 export interface IntervalsIcuEventResponse extends Record<string, unknown> {
   id: string | number;
   external_id?: string;
+  workout_doc?: IntervalsIcuWorkoutDoc;
 }
 
 export interface IntervalsIcuActivityResponse extends Record<string, unknown> {
@@ -41,6 +46,44 @@ export interface IntervalsIcuActivityResponse extends Record<string, unknown> {
   start_date?: string;
   start_date_local?: string;
   file_type?: string;
+}
+
+export interface IntervalsIcuActivityStream extends Record<string, unknown> {
+  type?: string;
+  name?: string;
+  valueType?: string;
+  data?: unknown[];
+  data2?: unknown[];
+}
+
+export interface IntervalsIcuActivityIntervalsResponse extends Record<string, unknown> {
+  icu_intervals?: unknown[];
+  icu_groups?: unknown[];
+}
+
+/**
+ * Explicitly request raw/fixed HR rather than relying on Intervals.icu's default
+ * stream set. Intervals can expose corrected `heartrate` separately from the
+ * original `raw_heartrate`, which matters when validating clipped HR peaks.
+ */
+export const DEFAULT_INTERVALS_ACTIVITY_STREAM_TYPES = [
+  "time",
+  "watts",
+  "heartrate",
+  "raw_heartrate",
+  "fixed_heartrate",
+  "cadence",
+  "altitude",
+  "distance",
+  "velocity_smooth",
+  "latlng",
+  "temp",
+  "moving",
+  "grade_smooth",
+] as const;
+
+export function intervalsEventHasParsedWorkout(event: IntervalsIcuEventResponse): boolean {
+  return Array.isArray(event.workout_doc?.steps) && event.workout_doc.steps.length > 0;
 }
 
 export class IntervalsIcuHttpError extends Error {
@@ -158,6 +201,12 @@ export class IntervalsIcuClient {
     );
   }
 
+  async getEvent(eventId: string): Promise<IntervalsIcuResponse<IntervalsIcuEventResponse>> {
+    return this.request<IntervalsIcuEventResponse>(
+      `/athlete/${encodeURIComponent(this.athleteId)}/events/${encodeURIComponent(eventId)}`,
+    );
+  }
+
   async deleteEvent(eventId: string): Promise<IntervalsIcuResponse<void>> {
     return this.request<void>(
       `/athlete/${encodeURIComponent(this.athleteId)}/events/${encodeURIComponent(eventId)}`,
@@ -182,6 +231,26 @@ export class IntervalsIcuClient {
   ): Promise<IntervalsIcuResponse<IntervalsIcuActivityResponse>> {
     return this.request<IntervalsIcuActivityResponse>(
       `/activity/${encodeURIComponent(activityId)}`,
+    );
+  }
+
+  async getActivityStreams(
+    activityId: string,
+    streamTypes: readonly string[] = DEFAULT_INTERVALS_ACTIVITY_STREAM_TYPES,
+  ): Promise<IntervalsIcuResponse<IntervalsIcuActivityStream[]>> {
+    const params = new URLSearchParams();
+    if (streamTypes.length) params.set("types", streamTypes.join(","));
+    const query = params.toString();
+    return this.request<IntervalsIcuActivityStream[]>(
+      `/activity/${encodeURIComponent(activityId)}/streams${query ? `?${query}` : ""}`,
+    );
+  }
+
+  async getActivityIntervals(
+    activityId: string,
+  ): Promise<IntervalsIcuResponse<IntervalsIcuActivityIntervalsResponse>> {
+    return this.request<IntervalsIcuActivityIntervalsResponse>(
+      `/activity/${encodeURIComponent(activityId)}/intervals`,
     );
   }
 
