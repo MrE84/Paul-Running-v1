@@ -16,6 +16,7 @@ import { assertWorkoutReadyForSync, WorkoutQaError } from "../../qa/engine";
 import {
   IntervalsIcuClient,
   IntervalsIcuHttpError,
+  intervalsEventHasParsedWorkout,
   type IntervalsIcuActivityResponse,
 } from "./client";
 import {
@@ -123,6 +124,27 @@ export class IntervalsIcuTrainingConnector implements TrainingSyncConnector {
         };
       }
 
+      // Intervals.icu may accept a description yet fail to parse it into structured
+      // device-syncable workout steps. When the provider includes workout_doc in
+      // the upsert response, treat an empty steps array as a permanent publication
+      // failure rather than reporting a false success. A follow-up read can verify
+      // older/provider responses that omit workout_doc entirely.
+      if (event.workout_doc && !intervalsEventHasParsedWorkout(event)) {
+        return {
+          ok: false,
+          kind: "permanent",
+          code: "INTERVALS_ICU_WORKOUT_NOT_PARSED",
+          message: "Intervals.icu stored the workout event but did not parse its description into structured workout steps.",
+          providerMetadata: {
+            externalId: String(event.id),
+            externalKey: translation.event.external_id,
+            renderedDescription: translation.event.description,
+            workoutDoc: event.workout_doc,
+            rateLimit: response.rateLimit,
+          },
+        };
+      }
+
       return {
         ok: true,
         externalId: String(event.id),
@@ -131,6 +153,7 @@ export class IntervalsIcuTrainingConnector implements TrainingSyncConnector {
           renderedDescription: translation.event.description,
           startDateLocal: translation.event.start_date_local,
           warnings: translation.warnings,
+          ...(event.workout_doc ? { workoutParsed: true } : {}),
           rateLimit: response.rateLimit,
         },
       };
