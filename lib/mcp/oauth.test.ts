@@ -5,6 +5,7 @@ import {
   ACTIVITY_MCP_SCOPE,
   CHATGPT_CIMD_CLIENT_ID,
   CHATGPT_OAUTH_REDIRECT_URI,
+  CODEX_CIMD_CLIENT_ID,
   activityMcpChallenge,
   authorizationServerMetadata,
   handleOAuthAuthorizationRequest,
@@ -33,11 +34,11 @@ function options(consumed = new Set<string>()): OAuthOptions {
   };
 }
 
-function authorizationUrl() {
+function authorizationUrl(clientId = CHATGPT_CIMD_CLIENT_ID, redirectUri = CHATGPT_OAUTH_REDIRECT_URI) {
   const url = new URL(`${origin}/api/oauth/authorize`);
   url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", CHATGPT_CIMD_CLIENT_ID);
-  url.searchParams.set("redirect_uri", CHATGPT_OAUTH_REDIRECT_URI);
+  url.searchParams.set("client_id", clientId);
+  url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("state", "state-123");
   url.searchParams.set("code_challenge", challenge);
   url.searchParams.set("code_challenge_method", "S256");
@@ -46,8 +47,8 @@ function authorizationUrl() {
   return url;
 }
 
-async function authorize(oauth = options()) {
-  const values = authorizationUrl().searchParams;
+async function authorize(oauth = options(), clientId = CHATGPT_CIMD_CLIENT_ID, redirectUri = CHATGPT_OAUTH_REDIRECT_URI) {
+  const values = authorizationUrl(clientId, redirectUri).searchParams;
   values.set("decision", "approve");
   const response = await handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize`, {
     method: "POST",
@@ -56,20 +57,20 @@ async function authorize(oauth = options()) {
   }), oauth);
   assert.equal(response.status, 302);
   const location = new URL(response.headers.get("location") ?? "");
-  assert.equal(location.origin + location.pathname, CHATGPT_OAUTH_REDIRECT_URI);
+  assert.equal(location.origin + location.pathname, redirectUri);
   assert.equal(location.searchParams.get("state"), "state-123");
   assert.equal(location.searchParams.get("iss"), origin);
   return location.searchParams.get("code") ?? "";
 }
 
-async function exchange(code: string, oauth = options()) {
+async function exchange(code: string, oauth = options(), clientId = CHATGPT_CIMD_CLIENT_ID, redirectUri = CHATGPT_OAUTH_REDIRECT_URI) {
   return handleOAuthTokenRequest(new Request(`${origin}/api/oauth/token`, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
       grant_type: "authorization_code",
-      client_id: CHATGPT_CIMD_CLIENT_ID,
-      redirect_uri: CHATGPT_OAUTH_REDIRECT_URI,
+      client_id: clientId,
+      redirect_uri: redirectUri,
       resource,
       code,
       code_verifier: verifier,
@@ -107,6 +108,30 @@ test("renders read-only consent for the exact ChatGPT CIMD client and rejects an
   const rejected = await handleOAuthAuthorizationRequest(new Request(invalid), options());
   assert.equal(rejected.status, 400);
   assert.equal((await rejected.json()).error, "invalid_request");
+});
+
+test("accepts the official Codex CIMD client with an RFC 8252 loopback redirect", async () => {
+  const redirectUri = "http://127.0.0.1:36669/callback";
+  const page = await handleOAuthAuthorizationRequest(
+    new Request(authorizationUrl(CODEX_CIMD_CLIENT_ID, redirectUri)), options());
+  assert.equal(page.status, 200);
+
+  const oauth = options();
+  const code = await authorize(oauth, CODEX_CIMD_CLIENT_ID, redirectUri);
+  const response = await exchange(code, oauth, CODEX_CIMD_CLIENT_ID, redirectUri);
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(validActivityAccessToken(payload.access_token, `${origin}/api/activity-mcp`, oauth), true);
+
+  for (const invalidRedirect of [
+    "https://127.0.0.1/callback",
+    "http://127.0.0.1:36669/not-callback",
+    "http://attacker.example/callback",
+  ]) {
+    const rejected = await handleOAuthAuthorizationRequest(
+      new Request(authorizationUrl(CODEX_CIMD_CLIENT_ID, invalidRedirect)), options());
+    assert.equal(rejected.status, 400);
+  }
 });
 
 test("exchanges a PKCE authorization code for a scoped access token and refresh token", async () => {
