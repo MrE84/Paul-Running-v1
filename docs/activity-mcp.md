@@ -8,7 +8,14 @@ Streamable HTTP MCP endpoint:
 
 `https://paul-running-v1.vercel.app/api/activity-mcp`
 
-Every POST request requires `Authorization: Bearer <token>`. The server reads `PAUL_RUNNING_MCP_TOKEN` when configured and otherwise falls back to `PAUL_RUNNING_API_TOKEN`, matching the established PAU-18 MCP transport pattern.
+Every POST request requires `Authorization: Bearer <token>`. ChatGPT obtains a scoped token through the server's OAuth 2.1 authorization-code flow with S256 PKCE; it never receives or stores `PAUL_RUNNING_API_TOKEN`. The existing static `PAUL_RUNNING_MCP_TOKEN` bearer remains available for explicitly configured non-ChatGPT service clients.
+
+OAuth discovery is published at:
+
+- `/.well-known/oauth-protected-resource`
+- `/.well-known/oauth-authorization-server`
+
+The ChatGPT connection uses its stable Client ID Metadata Document, exact stable redirect URI, issuer identification, the `activities:read` scope, one-hour access tokens and renewable 30-day refresh tokens. Authorization codes expire after five minutes and their identifiers are atomically consumed in PostgreSQL to prevent replay. The consent page accepts either the existing secure activity browser session or a direct owner-token check; the owner token is submitted only to Paul's Running and is never returned to ChatGPT.
 
 The endpoint exposes only:
 
@@ -19,9 +26,9 @@ The endpoint exposes only:
 
 It cannot create, revise, apply, publish or delete training objects.
 
-## 2. Short-lived signed GET — connector-independent fallback
+## 2. Short-lived signed GET — non-ChatGPT service fallback
 
-Where a ChatGPT surface cannot attach a custom MCP server, approved tooling can authenticate **GET activity reads only** with an ephemeral Ed25519 key.
+Approved non-ChatGPT tooling can authenticate **GET activity reads only** with an ephemeral Ed25519 key. This is not the ChatGPT connection mechanism: ChatGPT does not receive custom private keys or API keys.
 
 The public-key registry is intentionally kept on the repository's `agent-auth` branch at:
 
@@ -94,3 +101,10 @@ Acceptance requires an approved ChatGPT/service identity to:
 7. confirm the signed path cannot perform writes or access non-activity APIs.
 
 PAU-44 is complete only after this production test is performed through the machine identity, not merely through unit tests or the browser UI.
+
+## Connect in ChatGPT
+
+1. Enable Developer mode under **Settings → Security and login**.
+2. Open **Plugins**, select **+**, and create a connection to `https://paul-running-v1.vercel.app/api/activity-mcp`.
+3. Approve the read-only `activities:read` consent screen. If a secure Activity Analysis browser session is already active, no API token re-entry is required.
+4. Start a new conversation with Paul’s Running enabled and run the production acceptance test above.
