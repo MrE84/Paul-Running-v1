@@ -79,6 +79,8 @@ test("activity MCP requires bearer authentication", async () => {
     { token: "test-token" },
   );
   assert.equal(response.status, 401);
+  assert.equal(response.headers.get("www-authenticate"),
+    'Bearer resource_metadata="https://example.test/.well-known/oauth-protected-resource", scope="activities:read"');
   const payload = await response.json();
   assert.equal(payload.error.data.code, "UNAUTHORIZED");
 });

@@ -8,7 +8,12 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET() {
-  return new Response(JSON.stringify({ error: "Paul’s Running Activity MCP uses Streamable HTTP POST requests." }), {
+  return new Response(JSON.stringify({
+    name: "Paul’s Running Activity MCP",
+    transport: "Streamable HTTP",
+    endpoint: "/api/activity-mcp",
+    authentication: "OAuth 2.1 authorization code with PKCE",
+  }), {
     status: 405,
     headers: { "content-type": "application/json; charset=utf-8", allow: "POST" },
   });
