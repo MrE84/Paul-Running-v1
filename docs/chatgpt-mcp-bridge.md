@@ -63,10 +63,13 @@ An official Intervals.icu MCP may eventually remove the need for some direct pro
 
 Any future simplification must preserve the Paul’s Running system-of-record boundary. We may remove redundant Intervals-specific proxy code after the official MCP proves complete sample-level access and safe read/write parity; we should not move canonical planning or analysis state back into Intervals.icu.
 
-The community `HduSy/intervals-mcp-server` is a useful reference because it already supports stdio and Streamable HTTP, but two constraints matter for our design review:
+Community MCP findings reinforce the security and data-contract requirements:
 
-1. Its activity-stream tool currently truncates long streams to first/last five values in the MCP response, so it does not yet provide full trace data to an AI client.
-2. Its Streamable HTTP server has no built-in application-layer authentication, so a remotely exposed instance holding Intervals.icu credentials would require an authenticated gateway or equivalent protection.
+- `hhopke/intervals-icu-mcp` is currently the strongest reviewed community implementation. Its activity-stream tool returns full per-sample arrays and explicitly supports `raw_heartrate`, making it a useful reference or interim provider-facing component. It also gates destructive tool registration server-side. However, its own ChatGPT guide states that remote HTTP access has no built-in authentication and must be protected by Cloudflare Access, Tailscale or an authenticating reverse proxy. It therefore cannot replace our OAuth/auth boundary unchanged.
+- `HduSy/intervals-mcp-server` is a useful MIT/TypeScript reference with good completeness handling, but its activity-stream tool currently truncates long streams to first/last five values and its Streamable HTTP server has no application-layer authentication.
+- `mvilanova/intervals-mcp-server` similarly truncates long activity streams and documents an SSE tunnel with no authentication unless separately protected. It is GPL-3.0 licensed, so it is reference-only unless we intentionally accept that license’s obligations.
+
+The design rule is therefore: **provider MCPs may replace provider-access plumbing, not Paul’s Running’s trust boundary or canonical model**. Any adopted external MCP must sit behind equivalent authentication, credential isolation, QA and audit controls, and must not expose Intervals.icu API keys as model-visible tool parameters.
 
 ## First live validation
 
