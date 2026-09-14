@@ -41,11 +41,46 @@ Before any bridge code is retired, PAU-46 must validate:
 - authentication/scopes, write confirmation, token isolation, rate limits and auditability;
 - reliable use from ChatGPT without exposing Intervals.icu credentials to the model.
 
-Community reference implementation: `HduSy/intervals-mcp-server` (MIT). It is useful as a design reference and possible interim component, but its current `get_activity_streams` implementation only returns all values for streams of 10 samples or fewer; longer streams are reduced to the first five and last five samples in the MCP response. That is insufficient for Paul’s Running deep trace analysis unless adapted. Its Streamable HTTP transport also has no application-layer authentication in `server.ts`, so it must not be exposed publicly with stored Intervals.icu credentials without an authenticated gateway or equivalent control.
+## Community MCP survey
+
+Three community Intervals.icu MCP implementations are tracked as references while the official server is not yet public.
+
+### `hhopke/intervals-icu-mcp` — preferred community reference
+
+MIT licensed and materially closer to Paul’s Running requirements than the other reviewed projects. It currently advertises 62 tools covering activities, raw activity analysis, athlete profile, wellness, calendar/events, curves, workout library, gear, sport settings and custom items.
+
+Most importantly, `icu_get_activity_streams` returns the actual per-sample arrays rather than preview snippets. It explicitly supports second-by-second power, HR, cadence, speed, altitude, GPS, temperature and grade streams, and distinguishes Intervals.icu `heartrate` from `raw_heartrate` / `fixed_heartrate`. `raw_heartrate` is especially relevant for detecting genuine peaks that may have been corrected against the configured max HR.
+
+It also has stronger server-side destructive-operation gating through `INTERVALS_ICU_DELETE_MODE` and validates whether a workout description actually parsed into structured, device-syncable steps.
+
+It is still **not** a drop-in replacement for Paul’s Running. Its remote HTTP/SSE mode has no built-in application-layer authentication and its ChatGPT setup documentation explicitly requires a protected tunnel or authenticated reverse proxy. It also does not provide Paul’s Running canonical IDs, durable local system of record, workout QA, idempotent publication/audit pipeline or raw FIT archive.
+
+### `HduSy/intervals-mcp-server` — TypeScript reference
+
+MIT licensed, published through npm and useful for endpoint/completeness/provenance handling. However, its current `get_activity_streams` tool reduces streams longer than 10 values to the first five and last five values in the MCP response. That is insufficient for full-trace coaching analysis unless adapted. Its Streamable HTTP transport also has no application-layer authentication.
+
+### `mvilanova/intervals-mcp-server` — reference only
+
+Python implementation with activity, stream, event, wellness, curve, custom-item and gear tools. Its stream tool has the same first-five/last-five truncation behaviour as HduSy for long arrays. Its ChatGPT instructions use SSE through a public tunnel and explicitly allow no authentication unless the tunnel is separately protected.
+
+This project is GPL-3.0 licensed. Do not copy its source into Paul’s Running without an explicit licensing decision; use it as a behavioural/API reference only.
+
+### Current evaluation order
+
+1. Test `hhopke/intervals-icu-mcp` first as the strongest interim direct-Intervals MCP candidate/reference.
+2. Keep HduSy as a clean TypeScript/MIT reference for completeness and API handling.
+3. Keep mvilanova as reference-only due to GPL-3.0 plus the same stream/security limitations.
+4. Re-evaluate all community code when the official Intervals.icu MCP becomes available.
+
+Regardless of the MCP client/provider chosen, Paul’s Running remains canonical and retains its OAuth/auth gateway, full FIT/raw storage, QA, idempotency, audit trail and provider-neutral boundaries.
 
 Official MCP/forum reference: https://forum.intervals.icu/t/request-for-official-mcp-support-for-ai-tools-chatgpt-claude/126164
 
-Community MCP reference: https://github.com/HduSy/intervals-mcp-server
+Community references:
+
+- https://github.com/hhopke/intervals-icu-mcp
+- https://github.com/HduSy/intervals-mcp-server
+- https://github.com/mvilanova/intervals-mcp-server
 
 ## Validation
 
