@@ -8,7 +8,17 @@ Streamable HTTP MCP endpoint:
 
 `https://paul-running-v1.vercel.app/api/activity-mcp`
 
-Every POST request requires `Authorization: Bearer <token>`. ChatGPT obtains a scoped token through the server's OAuth 2.1 authorization-code flow with S256 PKCE; it never receives or stores `PAUL_RUNNING_API_TOKEN`. The existing static `PAUL_RUNNING_MCP_TOKEN` bearer remains available for explicitly configured non-ChatGPT service clients.
+Every POST request requires `Authorization: Bearer <token>`.
+
+For a persistent non-interactive machine credential, production now supports a dedicated read-only secret:
+
+`PAUL_RUNNING_ACTIVITY_READ_TOKEN`
+
+This token is checked only by the dedicated `/api/activity-mcp` activity bridge, whose tool catalog is restricted to completed-activity reads. It is intentionally separate from Paul’s browser/admin token and from the general MCP token, so it can be rotated independently. If it is absent, the activity bridge retains backward-compatible fallback to `PAUL_RUNNING_MCP_TOKEN` and then `PAUL_RUNNING_API_TOKEN`.
+
+**Security rule:** never place the value of `PAUL_RUNNING_ACTIVITY_READ_TOKEN` in source control, a chat message, a URL, browser JavaScript storage, logs, tool arguments, or model-visible schemas. Store it only in the server environment and in a client/connector secret store that is capable of attaching it as an `Authorization: Bearer ...` header.
+
+ChatGPT’s supported connector path can instead obtain a scoped token through the server's OAuth 2.1 authorization-code flow with S256 PKCE; it never receives or stores `PAUL_RUNNING_API_TOKEN`.
 
 OAuth discovery is published at:
 
@@ -25,6 +35,17 @@ The endpoint exposes only:
 - `get_activity_sample`
 
 It cannot create, revise, apply, publish or delete training objects.
+
+### Persistent machine-key deployment
+
+1. Generate a long random secret outside ChatGPT.
+2. Add it to the Vercel **Production** environment as `PAUL_RUNNING_ACTIVITY_READ_TOKEN`.
+3. Redeploy production so the new secret is available to the serverless runtime.
+4. Store the same secret only in the approved machine client/connector secret store.
+5. That client calls `POST /api/activity-mcp` with `Authorization: Bearer <secret>`.
+6. Rotate this token independently if the machine credential is ever exposed.
+
+Adding the environment variable on the server is only half of the setup: a client must also have a secure secret store capable of presenting the bearer header. An ordinary chat must not be asked to paste the token into conversation text.
 
 ## 2. Short-lived signed GET — non-ChatGPT service fallback
 
@@ -98,13 +119,17 @@ Acceptance requires an approved ChatGPT/service identity to:
 4. confirm pace/speed, altitude/elevation, GPS and cadence are present where recorded;
 5. retrieve `/raw` successfully;
 6. query `/sample?elapsedSeconds=1123` (18:43) and report the matched HR, pace, elevation and cadence;
-7. confirm the signed path cannot perform writes or access non-activity APIs.
+7. confirm the machine credential cannot perform writes or access non-activity APIs.
 
-PAU-44 is complete only after this production test is performed through the machine identity, not merely through unit tests or the browser UI.
+PAU-44 is complete only after this production test is performed through the actual client identity, not merely through unit tests or the browser UI.
 
 ## Connect in ChatGPT
+
+Where the user’s ChatGPT plan supports private/custom app connections:
 
 1. Enable Developer mode under **Settings → Security and login**.
 2. Open **Plugins**, select **+**, and create a connection to `https://paul-running-v1.vercel.app/api/activity-mcp`.
 3. Approve the read-only `activities:read` consent screen. If a secure Activity Analysis browser session is already active, no API token re-entry is required.
 4. Start a new conversation with Paul’s Running enabled and run the production acceptance test above.
+
+For environments that cannot securely install/configure a private connector, do not paste the persistent machine key into chat. A supported secret-bearing connector or another scoped authorization mechanism is still required on the client side.
