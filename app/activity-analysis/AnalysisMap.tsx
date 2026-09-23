@@ -56,6 +56,7 @@ function baseRouteCollection(points: Array<{ lat: number; lon: number; segment: 
 
 export default memo(function AnalysisMap({ projection, hover, selection, onHover, onSelect, units, privacy, onPrivacyChange }: Props) {
   const container = useRef<HTMLDivElement>(null);
+  const viewport = useRef<HTMLDivElement>(null);
   const map = useRef<LibreMap | null>(null);
   const initialPrivacyHandled = useRef(false);
   const refreshOverlayRef = useRef<(() => void) | null>(null);
@@ -129,7 +130,6 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     }
     map.current = instance;
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-    instance.addControl(new maplibregl.FullscreenControl(), "top-right");
 
     const refreshOverlay = () => {
       const current = routeData.current;
@@ -221,10 +221,17 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
       const detail = event.error?.message ? `: ${event.error.message}` : "";
       setError(`MapLibre source warning${detail}. Browser route fallback remains active.`);
     });
-    const observer = new ResizeObserver(() => { instance.resize(); scheduleOverlay(); });
+    const resize = () => { instance.resize(); scheduleOverlay(); };
+    const observer = new ResizeObserver(resize);
     observer.observe(container.current);
+    const fullscreenChanged = () => {
+      // The full map stack (tiles, route and marker) must be laid out before projection.
+      requestAnimationFrame(resize);
+    };
+    document.addEventListener("fullscreenchange", fullscreenChanged);
     return () => {
       observer.disconnect();
+      document.removeEventListener("fullscreenchange", fullscreenChanged);
       if (frame) cancelAnimationFrame(frame);
       refreshOverlayRef.current = null;
       instance.remove();
@@ -300,14 +307,17 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
   if (!projection.streams.latitude.some(v => v !== null)) return <section className={styles.panel}><h3>Indoor activity</h3><p className={styles.empty}>No GPS was recorded. Explore your pace, heart rate and laps in the timeline.</p></section>;
 
   return <section className={styles.panel} aria-label="Route analysis">
-    <div className={styles.panelHeading}><div><span className={styles.eyebrow}>THE ROUTE</span><h3>Every turn, in context</h3></div><button onClick={fitRoute}>Fit route</button></div>
+    <div className={styles.panelHeading}><div><span className={styles.eyebrow}>THE ROUTE</span><h3>Every turn, in context</h3></div><div className={styles.mapActions}><button onClick={fitRoute}>Fit route</button><button onClick={() => {
+      if (document.fullscreenElement === viewport.current) void document.exitFullscreen();
+      else void viewport.current?.requestFullscreen();
+    }}>Fullscreen map</button></div></div>
     <div className={styles.toolbar}>
       <label>Colour by<select aria-label="Route colour metric" value={metric} onChange={e => setMetric(e.target.value as Channel)}>{(["heart_rate", "pace", "power", "cadence", "grade"] as Channel[]).filter(k => projection.streams.channels[k]).map(k => <option key={k} value={k}>{CHANNELS[k].label}</option>)}</select></label>
       <label>Scale<select value={colourMode} onChange={e => setColourMode(e.target.value)}><option value="intensity">Intensity</option><option value="zones" disabled={!projection.zones[metric]?.length}>Configured zones</option></select></label>
       <label>Start / finish privacy<select aria-label="Endpoint privacy radius" value={radius} onChange={e => onPrivacyChange({ ...privacy, endpointRadius: Number(e.target.value) })}>{[0, 100, 200, 500, 1000].map(v => <option key={v} value={v}>{v ? `${v} m` : "Off"}</option>)}</select></label>
       <label className={styles.check}><input type="checkbox" checked={tiles} onChange={e => setTiles(e.target.checked)} />Street map</label>
     </div>
-    <div style={{ position: "relative", overflow: "hidden", borderRadius: 12, background: "#122033" }}>
+    <div ref={viewport} className={styles.mapViewport} aria-label="Resizable route map">
       {tiles && <div aria-hidden="true" style={{ position: "absolute", inset: 1, overflow: "hidden", zIndex: 1, pointerEvents: "none", borderRadius: 11 }}>
         {browserOverlay.tiles.map(tile => <img key={tile.key} src={tile.url} alt="" draggable={false} onError={() => setTileError(true)} style={{ position: "absolute", left: tile.left, top: tile.top, width: tile.size + 1, height: tile.size + 1, maxWidth: "none", opacity: .82, filter: "saturate(.75) brightness(.72)" }} />)}
       </div>}
@@ -316,21 +326,16 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
         {browserOverlay.paths.map(path => <path key={`base-${path.segment}`} d={path.d} fill="none" stroke="#38bdf8" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" opacity=".9" />)}
         {browserOverlay.lines.map(line => <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={line.color} strokeWidth="4" strokeLinecap="round" />)}
         {browserOverlay.markers.map(marker => <circle key={marker.kind} cx={marker.x} cy={marker.y} r="7" fill={marker.kind === "start" ? "#6ee7b7" : "#fb7185"} stroke="#0c1422" strokeWidth="2" />)}
-        {browserOverlay.runner && <g transform={`translate(${browserOverlay.runner.x} ${browserOverlay.runner.y})`}>
-          <g transform={`rotate(${browserOverlay.runner.bearing})`}><path d="M0 -24 L5 -15 L-5 -15 Z" fill="#ffffff" stroke="#071523" strokeWidth="1.5" /></g>
-          <circle r="15" fill="#071523" stroke="#ffffff" strokeWidth="2.5" />
-          <circle r="12" fill="#12314d" stroke="#60a5fa" strokeWidth="1.5" />
-          <text x="0" y="1" textAnchor="middle" dominantBaseline="central" fontSize="18">🏃</text>
-        </g>}
+        {browserOverlay.runner && <circle cx={browserOverlay.runner.x} cy={browserOverlay.runner.y} r="5.5" fill="#60a5fa" stroke="#ffffff" strokeWidth="2.5" />}
       </svg>
       {tiles && <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style={{ position: "absolute", right: 4, bottom: 3, zIndex: 6, fontSize: 9, color: "#d8e7f7", background: "rgba(6,17,29,.8)", padding: "2px 4px", borderRadius: 3 }}>© OpenStreetMap contributors</a>}
     </div>
     {error && <p role="status" className={styles.quiet}>{error}</p>}
     {tileError && tiles && <p role="status" className={styles.quiet}>Some OpenStreetMap tile images were blocked or unavailable. The recorded GPS route remains visible independently.</p>}
     {!points.length && <p className={styles.quiet}>No route points are currently visible. Set start / finish privacy to Off or clear custom masks.</p>}
-    <p className={styles.quiet}>GPS samples {gpsSamples.toLocaleString()} · visible route points {points.length.toLocaleString()} · base route segments {baseRoute.features.length.toLocaleString()} · coloured segments {features.features.length.toLocaleString()} · runner {hover === null ? "waiting for chart scrub" : browserOverlay.runner ? "synced" : "hidden at route gap"} · browser overlay {browserOverlay.paths.length ? "active" : "waiting"} · street tiles {tiles ? browserOverlay.tiles.length.toLocaleString() : "off"} · map {ready ? "ready" : "loading"}</p>
+    <p className={styles.quiet}>GPS samples {gpsSamples.toLocaleString()} · visible route points {points.length.toLocaleString()} · base route segments {baseRoute.features.length.toLocaleString()} · coloured segments {features.features.length.toLocaleString()} · position {hover === null ? "waiting for chart scrub" : browserOverlay.runner ? "synced" : "hidden at route gap"} · browser overlay {browserOverlay.paths.length ? "active" : "waiting"} · street tiles {tiles ? browserOverlay.tiles.length.toLocaleString() : "off"} · map {ready ? "ready" : "loading"}</p>
     <div className={styles.mapLegend}><span>{formatChannel(metric, limits.min, units)}</span><i /><span>{formatChannel(metric, limits.max, units)}</span></div>
-    <p className={styles.quiet}>Scrub any chart to move the runner along the same GPS moment. Start <span style={{ color: "#6ee7b7" }}>●</span> · Finish <span style={{ color: "#fb7185" }}>●</span>{projection.weather?.status === "available" ? " · Blue arrows show wind direction" : ""} · Click a lap marker to select it.</p>
+    <p className={styles.quiet}>Scrub any chart to move the position marker along the same GPS moment. Start <span style={{ color: "#6ee7b7" }}>●</span> · Finish <span style={{ color: "#fb7185" }}>●</span>{projection.weather?.status === "available" ? " · Blue arrows show wind direction" : ""} · Click a lap marker to select it.</p>
     <details className={styles.details}><summary>Map privacy & detail <span>{radius ? `${radius} m masked` : "Mask off"}</span></summary>
       <div className={styles.toolbar}><label>Route detail<select value={density} onChange={e => setDensity(Number(e.target.value))}><option value={1000}>Light</option><option value={2000}>Balanced</option><option value={10000}>Detailed</option></select></label></div>
       <p className={styles.quiet}>Hover a route point, then mask it below to hide a 200 m home region for this session. Masks hide points and connecting segments; original data and raw exports remain complete.</p>
