@@ -202,6 +202,39 @@ test("defaults an omitted scope to the single scope bound to the requested MCP r
   assert.match(await downScopedPage.text(), /Activities: read/);
 });
 
+test("accepts same-origin approval through Vercel forwarded host and rejects a foreign origin", async () => {
+  const oauth = options();
+  const values = authorizationUrl().searchParams;
+  values.set("decision", "approve");
+
+  const proxied = await handleOAuthAuthorizationRequest(new Request("https://internal-deployment.vercel.app/api/oauth/authorize", {
+    method: "POST",
+    headers: {
+      origin,
+      "content-type": "application/x-www-form-urlencoded",
+      "x-forwarded-host": "example.test",
+      "x-forwarded-proto": "https",
+      host: "internal-deployment.vercel.app",
+    },
+    body: values,
+  }), oauth);
+  assert.equal(proxied.status, 302);
+
+  const foreign = await handleOAuthAuthorizationRequest(new Request("https://internal-deployment.vercel.app/api/oauth/authorize", {
+    method: "POST",
+    headers: {
+      origin: "https://attacker.example",
+      "content-type": "application/x-www-form-urlencoded",
+      "x-forwarded-host": "example.test",
+      "x-forwarded-proto": "https",
+      host: "internal-deployment.vercel.app",
+    },
+    body: values,
+  }), oauth);
+  assert.equal(foreign.status, 403);
+  assert.equal((await foreign.json()).error, "access_denied");
+});
+
 test("uses the dedicated activity read credential for activity consent without granting training access", async () => {
   const oauth: OAuthOptions = {
     ...options(),
