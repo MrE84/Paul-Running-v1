@@ -235,6 +235,62 @@ test("accepts same-origin approval through Vercel forwarded host and rejects a f
   assert.equal((await foreign.json()).error, "access_denied");
 });
 
+test("accepts an opaque null Origin only with the verified dedicated activity credential on the aligned HTTPS host", async () => {
+  const oauth: OAuthOptions = {
+    ...options(),
+    ownerAuthenticated: false,
+    activityOwnerSecret: "activity-read-secret",
+  };
+
+  const values = authorizationUrl().searchParams;
+  values.set("decision", "approve");
+  values.set("owner_token", "activity-read-secret");
+
+  const approved = await handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize`, {
+    method: "POST",
+    headers: {
+      origin: "null",
+      "content-type": "application/x-www-form-urlencoded",
+      "x-forwarded-host": "example.test",
+      "x-forwarded-proto": "https",
+      host: "example.test",
+      "sec-fetch-site": "same-origin",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-dest": "document",
+    },
+    body: values,
+  }), oauth);
+  assert.equal(approved.status, 302);
+
+  values.set("owner_token", "wrong-secret");
+  const wrongCredential = await handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize`, {
+    method: "POST",
+    headers: {
+      origin: "null",
+      "content-type": "application/x-www-form-urlencoded",
+      "x-forwarded-host": "example.test",
+      "x-forwarded-proto": "https",
+      host: "example.test",
+    },
+    body: values,
+  }), oauth);
+  assert.equal(wrongCredential.status, 403);
+
+  values.set("owner_token", "activity-read-secret");
+  const misalignedHost = await handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize`, {
+    method: "POST",
+    headers: {
+      origin: "null",
+      "content-type": "application/x-www-form-urlencoded",
+      "x-forwarded-host": "other.example",
+      "x-forwarded-proto": "https",
+      host: "example.test",
+    },
+    body: values,
+  }), oauth);
+  assert.equal(misalignedHost.status, 403);
+});
+
 test("uses the dedicated activity read credential for activity consent without granting training access", async () => {
   const oauth: OAuthOptions = {
     ...options(),
