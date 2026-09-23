@@ -164,6 +164,37 @@ test("renders read-only consent for the exact ChatGPT CIMD client and rejects an
   assert.equal((await rejected.json()).error, "invalid_request");
 });
 
+test("defaults an omitted scope to the single scope bound to the requested MCP resource", async () => {
+  const oauth = options();
+  const values = authorizationUrl().searchParams;
+  values.delete("scope");
+
+  const page = await handleOAuthAuthorizationRequest(
+    new Request(`${origin}/api/oauth/authorize?${values}`), oauth);
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /Activities: read/);
+
+  values.set("decision", "approve");
+  const approval = await handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize`, {
+    method: "POST",
+    headers: { origin, "content-type": "application/x-www-form-urlencoded" },
+    body: values,
+  }), oauth);
+  assert.equal(approval.status, 302);
+
+  const code = new URL(approval.headers.get("location")!).searchParams.get("code")!;
+  const tokenResponse = await exchange(code, oauth);
+  assert.equal(tokenResponse.status, 200);
+  const issued = await tokenResponse.json();
+  assert.equal(issued.scope, ACTIVITY_MCP_SCOPE);
+  assert.equal(validActivityAccessToken(issued.access_token, resource, oauth), true);
+
+  const overbroad = authorizationUrl();
+  overbroad.searchParams.set("scope", `${ACTIVITY_MCP_SCOPE} ${TRAINING_MCP_SCOPE}`);
+  const rejected = await handleOAuthAuthorizationRequest(new Request(overbroad), oauth);
+  assert.equal(rejected.status, 400);
+});
+
 test("accepts the official Codex CIMD client with an RFC 8252 loopback redirect", async () => {
   const redirectUri = "http://127.0.0.1:36669/callback";
   const page = await handleOAuthAuthorizationRequest(

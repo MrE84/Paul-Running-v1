@@ -141,9 +141,15 @@ function decode(value: string, expectedType: TokenKind, options?: OAuthOptions):
   }
 }
 
+function scopeForResource(resource: string, requestUrl: string, options?: OAuthOptions): string | null {
+  if (resource === activityMcpResource(requestUrl, options)) return ACTIVITY_MCP_SCOPE;
+  if (resource === trainingMcpResource(requestUrl, options)) return TRAINING_MCP_SCOPE;
+  return null;
+}
+
 function exactScope(scope: string, resource: string, requestUrl: string, options?: OAuthOptions) {
-  return (resource === activityMcpResource(requestUrl, options) && scope === ACTIVITY_MCP_SCOPE)
-    || (resource === trainingMcpResource(requestUrl, options) && scope === TRAINING_MCP_SCOPE);
+  const expected = scopeForResource(resource, requestUrl, options);
+  return expected !== null && scope === expected;
 }
 
 function validCodexLoopbackRedirect(redirectUri: string) {
@@ -279,7 +285,9 @@ function redirectAuthorization(params: AuthorizationParams, requestUrl: string, 
 
 export async function handleOAuthAuthorizationRequest(request: Request, options?: OAuthOptions): Promise<Response> {
   const values = request.method === "POST" ? await request.formData() : new URL(request.url).searchParams;
-  const params = authorizationParams(values);
+  const parsed = authorizationParams(values);
+  const defaultScope = scopeForResource(parsed.resource, request.url, options);
+  const params = !parsed.scope && defaultScope ? { ...parsed, scope: defaultScope } : parsed;
   const validationError = validateAuthorizationParams(params, request.url, options);
   if (validationError) return oauthError("invalid_request", validationError);
 
