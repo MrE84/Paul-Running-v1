@@ -32,6 +32,8 @@ export type OAuthOptions = {
   now?: () => number;
   ownerAuthenticated?: boolean;
   ownerSecret?: string;
+  activityOwnerSecret?: string;
+  trainingOwnerSecret?: string;
   consumeAuthorizationCode?: (jti: string, expiresAt: number) => Promise<boolean>;
 };
 
@@ -242,6 +244,23 @@ function validateAuthorizationParams(params: AuthorizationParams, requestUrl: st
   return null;
 }
 
+function ownerSecretForResource(resource: string, requestUrl: string, options?: OAuthOptions): string {
+  if (resource === activityMcpResource(requestUrl, options)) {
+    return options?.activityOwnerSecret
+      ?? process.env.PAUL_RUNNING_ACTIVITY_READ_TOKEN?.trim()
+      ?? options?.ownerSecret
+      ?? process.env.PAUL_RUNNING_API_TOKEN?.trim()
+      ?? "";
+  }
+  if (resource === trainingMcpResource(requestUrl, options)) {
+    return options?.trainingOwnerSecret
+      ?? options?.ownerSecret
+      ?? process.env.PAUL_RUNNING_API_TOKEN?.trim()
+      ?? "";
+  }
+  return "";
+}
+
 function authorizationPage(params: AuthorizationParams, requestUrl: string, authenticated: boolean, message?: string) {
   const training = params.scope === TRAINING_MCP_SCOPE;
   const consent = training
@@ -257,8 +276,9 @@ function authorizationPage(params: AuthorizationParams, requestUrl: string, auth
     ["resource", params.resource],
     ["scope", params.scope],
   ].map(([name, value]) => `<input type="hidden" name="${name}" value="${escapeHtml(value)}">`).join("");
+  const credentialLabel = training ? "Paul’s Running access token" : "Paul’s Running activity read token";
   const credential = authenticated ? "" : `
-    <label>Paul’s Running access token<input name="owner_token" type="password" autocomplete="current-password" required></label>
+    <label>${credentialLabel}<input name="owner_token" type="password" autocomplete="current-password" required></label>
     <small>The token is submitted only to Paul’s Running and is never sent to ChatGPT.</small>`;
   const warning = message ? `<p class="error">${escapeHtml(message)}</p>` : "";
   return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect Paul’s Running</title><style>
@@ -297,7 +317,7 @@ export async function handleOAuthAuthorizationRequest(request: Request, options?
     return redirectAuthorization(params, request.url, { error: "access_denied", error_description: "The user declined access." }, options);
   }
   const supplied = String(values.get("owner_token") ?? "");
-  const ownerSecret = options?.ownerSecret ?? process.env.PAUL_RUNNING_API_TOKEN?.trim() ?? "";
+  const ownerSecret = ownerSecretForResource(params.resource, request.url, options);
   if (!options?.ownerAuthenticated && (!ownerSecret || !supplied || !secureEqual(supplied, ownerSecret))) {
     return authorizationPage(params, request.url, false, "The Paul’s Running access token was not valid.");
   }
