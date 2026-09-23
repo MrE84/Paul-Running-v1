@@ -158,13 +158,10 @@ function normalizeAuthorizationScope(params: AuthorizationParams, requestUrl: st
   const expected = scopeForResource(params.resource, requestUrl, options);
   if (!expected) return params;
 
-  // The Activity MCP has exactly one server-side permission: activities:read.
-  // ChatGPT/Codex may include client/platform scopes during OAuth negotiation.
-  // Ignore those client hints and issue only the resource-bound read scope, but
-  // never allow an activity-resource request to ask for the training write scope.
+  // The Activity MCP has exactly one permission and one audience. OAuth clients
+  // may request broader authorization-server scopes, but this resource can only
+  // ever issue activities:read. Down-scope the grant to that single permission.
   if (expected === ACTIVITY_MCP_SCOPE) {
-    const requested = params.scope.trim().split(/\s+/).filter(Boolean);
-    if (requested.includes(TRAINING_MCP_SCOPE)) return params;
     return { ...params, scope: ACTIVITY_MCP_SCOPE };
   }
 
@@ -327,7 +324,17 @@ export async function handleOAuthAuthorizationRequest(request: Request, options?
   const parsed = authorizationParams(values);
   const params = normalizeAuthorizationScope(parsed, request.url, options);
   const validationError = validateAuthorizationParams(params, request.url, options);
-  if (validationError) return oauthError("invalid_request", validationError);
+  if (validationError) {
+    console.warn("OAuth authorization rejected", {
+      method: request.method,
+      clientId: params.clientId,
+      resource: params.resource,
+      requestedScope: parsed.scope,
+      effectiveScope: params.scope,
+      error: validationError,
+    });
+    return oauthError("invalid_request", validationError);
+  }
 
   if (request.method !== "POST") return authorizationPage(params, request.url, Boolean(options?.ownerAuthenticated));
   if (request.headers.get("origin") !== new URL(request.url).origin) return oauthError("access_denied", "Same-origin approval is required.", 403);
@@ -391,16 +398,18 @@ export async function handleOAuthTokenRequest(request: Request, options?: OAuthO
   if (!form) return oauthError("invalid_request", "A form-encoded token request is required.");
   const grantType = String(form.get("grant_type") ?? "");
   const clientId = String(form.get("client_id") ?? "");
-  const resource = String(form.get("resource") ?? "");
-  if (!recognizedClient(clientId) || !validResource(resource, request.url, options)) {
-    return oauthError("invalid_client", "The OAuth client or resource is not authorized.", 401);
+  const requestedResource = String(form.get("resource") ?? "");
+  if (!recognizedClient(clientId)) {
+    return oauthError("invalid_client", "The OAuth client is not authorized.", 401);
   }
 
   if (grantType === "authorization_code") {
     const code = decode(String(form.get("code") ?? ""), "authorization_code", options);
+    const resource = requestedResource || code?.aud || "";
     const redirectUri = String(form.get("redirect_uri") ?? "");
     const verifier = String(form.get("code_verifier") ?? "");
-    if (!code || code.iss !== originFor(request.url, options) || code.aud !== resource || code.client_id !== clientId
+    if (!validResource(resource, request.url, options)
+      || !code || code.iss !== originFor(request.url, options) || code.aud !== resource || code.client_id !== clientId
       || code.redirect_uri !== redirectUri || !validClient(clientId, redirectUri) || !code.code_challenge
       || !/^[A-Za-z0-9._~-]{43,128}$/.test(verifier) || !secureEqual(pkceChallenge(verifier), code.code_challenge)) {
       return oauthError("invalid_grant", "The authorization code or PKCE verifier is invalid.");
@@ -411,7 +420,9 @@ export async function handleOAuthTokenRequest(request: Request, options?: OAuthO
 
   if (grantType === "refresh_token") {
     const refresh = decode(String(form.get("refresh_token") ?? ""), "refresh_token", options);
-    if (!refresh || refresh.iss !== originFor(request.url, options) || refresh.aud !== resource
+    const resource = requestedResource || refresh?.aud || "";
+    if (!validResource(resource, request.url, options)
+      || !refresh || refresh.iss !== originFor(request.url, options) || refresh.aud !== resource
       || refresh.client_id !== clientId || !exactScope(refresh.scope, resource, request.url, options)) {
       return oauthError("invalid_grant", "The refresh token is invalid or expired.");
     }
