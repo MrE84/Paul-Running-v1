@@ -355,6 +355,16 @@ function redirectAuthorization(params: AuthorizationParams, requestUrl: string, 
   target.searchParams.set("state", params.state);
   target.searchParams.set("iss", originFor(requestUrl, options));
   for (const [key, value] of Object.entries(values)) target.searchParams.set(key, value);
+
+  console.info("OAuth authorization redirect issued", {
+    clientId: params.clientId,
+    redirectOrigin: target.origin,
+    redirectPath: target.pathname,
+    resource: params.resource,
+    scope: params.scope,
+    outcome: values.code ? "code" : values.error ? "error" : "other",
+  });
+
   return Response.redirect(target, 302);
 }
 
