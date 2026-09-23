@@ -6,7 +6,17 @@ Paul’s Running exposes a constrained Streamable HTTP MCP endpoint at `/api/mcp
 
 The MCP endpoint requires `Authorization: Bearer <token>`. ChatGPT uses OAuth 2.1 authorization code + S256 PKCE to obtain a token scoped to `training:write` and bound to `/api/mcp`. The consent screen explains that this includes workout, plan and publishing writes; the owner's credential goes only to Paul's Running. OAuth discovery is at `/.well-known/oauth-protected-resource/api/mcp` and `/.well-known/oauth-authorization-server`. An activity-only `activities:read` token cannot call the training endpoint, and a training token cannot call `/api/activity-mcp`.
 
-Existing service clients can use `PAUL_RUNNING_MCP_TOKEN` (falling back to `PAUL_RUNNING_API_TOKEN`), passed in the Authorization header. The token is transport configuration only: it is never part of a model-visible tool schema, tool argument, tool response, or audit payload.
+Existing service clients should use the dedicated `PAUL_RUNNING_TRAINING_WRITE_TOKEN`, passed as `Authorization: Bearer <token>`. This credential is preferred over the legacy `PAUL_RUNNING_MCP_TOKEN` and `PAUL_RUNNING_API_TOKEN` fallbacks so ChatGPT/Codex can be given an isolated training-write secret without exposing the broader admin/API credential. If the dedicated variable is configured, the legacy bearer values are no longer accepted by the training MCP because only the first configured transport credential is authoritative.
+
+The token is transport configuration only: it is never part of a model-visible tool schema, tool argument, tool response, or audit payload.
+
+For a private developer-mode Streamable HTTP connection, configure:
+
+- URL: `https://<production-host>/api/mcp`
+- Header key: `Authorization`
+- Header value: `Bearer <PAUL_RUNNING_TRAINING_WRITE_TOKEN>`
+
+This direct bearer path is intended as a private/dev connection fallback when the local Codex OAuth loopback callback cannot complete. OAuth remains supported for compatible ChatGPT app clients.
 
 For production, prefer a dedicated `PAUL_RUNNING_MCP_TOKEN` so MCP access can be rotated independently from the REST API token.
 
