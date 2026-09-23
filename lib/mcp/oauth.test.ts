@@ -156,6 +156,10 @@ test("renders read-only consent for the exact ChatGPT CIMD client and rejects an
   const page = await handleOAuthAuthorizationRequest(new Request(authorizationUrl()), options());
   assert.equal(page.status, 200);
   assert.match(await page.text(), /Activities: read/);
+  assert.match(
+    page.headers.get("content-security-policy") ?? "",
+    /form-action 'self' https:\/\/chatgpt\.com http:\/\/localhost:\* http:\/\/127\.0\.0\.1:\*/,
+  );
 
   const invalid = authorizationUrl();
   invalid.searchParams.set("client_id", "https://attacker.example/client.json");
