@@ -198,6 +198,31 @@ function validResource(resource: string, requestUrl: string, options?: OAuthOpti
   return resource === activityMcpResource(requestUrl, options) || resource === trainingMcpResource(requestUrl, options);
 }
 
+function firstForwardedValue(value: string | null): string {
+  return (value ?? "").split(",")[0]?.trim() ?? "";
+}
+
+function approvalOriginAllowed(request: Request): boolean {
+  const suppliedOrigin = request.headers.get("origin");
+  if (!suppliedOrigin) return false;
+
+  const allowed = new Set<string>([new URL(request.url).origin]);
+  const forwardedHost = firstForwardedValue(request.headers.get("x-forwarded-host"));
+  const host = firstForwardedValue(request.headers.get("host"));
+  const forwardedProto = firstForwardedValue(request.headers.get("x-forwarded-proto")) || new URL(request.url).protocol.replace(":", "");
+
+  for (const candidateHost of [forwardedHost, host]) {
+    if (!candidateHost) continue;
+    try {
+      allowed.add(new URL(`${forwardedProto}://${candidateHost}`).origin);
+    } catch {
+      // Ignore malformed proxy/host values and keep the explicit request origin.
+    }
+  }
+
+  return allowed.has(suppliedOrigin);
+}
+
 function oauthJson(value: unknown, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
@@ -337,7 +362,16 @@ export async function handleOAuthAuthorizationRequest(request: Request, options?
   }
 
   if (request.method !== "POST") return authorizationPage(params, request.url, Boolean(options?.ownerAuthenticated));
-  if (request.headers.get("origin") !== new URL(request.url).origin) return oauthError("access_denied", "Same-origin approval is required.", 403);
+  if (!approvalOriginAllowed(request)) {
+    console.warn("OAuth approval origin rejected", {
+      requestOrigin: new URL(request.url).origin,
+      suppliedOrigin: request.headers.get("origin"),
+      forwardedHost: firstForwardedValue(request.headers.get("x-forwarded-host")),
+      forwardedProto: firstForwardedValue(request.headers.get("x-forwarded-proto")),
+      host: firstForwardedValue(request.headers.get("host")),
+    });
+    return oauthError("access_denied", "Same-origin approval is required.", 403);
+  }
   if (String(values.get("decision") ?? "") !== "approve") {
     return redirectAuthorization(params, request.url, { error: "access_denied", error_description: "The user declined access." }, options);
   }
