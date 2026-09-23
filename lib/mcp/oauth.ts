@@ -202,15 +202,29 @@ function firstForwardedValue(value: string | null): string {
   return (value ?? "").split(",")[0]?.trim() ?? "";
 }
 
-function approvalOriginAllowed(request: Request): boolean {
+function approvalOriginAllowed(request: Request, suppliedCredentialValid = false): boolean {
   const suppliedOrigin = request.headers.get("origin");
   if (!suppliedOrigin) return false;
 
-  const allowed = new Set<string>([new URL(request.url).origin]);
+  const requestUrl = new URL(request.url);
   const forwardedHost = firstForwardedValue(request.headers.get("x-forwarded-host"));
   const host = firstForwardedValue(request.headers.get("host"));
-  const forwardedProto = firstForwardedValue(request.headers.get("x-forwarded-proto")) || new URL(request.url).protocol.replace(":", "");
+  const forwardedProto = firstForwardedValue(request.headers.get("x-forwarded-proto")) || requestUrl.protocol.replace(":", "");
 
+  // Some ChatGPT/Codex OAuth browser flows submit the consent form from an
+  // opaque browser context, which sends Origin: null. Accept that narrow case
+  // only after the dedicated owner credential has been verified and only when
+  // Vercel's public/forwarded host metadata is aligned with the HTTPS request.
+  if (suppliedOrigin === "null") {
+    const candidateHosts = [forwardedHost, host].filter(Boolean);
+    const hostsAligned = candidateHosts.length > 0 && candidateHosts.every(candidate => candidate === requestUrl.host);
+    return suppliedCredentialValid
+      && requestUrl.protocol === "https:"
+      && forwardedProto === "https"
+      && hostsAligned;
+  }
+
+  const allowed = new Set<string>([requestUrl.origin]);
   for (const candidateHost of [forwardedHost, host]) {
     if (!candidateHost) continue;
     try {
@@ -362,22 +376,31 @@ export async function handleOAuthAuthorizationRequest(request: Request, options?
   }
 
   if (request.method !== "POST") return authorizationPage(params, request.url, Boolean(options?.ownerAuthenticated));
-  if (!approvalOriginAllowed(request)) {
+
+  const supplied = String(values.get("owner_token") ?? "");
+  const ownerSecret = ownerSecretForResource(params.resource, request.url, options);
+  const suppliedCredentialValid = Boolean(ownerSecret && supplied && secureEqual(supplied, ownerSecret));
+
+  if (!approvalOriginAllowed(request, suppliedCredentialValid)) {
     console.warn("OAuth approval origin rejected", {
       requestOrigin: new URL(request.url).origin,
       suppliedOrigin: request.headers.get("origin"),
       forwardedHost: firstForwardedValue(request.headers.get("x-forwarded-host")),
       forwardedProto: firstForwardedValue(request.headers.get("x-forwarded-proto")),
       host: firstForwardedValue(request.headers.get("host")),
+      secFetchSite: request.headers.get("sec-fetch-site"),
+      secFetchMode: request.headers.get("sec-fetch-mode"),
+      secFetchDest: request.headers.get("sec-fetch-dest"),
+      credentialVerified: suppliedCredentialValid,
     });
     return oauthError("access_denied", "Same-origin approval is required.", 403);
   }
+
   if (String(values.get("decision") ?? "") !== "approve") {
     return redirectAuthorization(params, request.url, { error: "access_denied", error_description: "The user declined access." }, options);
   }
-  const supplied = String(values.get("owner_token") ?? "");
-  const ownerSecret = ownerSecretForResource(params.resource, request.url, options);
-  if (!options?.ownerAuthenticated && (!ownerSecret || !supplied || !secureEqual(supplied, ownerSecret))) {
+
+  if (!options?.ownerAuthenticated && !suppliedCredentialValid) {
     return authorizationPage(params, request.url, false, "The Paul’s Running access token was not valid.");
   }
 
