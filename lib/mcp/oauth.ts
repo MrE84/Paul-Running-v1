@@ -154,6 +154,25 @@ function exactScope(scope: string, resource: string, requestUrl: string, options
   return expected !== null && scope === expected;
 }
 
+function normalizeAuthorizationScope(params: AuthorizationParams, requestUrl: string, options?: OAuthOptions): AuthorizationParams {
+  const expected = scopeForResource(params.resource, requestUrl, options);
+  if (!expected) return params;
+
+  // The Activity MCP has exactly one server-side permission: activities:read.
+  // ChatGPT/Codex may include client/platform scopes during OAuth negotiation.
+  // Ignore those client hints and issue only the resource-bound read scope, but
+  // never allow an activity-resource request to ask for the training write scope.
+  if (expected === ACTIVITY_MCP_SCOPE) {
+    const requested = params.scope.trim().split(/\s+/).filter(Boolean);
+    if (requested.includes(TRAINING_MCP_SCOPE)) return params;
+    return { ...params, scope: ACTIVITY_MCP_SCOPE };
+  }
+
+  // Training is privileged: only default an omitted scope; any explicit scope
+  // must continue to match training:write exactly.
+  return !params.scope ? { ...params, scope: expected } : params;
+}
+
 function validCodexLoopbackRedirect(redirectUri: string) {
   try {
     const redirect = new URL(redirectUri);
@@ -306,8 +325,7 @@ function redirectAuthorization(params: AuthorizationParams, requestUrl: string, 
 export async function handleOAuthAuthorizationRequest(request: Request, options?: OAuthOptions): Promise<Response> {
   const values = request.method === "POST" ? await request.formData() : new URL(request.url).searchParams;
   const parsed = authorizationParams(values);
-  const defaultScope = scopeForResource(parsed.resource, request.url, options);
-  const params = !parsed.scope && defaultScope ? { ...parsed, scope: defaultScope } : parsed;
+  const params = normalizeAuthorizationScope(parsed, request.url, options);
   const validationError = validateAuthorizationParams(params, request.url, options);
   if (validationError) return oauthError("invalid_request", validationError);
 
