@@ -195,10 +195,11 @@ test("defaults an omitted scope to the single scope bound to the requested MCP r
   assert.equal(platformPage.status, 200);
   assert.match(await platformPage.text(), /Activities: read/);
 
-  const overbroad = authorizationUrl();
-  overbroad.searchParams.set("scope", `${ACTIVITY_MCP_SCOPE} ${TRAINING_MCP_SCOPE}`);
-  const rejected = await handleOAuthAuthorizationRequest(new Request(overbroad), oauth);
-  assert.equal(rejected.status, 400);
+  const broadActivityRequest = authorizationUrl();
+  broadActivityRequest.searchParams.set("scope", `${ACTIVITY_MCP_SCOPE} ${TRAINING_MCP_SCOPE}`);
+  const downScopedPage = await handleOAuthAuthorizationRequest(new Request(broadActivityRequest), oauth);
+  assert.equal(downScopedPage.status, 200);
+  assert.match(await downScopedPage.text(), /Activities: read/);
 });
 
 test("uses the dedicated activity read credential for activity consent without granting training access", async () => {
@@ -278,6 +279,40 @@ test("exchanges a PKCE authorization code for a scoped access token and refresh 
     ...oauth,
     origin: "https://other.example",
   }), false);
+});
+
+test("token exchange and refresh can derive the resource from the signed grant when the client omits it", async () => {
+  const oauth = options();
+  const code = await authorize(oauth);
+  const tokenResponse = await handleOAuthTokenRequest(new Request(`${origin}/api/oauth/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: CHATGPT_CIMD_CLIENT_ID,
+      redirect_uri: CHATGPT_OAUTH_REDIRECT_URI,
+      code,
+      code_verifier: verifier,
+    }),
+  }), oauth);
+  assert.equal(tokenResponse.status, 200);
+  const issued = await tokenResponse.json();
+  assert.equal(issued.scope, ACTIVITY_MCP_SCOPE);
+  assert.equal(validActivityAccessToken(issued.access_token, resource, oauth), true);
+
+  const refreshResponse = await handleOAuthTokenRequest(new Request(`${origin}/api/oauth/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: CHATGPT_CIMD_CLIENT_ID,
+      refresh_token: issued.refresh_token,
+    }),
+  }), oauth);
+  assert.equal(refreshResponse.status, 200);
+  const refreshed = await refreshResponse.json();
+  assert.equal(refreshed.scope, ACTIVITY_MCP_SCOPE);
+  assert.equal(validActivityAccessToken(refreshed.access_token, resource, oauth), true);
 });
 
 test("rejects an incorrect PKCE verifier and authorization-code replay", async () => {
