@@ -6,10 +6,13 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function options(request: NextRequest) {
-  const secret = process.env.PAUL_RUNNING_API_TOKEN?.trim() ?? "";
+  const apiSecret = process.env.PAUL_RUNNING_API_TOKEN?.trim() ?? "";
+  const activityReadSecret = process.env.PAUL_RUNNING_ACTIVITY_READ_TOKEN?.trim() ?? "";
   return {
-    ownerSecret: secret,
-    ownerAuthenticated: Boolean(secret && validBrowserSession(request.cookies.get(ANALYSIS_COOKIE)?.value, secret)),
+    ownerSecret: apiSecret,
+    activityOwnerSecret: activityReadSecret || apiSecret,
+    trainingOwnerSecret: apiSecret,
+    ownerAuthenticated: Boolean(apiSecret && validBrowserSession(request.cookies.get(ANALYSIS_COOKIE)?.value, apiSecret)),
   };
 }
 

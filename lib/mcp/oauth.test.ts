@@ -195,6 +195,46 @@ test("defaults an omitted scope to the single scope bound to the requested MCP r
   assert.equal(rejected.status, 400);
 });
 
+test("uses the dedicated activity read credential for activity consent without granting training access", async () => {
+  const oauth: OAuthOptions = {
+    ...options(),
+    ownerAuthenticated: false,
+    ownerSecret: "general-secret",
+    activityOwnerSecret: "activity-read-secret",
+    trainingOwnerSecret: "training-secret",
+  };
+
+  const activityValues = authorizationUrl().searchParams;
+  activityValues.set("decision", "approve");
+  activityValues.set("owner_token", "activity-read-secret");
+  const activityApproval = await handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize`, {
+    method: "POST",
+    headers: { origin, "content-type": "application/x-www-form-urlencoded" },
+    body: activityValues,
+  }), oauth);
+  assert.equal(activityApproval.status, 302);
+
+  const trainingValues = authorizationUrl().searchParams;
+  trainingValues.set("resource", trainingMcpResource(`${origin}/api/mcp`, oauth));
+  trainingValues.set("scope", TRAINING_MCP_SCOPE);
+  trainingValues.set("decision", "approve");
+  trainingValues.set("owner_token", "activity-read-secret");
+  const deniedTraining = await handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize`, {
+    method: "POST",
+    headers: { origin, "content-type": "application/x-www-form-urlencoded" },
+    body: trainingValues,
+  }), oauth);
+  assert.equal(deniedTraining.status, 401);
+
+  trainingValues.set("owner_token", "training-secret");
+  const trainingApproval = await handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize`, {
+    method: "POST",
+    headers: { origin, "content-type": "application/x-www-form-urlencoded" },
+    body: trainingValues,
+  }), oauth);
+  assert.equal(trainingApproval.status, 302);
+});
+
 test("accepts the official Codex CIMD client with an RFC 8252 loopback redirect", async () => {
   const redirectUri = "http://127.0.0.1:36669/callback";
   const page = await handleOAuthAuthorizationRequest(
