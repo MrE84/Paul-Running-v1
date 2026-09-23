@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import test from "node:test";
 import {
   ACTIVITY_MCP_SCOPE,
+  TRAINING_MCP_SCOPE,
   CHATGPT_CIMD_CLIENT_ID,
   CHATGPT_OAUTH_REDIRECT_URI,
   CODEX_CIMD_CLIENT_ID,
@@ -11,7 +12,11 @@ import {
   handleOAuthAuthorizationRequest,
   handleOAuthTokenRequest,
   protectedResourceMetadata,
+  trainingMcpChallenge,
+  trainingMcpResource,
+  trainingProtectedResourceMetadata,
   validActivityAccessToken,
+  validTrainingAccessToken,
   type OAuthOptions,
 } from "./oauth";
 
@@ -96,6 +101,55 @@ test("publishes MCP protected-resource and OAuth authorization-server discovery"
 test("publishes an OAuth challenge that points ChatGPT at protected-resource metadata", () => {
   assert.equal(activityMcpChallenge(`${origin}/api/activity-mcp`, options()),
     `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource", scope="activities:read"`);
+});
+
+test("training OAuth is resource-bound and cannot be upgraded from an activity grant", async () => {
+  const oauth = options();
+  const trainingResource = trainingMcpResource(`${origin}/api/mcp`, oauth);
+  assert.equal(trainingMcpChallenge(`${origin}/api/mcp`, oauth),
+    `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource/api/mcp", scope="training:write"`);
+  assert.deepEqual(trainingProtectedResourceMetadata(`${origin}/api/mcp`, oauth).scopes_supported, [TRAINING_MCP_SCOPE]);
+
+  const invalid = authorizationUrl();
+  invalid.searchParams.set("resource", trainingResource);
+  const denied = await handleOAuthAuthorizationRequest(new Request(invalid), oauth);
+  assert.equal(denied.status, 400);
+
+  const values = authorizationUrl().searchParams;
+  values.set("resource", trainingResource);
+  values.set("scope", TRAINING_MCP_SCOPE);
+  const consent = await handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize?${values}`), oauth);
+  assert.match(await consent.text(), /Training: read and write/);
+  values.set("decision", "approve");
+  const approval = await handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize`, {
+    method: "POST", headers: { origin, "content-type": "application/x-www-form-urlencoded" }, body: values,
+  }), oauth);
+  assert.equal(approval.status, 302);
+  const code = new URL(approval.headers.get("location")!).searchParams.get("code")!;
+  const tokenResponse = await handleOAuthTokenRequest(new Request(`${origin}/api/oauth/token`, {
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "authorization_code", client_id: CHATGPT_CIMD_CLIENT_ID,
+      redirect_uri: CHATGPT_OAUTH_REDIRECT_URI, resource: trainingResource, code, code_verifier: verifier }),
+  }), oauth);
+  assert.equal(tokenResponse.status, 200);
+  const issued = await tokenResponse.json();
+  assert.equal(issued.scope, TRAINING_MCP_SCOPE);
+  assert.equal(validTrainingAccessToken(issued.access_token, trainingResource, oauth), true);
+  assert.equal(validActivityAccessToken(issued.access_token, resource, oauth), false);
+  assert.equal(validTrainingAccessToken(issued.access_token, `${origin}/api/activity-mcp`, oauth), false);
+
+  const renewed = await handleOAuthTokenRequest(new Request(`${origin}/api/oauth/token`, {
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "refresh_token", client_id: CHATGPT_CIMD_CLIENT_ID,
+      resource: trainingResource, refresh_token: issued.refresh_token }),
+  }), oauth);
+  assert.equal(renewed.status, 200);
+  const upgrade = await handleOAuthTokenRequest(new Request(`${origin}/api/oauth/token`, {
+    method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "refresh_token", client_id: CHATGPT_CIMD_CLIENT_ID,
+      resource, refresh_token: issued.refresh_token }),
+  }), oauth);
+  assert.equal(upgrade.status, 400);
 });
 
 test("renders read-only consent for the exact ChatGPT CIMD client and rejects another client", async () => {
