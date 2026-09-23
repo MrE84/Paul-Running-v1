@@ -189,6 +189,12 @@ test("defaults an omitted scope to the single scope bound to the requested MCP r
   assert.equal(issued.scope, ACTIVITY_MCP_SCOPE);
   assert.equal(validActivityAccessToken(issued.access_token, resource, oauth), true);
 
+  const platformScoped = authorizationUrl();
+  platformScoped.searchParams.set("scope", "openid profile offline_access");
+  const platformPage = await handleOAuthAuthorizationRequest(new Request(platformScoped), oauth);
+  assert.equal(platformPage.status, 200);
+  assert.match(await platformPage.text(), /Activities: read/);
+
   const overbroad = authorizationUrl();
   overbroad.searchParams.set("scope", `${ACTIVITY_MCP_SCOPE} ${TRAINING_MCP_SCOPE}`);
   const rejected = await handleOAuthAuthorizationRequest(new Request(overbroad), oauth);
