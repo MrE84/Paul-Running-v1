@@ -4,7 +4,9 @@ Paul’s Running exposes a constrained Streamable HTTP MCP endpoint at `/api/mcp
 
 ## Authentication
 
-The MCP endpoint requires `Authorization: Bearer <token>`. The server reads `PAUL_RUNNING_MCP_TOKEN` when configured and otherwise reuses `PAUL_RUNNING_API_TOKEN`. The token is transport configuration only: it is never part of a model-visible tool schema, tool argument, tool response, or audit payload.
+The MCP endpoint requires `Authorization: Bearer <token>`. ChatGPT uses OAuth 2.1 authorization code + S256 PKCE to obtain a token scoped to `training:write` and bound to `/api/mcp`. The consent screen explains that this includes workout, plan and publishing writes; the owner's credential goes only to Paul's Running. OAuth discovery is at `/.well-known/oauth-protected-resource/api/mcp` and `/.well-known/oauth-authorization-server`. An activity-only `activities:read` token cannot call the training endpoint, and a training token cannot call `/api/activity-mcp`.
+
+Existing service clients can use `PAUL_RUNNING_MCP_TOKEN` (falling back to `PAUL_RUNNING_API_TOKEN`), passed in the Authorization header. The token is transport configuration only: it is never part of a model-visible tool schema, tool argument, tool response, or audit payload.
 
 For production, prefer a dedicated `PAUL_RUNNING_MCP_TOKEN` so MCP access can be rotated independently from the REST API token.
 
@@ -48,7 +50,7 @@ Configure the remote MCP server URL as:
 
 `https://paul-running-v1.vercel.app/api/mcp`
 
-Configure its bearer credential outside the conversation/model context. The same secret must match `PAUL_RUNNING_MCP_TOKEN` (or `PAUL_RUNNING_API_TOKEN` when using the fallback). Do not paste the token into a chat message.
+On ChatGPT web with Developer mode enabled, create a remote Streamable HTTP app using the URL above and select **OAuth / CIMD**. Authorize the `training:write` grant on Paul's Running's consent page. A separate read-only app can use `/api/activity-mcp` and `activities:read`. Do not paste any token into a chat message. The service-client bearer option remains available for approved tooling outside ChatGPT.
 
 Recommended permissions are read access to profile/zones/calendar/workouts/plans plus the named training writes above. No generic network or database permission is required.
 
@@ -73,7 +75,7 @@ The design rule is therefore: **provider MCPs may replace provider-access plumbi
 
 ## First live validation
 
-1. Call `get_profile` and `list_calendar`.
+1. Connect the training app through OAuth, then call `get_profile` and `list_calendar` through that app.
 2. Call `create_advanced_lunch_break_walk`.
 3. Create a one-item training plan for that workout revision.
 4. Apply it at a date/time inside the current rolling delivery window.

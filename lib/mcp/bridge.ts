@@ -1,4 +1,5 @@
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
+import { trainingMcpChallenge, validTrainingAccessToken, type OAuthOptions } from "./oauth";
 import type { WorkoutStep } from "../domain/contracts";
 import { ProductionWorkoutPublishError } from "../integrations/production-publisher";
 import type { TrainingApiActor } from "../training-api/contracts";
@@ -26,6 +27,7 @@ type JsonRpcRequest = {
 type BridgeOptions = {
   runtime?: TrainingApiRuntimeBundle;
   token?: string;
+  oauth?: OAuthOptions;
 };
 
 function json(value: unknown, status = 200): Response {
@@ -56,9 +58,10 @@ function configuredToken(options?: BridgeOptions): string {
 }
 
 function authenticate(request: Request, options?: BridgeOptions) {
-  const expected = configuredToken(options);
   const header = request.headers.get("authorization") ?? "";
   const supplied = header.startsWith("Bearer ") ? header.slice(7) : "";
+  if (supplied && validTrainingAccessToken(supplied, request.url, options?.oauth)) return;
+  const expected = configuredToken(options);
   if (!supplied || !secureEqual(supplied, expected)) {
     throw new TrainingApiError(401, "UNAUTHORIZED", "A valid Bearer token is required.");
   }
@@ -236,7 +239,9 @@ export async function handleMcpRequest(request: Request, options?: BridgeOptions
     }
     if (body.method === "notifications/initialized") return new Response(null, { status: 202 });
     if (body.method === "ping") return rpcResult(body.id, {});
-    if (body.method === "tools/list") return rpcResult(body.id, { tools: mcpTools });
+    if (body.method === "tools/list") return rpcResult(body.id, { tools: mcpTools.map(tool => ({
+      ...tool, annotations: { readOnlyHint: !["create_workout", "revise_workout", "create_training_plan", "apply_training_plan", "publish_calendar_item", "create_advanced_lunch_break_walk"].includes(tool.name) },
+    })) });
     if (body.method === "tools/call") {
       const name = body.params?.name;
       const args = body.params?.arguments;
@@ -253,7 +258,9 @@ export async function handleMcpRequest(request: Request, options?: BridgeOptions
     return rpcError(body.id, -32601, "Method not found");
   } catch (error) {
     if (error instanceof TrainingApiError) {
-      return rpcError(body?.id, -32001, error.message, { code: error.code, details: error.details }, error.status);
+      const response = rpcError(body?.id, -32001, error.message, { code: error.code, details: error.details }, error.status);
+      if (error.status === 401) response.headers.set("WWW-Authenticate", trainingMcpChallenge(request.url));
+      return response;
     }
     return rpcError(body?.id, -32603, "Internal error", undefined, 500);
   }

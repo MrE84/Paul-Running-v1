@@ -1,6 +1,7 @@
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 export const ACTIVITY_MCP_SCOPE = "activities:read";
+export const TRAINING_MCP_SCOPE = "training:write";
 export const CHATGPT_CIMD_CLIENT_ID = "https://chatgpt.com/oauth/client.json";
 export const CHATGPT_OAUTH_REDIRECT_URI = "https://chatgpt.com/connector_platform_oauth_redirect";
 export const CODEX_CIMD_CLIENT_ID = "https://chatgpt.com/oauth/codex/client.json";
@@ -65,12 +66,20 @@ export function activityMcpResource(requestUrl: string, options?: OAuthOptions) 
   return `${originFor(requestUrl, options)}/api/activity-mcp`;
 }
 
+export function trainingMcpResource(requestUrl: string, options?: OAuthOptions) {
+  return `${originFor(requestUrl, options)}/api/mcp`;
+}
+
 export function protectedResourceUrl(requestUrl: string, options?: OAuthOptions) {
   return `${originFor(requestUrl, options)}/.well-known/oauth-protected-resource`;
 }
 
 export function activityMcpChallenge(requestUrl: string, options?: OAuthOptions) {
   return `Bearer resource_metadata="${protectedResourceUrl(requestUrl, options)}", scope="${ACTIVITY_MCP_SCOPE}"`;
+}
+
+export function trainingMcpChallenge(requestUrl: string, options?: OAuthOptions) {
+  return `Bearer resource_metadata="${originFor(requestUrl, options)}/.well-known/oauth-protected-resource/api/mcp", scope="${TRAINING_MCP_SCOPE}"`;
 }
 
 export function protectedResourceMetadata(requestUrl: string, options?: OAuthOptions) {
@@ -84,6 +93,17 @@ export function protectedResourceMetadata(requestUrl: string, options?: OAuthOpt
   };
 }
 
+export function trainingProtectedResourceMetadata(requestUrl: string, options?: OAuthOptions) {
+  const origin = originFor(requestUrl, options);
+  return {
+    resource: trainingMcpResource(requestUrl, options),
+    authorization_servers: [origin],
+    scopes_supported: [TRAINING_MCP_SCOPE],
+    bearer_methods_supported: ["header"],
+    resource_documentation: "https://github.com/MrE84/Paul-Running-v1/blob/main/docs/chatgpt-mcp-bridge.md",
+  };
+}
+
 export function authorizationServerMetadata(requestUrl: string, options?: OAuthOptions) {
   const origin = originFor(requestUrl, options);
   return {
@@ -94,7 +114,7 @@ export function authorizationServerMetadata(requestUrl: string, options?: OAuthO
     grant_types_supported: ["authorization_code", "refresh_token"],
     token_endpoint_auth_methods_supported: ["none"],
     code_challenge_methods_supported: ["S256"],
-    scopes_supported: [ACTIVITY_MCP_SCOPE],
+    scopes_supported: [ACTIVITY_MCP_SCOPE, TRAINING_MCP_SCOPE],
     client_id_metadata_document_supported: true,
     authorization_response_iss_parameter_supported: true,
   };
@@ -121,8 +141,9 @@ function decode(value: string, expectedType: TokenKind, options?: OAuthOptions):
   }
 }
 
-function exactScope(scope: string) {
-  return scope.split(/\s+/).filter(Boolean).length === 1 && scope.trim() === ACTIVITY_MCP_SCOPE;
+function exactScope(scope: string, resource: string, requestUrl: string, options?: OAuthOptions) {
+  return (resource === activityMcpResource(requestUrl, options) && scope === ACTIVITY_MCP_SCOPE)
+    || (resource === trainingMcpResource(requestUrl, options) && scope === TRAINING_MCP_SCOPE);
 }
 
 function validCodexLoopbackRedirect(redirectUri: string) {
@@ -150,7 +171,7 @@ function recognizedClient(clientId: string) {
 }
 
 function validResource(resource: string, requestUrl: string, options?: OAuthOptions) {
-  return resource === activityMcpResource(requestUrl, options);
+  return resource === activityMcpResource(requestUrl, options) || resource === trainingMcpResource(requestUrl, options);
 }
 
 function oauthJson(value: unknown, status = 200) {
@@ -211,11 +232,15 @@ function validateAuthorizationParams(params: AuthorizationParams, requestUrl: st
     return "A valid S256 PKCE challenge is required.";
   }
   if (!validResource(params.resource, requestUrl, options)) return "The requested OAuth resource is not this Activity MCP server.";
-  if (!exactScope(params.scope)) return "Only activities:read access can be granted.";
+  if (!exactScope(params.scope, params.resource, requestUrl, options)) return "The scope is not available for this MCP resource.";
   return null;
 }
 
 function authorizationPage(params: AuthorizationParams, requestUrl: string, authenticated: boolean, message?: string) {
+  const training = params.scope === TRAINING_MCP_SCOPE;
+  const consent = training
+    ? { title: "Training: read and write", detail: "Read your profile, zones, workouts, plans and calendar; create and revise workouts and plans; publish scheduled workouts to Intervals.icu for Garmin delivery. No arbitrary network, database or account administration." }
+    : { title: "Activities: read", detail: "Activity summaries, full sample streams, GPS, raw decoded FIT data and point lookups. No training-plan or workout writes." };
   const hidden = [
     ["response_type", params.responseType],
     ["client_id", params.clientId],
@@ -232,7 +257,7 @@ function authorizationPage(params: AuthorizationParams, requestUrl: string, auth
   const warning = message ? `<p class="error">${escapeHtml(message)}</p>` : "";
   return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect Paul’s Running</title><style>
     :root{color-scheme:dark}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#08111d;color:#eef6ff;font:16px/1.5 system-ui,sans-serif}.card{width:min(520px,calc(100% - 32px));box-sizing:border-box;padding:32px;border:1px solid #28425f;border-radius:20px;background:#101e2e;box-shadow:0 24px 80px #0008}h1{margin:0 0 8px;font-size:28px}p{color:#b9cadc}.scope{margin:24px 0;padding:16px;border-radius:12px;background:#0a1725}.scope strong{display:block;color:#6fe7c8}.scope span{font-size:14px;color:#b9cadc}label{display:grid;gap:8px;margin:18px 0 6px;font-weight:700}input{padding:13px;border:1px solid #45617f;border-radius:9px;background:#07111d;color:#fff;font:inherit}small{display:block;color:#90a6bc}.actions{display:flex;gap:12px;margin-top:26px}button{flex:1;padding:13px;border:0;border-radius:9px;background:#5de0bd;color:#06231b;font:700 16px system-ui;cursor:pointer}.deny{background:#263b51;color:#e7f0f8}.error{color:#ff9c9c}
-  </style></head><body><main class="card"><h1>Connect Paul’s Running</h1><p>ChatGPT is requesting read-only access to your completed activity data.</p><div class="scope"><strong>Activities: read</strong><span>Activity summaries, full sample streams, GPS, raw decoded FIT data and point lookups. No training-plan or workout writes.</span></div>${warning}<form method="post" action="${escapeHtml(new URL(requestUrl).pathname)}">${hidden}${credential}<div class="actions"><button class="deny" name="decision" value="deny" formnovalidate>Cancel</button><button name="decision" value="approve">Allow access</button></div></form></main></body></html>`, {
+  </style></head><body><main class="card"><h1>Connect Paul’s Running</h1><p>ChatGPT is requesting ${training ? "training read and write" : "read-only activity"} access.</p><div class="scope"><strong>${consent.title}</strong><span>${consent.detail}</span></div>${warning}<form method="post" action="${escapeHtml(new URL(requestUrl).pathname)}">${hidden}${credential}<div class="actions"><button class="deny" name="decision" value="deny" formnovalidate>Cancel</button><button name="decision" value="approve">Allow access</button></div></form></main></body></html>`, {
     status: message ? 401 : 200,
     headers: {
       "content-type": "text/html; charset=utf-8",
@@ -275,7 +300,7 @@ export async function handleOAuthAuthorizationRequest(request: Request, options?
     iss: originFor(request.url, options),
     aud: params.resource,
     client_id: params.clientId,
-    scope: ACTIVITY_MCP_SCOPE,
+    scope: params.scope,
     sub: "primary-athlete",
     iat: now,
     exp: now + AUTHORIZATION_CODE_SECONDS,
@@ -341,7 +366,7 @@ export async function handleOAuthTokenRequest(request: Request, options?: OAuthO
   if (grantType === "refresh_token") {
     const refresh = decode(String(form.get("refresh_token") ?? ""), "refresh_token", options);
     if (!refresh || refresh.iss !== originFor(request.url, options) || refresh.aud !== resource
-      || refresh.client_id !== clientId || !exactScope(refresh.scope)) {
+      || refresh.client_id !== clientId || !exactScope(refresh.scope, resource, request.url, options)) {
       return oauthError("invalid_grant", "The refresh token is invalid or expired.");
     }
     return issueTokens(refresh, options);
@@ -352,12 +377,27 @@ export async function handleOAuthTokenRequest(request: Request, options?: OAuthO
 
 export function validActivityAccessToken(token: string, requestUrl: string, options?: OAuthOptions) {
   try {
+    if (new URL(requestUrl).pathname !== "/api/activity-mcp") return false;
     const access = decode(token, "access_token", options);
     return Boolean(access
       && access.iss === originFor(requestUrl, options)
       && access.aud === activityMcpResource(requestUrl, options)
       && recognizedClient(access.client_id)
-      && exactScope(access.scope));
+      && exactScope(access.scope, access.aud, requestUrl, options));
+  } catch {
+    return false;
+  }
+}
+
+export function validTrainingAccessToken(token: string, requestUrl: string, options?: OAuthOptions) {
+  try {
+    if (new URL(requestUrl).pathname !== "/api/mcp") return false;
+    const access = decode(token, "access_token", options);
+    return Boolean(access
+      && access.iss === originFor(requestUrl, options)
+      && access.aud === trainingMcpResource(requestUrl, options)
+      && recognizedClient(access.client_id)
+      && access.scope === TRAINING_MCP_SCOPE);
   } catch {
     return false;
   }
