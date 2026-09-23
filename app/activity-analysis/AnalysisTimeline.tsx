@@ -53,7 +53,7 @@ const Chart = memo(function Chart(props: Omit<TimelineProps, "mode"> & { compact
     const scales: Record<string, uPlot.Scale> = { x: { time: false } };
     channels.forEach(k => { scales[k] = { auto: true, ...(k === "pace" ? { dir: -1 as const } : {}) }; });
     const chart = new uPlot({
-      width: Math.max(240, element.clientWidth), height: compact ? 145 : 350,
+      width: Math.max(240, element.clientWidth), height: element.clientHeight,
       padding: [12, 12, 0, 4], legend: { show: false }, scales,
       cursor: { y: false, drag: { x: true, y: false, setScale: false }, points: { size: 5 } },
       select: { show: true, left: 0, top: 0, width: 0, height: 0 },
@@ -106,7 +106,7 @@ const Chart = memo(function Chart(props: Omit<TimelineProps, "mode"> & { compact
       },
     }, samples.data, element);
     plotRef.current = chart;
-    const resize = new ResizeObserver(() => chart.setSize({ width: Math.max(240, element.clientWidth), height: compact ? 145 : 350 }));
+    const resize = new ResizeObserver(() => chart.setSize({ width: Math.max(240, element.clientWidth), height: element.clientHeight }));
     resize.observe(element);
     return () => { cancelAnimationFrame(frame); resize.disconnect(); plotRef.current = null; chart.destroy(); };
   }, [projection, channels, axis, units, samples, distanceAxis, distanceValues, compact, zones, plannedIntervals]);
@@ -135,7 +135,7 @@ const Chart = memo(function Chart(props: Omit<TimelineProps, "mode"> & { compact
 
   return <div className={styles.chartRow}>
     <div className={styles.chartLabels}>{channels.map(k => <span style={{ color: CHANNELS[k].color }} key={k}>{CHANNELS[k].label} <small>{channelUnit(k, units)}</small></span>)}</div>
-    {samples.data[0].length < 2 ? <p className={styles.quiet}>Not enough aligned samples for this axis.</p> : <div ref={container} className={styles.plot} style={{ touchAction: "pan-y" }} role="img" aria-label={`${channels.map(k => CHANNELS[k].label).join(", ")} timeline`}
+    {samples.data[0].length < 2 ? <p className={styles.quiet}>Not enough aligned samples for this axis.</p> : <div ref={container} className={styles.plot} style={{ touchAction: "pan-y", height: compact ? 145 : 350 }} role="img" aria-label={`${channels.map(k => CHANNELS[k].label).join(", ")} timeline`}
       onPointerDown={event => {
         if (event.pointerType !== "touch") return;
         touch.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, intent: "pending" };
