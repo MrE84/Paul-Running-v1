@@ -52,7 +52,10 @@ function secureEqual(actual: string, expected: string): boolean {
 }
 
 function configuredToken(options?: BridgeOptions): string {
-  const token = options?.token ?? process.env.PAUL_RUNNING_MCP_TOKEN?.trim() ?? process.env.PAUL_RUNNING_API_TOKEN?.trim();
+  const token = options?.token
+    ?? process.env.PAUL_RUNNING_TRAINING_WRITE_TOKEN?.trim()
+    ?? process.env.PAUL_RUNNING_MCP_TOKEN?.trim()
+    ?? process.env.PAUL_RUNNING_API_TOKEN?.trim();
   if (!token) throw new TrainingApiError(503, "MCP_AUTH_NOT_CONFIGURED", "MCP authentication is not configured.");
   return token;
 }
