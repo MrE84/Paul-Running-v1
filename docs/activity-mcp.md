@@ -123,13 +123,32 @@ Acceptance requires an approved ChatGPT/service identity to:
 
 PAU-44 is complete only after this production test is performed through the actual client identity, not merely through unit tests or the browser UI.
 
-## Connect in ChatGPT
+## Connect in ChatGPT / Codex developer mode
 
-Where the user’s ChatGPT plan supports private/custom app connections:
+### Proven private connection path
 
-1. Enable Developer mode under **Settings → Security and login**.
-2. Open **Plugins**, select **+**, and create a connection to `https://paul-running-v1.vercel.app/api/activity-mcp`.
-3. Approve the read-only `activities:read` consent screen. If a secure Activity Analysis browser session is already active, no API token re-entry is required.
-4. Start a new conversation with Paul’s Running enabled and run the production acceptance test above.
+The production-tested path is a **custom Streamable HTTP MCP** using the dedicated read-only Bearer credential:
 
-For environments that cannot securely install/configure a private connector, do not paste the persistent machine key into chat. A supported secret-bearing connector or another scoped authorization mechanism is still required on the client side.
+1. Enable Developer mode.
+2. Open **Plugins → MCPs → Add → Custom MCP**.
+3. Select **Streamable HTTP**.
+4. Set the URL to:
+   `https://paul-running-v1.vercel.app/api/activity-mcp`
+5. Add an HTTP header:
+   - Key: `Authorization`
+   - Value: `Bearer <PAUL_RUNNING_ACTIVITY_READ_TOKEN>`
+6. Save and enable the MCP connection.
+7. Do not run the OAuth **Authenticate** flow for this private Bearer-configured connection; the header is the authentication mechanism.
+8. Start a fresh client session so the MCP tool registry can be reloaded, then run the production acceptance test above.
+
+Production verification on 23 Sep 2026 showed the saved Bearer connection producing successful `POST /api/activity-mcp` responses with HTTP 200/202.
+
+### OAuth compatibility
+
+OAuth 2.1 + PKCE remains implemented for compatible ChatGPT app clients, with resource-bound `activities:read` tokens. During desktop/Codex developer-mode testing, the local loopback callback could issue an authorization code but did not complete the client-side token exchange. This is a client callback limitation, not a failure of the Activity MCP itself.
+
+For private developer-mode use, prefer the proven direct Bearer connection above. Keep the persistent activity token only in Vercel and the local MCP connection secret/header configuration. Never paste it into a conversation, source file, URL, log, or model-visible tool argument.
+
+### Current client-surface limitation
+
+A raw custom MCP server can be enabled in the developer MCP settings without automatically becoming a searchable/mentionable app in every normal Chat surface. Treat raw MCP testing and final plugin/app packaging as separate concerns. PAU-44's backend acceptance is the authenticated MCP call path; a polished normal-Chat distribution package is a follow-on client packaging task.
