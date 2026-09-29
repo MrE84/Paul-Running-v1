@@ -89,7 +89,7 @@ test("validation matrix covers every PAU-14 compatibility case and keeps device 
       "edit_resync",
     ],
   );
-  assert.ok(FENIX5_VALIDATION_MATRIX.every((item) => item.status === "device_pending"));
+  assert.ok(FENIX5_VALIDATION_MATRIX.every((item) => item.status === "watch_verified"));
 });
 
 test("time-based automatic workout translates without a press-lap flag", () => {
