@@ -400,6 +400,13 @@ export class PostgresTrainingStore implements TrainingApiStore, IntegrationState
     );
   }
 
+  async deleteExternalReference(provider: string, entityType: string, entityId: string): Promise<void> {
+    await this.query(
+      "delete from training_api_documents where kind = $1 and entity_id = $2",
+      [`external_reference:${provider}:${entityType}`, entityId],
+    );
+  }
+
   async findSyncJobByIdempotencyKey(idempotencyKey: string): Promise<SyncJob | undefined> {
     const result = await this.query<DocumentRow>(
       `select payload from training_api_documents
