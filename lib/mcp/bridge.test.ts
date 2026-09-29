@@ -76,11 +76,29 @@ test("MCP bridge initializes legacy clients and exposes only the constrained too
   assert.equal(names.includes("sql"), false);
 });
 
-test("MCP bridge supports modern stateless discovery", async () => {
-  const response = await handleMcpRequest(request({ jsonrpc: "2.0", id: 3, method: "server/discover", params: { _meta: {} } }), { token: "test-token" });
+test("MCP bridge supports 2026-07-28 discovery and tool listing", async () => {
+  const meta = { "io.modelcontextprotocol/protocolVersion": "2026-07-28" };
+  const response = await handleMcpRequest(
+    request({ jsonrpc: "2.0", id: 3, method: "server/discover", params: { _meta: meta } }),
+    { token: "test-token" },
+  );
   const payload = await response.json();
-  assert.equal(payload.result.protocolVersion, "2026-07-28");
+  assert.equal(payload.result.resultType, "complete");
+  assert.deepEqual(payload.result.supportedVersions, ["2026-07-28"]);
   assert.equal(payload.result.capabilities.tools.listChanged, false);
+  assert.equal(payload.result.cacheScope, "private");
+  assert.equal(payload.result.ttlMs, 0);
+  assert.equal(payload.result._meta["io.modelcontextprotocol/serverInfo"].name, "pauls-running");
+
+  const listed = await handleMcpRequest(
+    request({ jsonrpc: "2.0", id: 4, method: "tools/list", params: { _meta: meta } }),
+    { token: "test-token" },
+  );
+  const listedPayload = await listed.json();
+  assert.equal(listedPayload.result.resultType, "complete");
+  assert.equal(listedPayload.result.cacheScope, "private");
+  assert.ok(listedPayload.result.tools.some((tool: { name: string }) => tool.name === "get_profile"));
+  assert.ok(listedPayload.result.tools.some((tool: { name: string }) => tool.name === "publish_calendar_item"));
 });
 
 test("scoped ChatGPT OAuth grants access to training tools, activity grants do not", async () => {

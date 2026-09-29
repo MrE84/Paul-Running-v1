@@ -10,7 +10,7 @@
     "defaultPrompt": "Review my recent running and help manage my Paul’s Running training calendar."
   },
   "name": "pauls-running-activity",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Read and analyse completed activities, manage structured workouts and plans, schedule calendar items, and publish eligible workouts through Intervals.icu from Paul’s Running.",
   "author": {
     "name": "Paul Evans"

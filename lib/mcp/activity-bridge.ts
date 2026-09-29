@@ -12,6 +12,8 @@ import {
 const SERVER_INFO = { name: "pauls-running-activity", version: "1.0.0" } as const;
 const LEGACY_PROTOCOL = "2025-11-25";
 const MODERN_PROTOCOL = "2026-07-28";
+const SERVER_INFO_META_KEY = "io.modelcontextprotocol/serverInfo";
+const PROTOCOL_VERSION_META_KEY = "io.modelcontextprotocol/protocolVersion";
 
 type JsonRpcId = string | number | null;
 type JsonRpcRequest = {
@@ -39,8 +41,38 @@ function json(value: unknown, status = 200, headers?: HeadersInit): Response {
   });
 }
 
-function rpcResult(id: JsonRpcId | undefined, result: unknown): Response {
-  return json({ jsonrpc: "2.0", id: id ?? null, result });
+function modernResult(result: Record<string, unknown>, cacheable = false): Record<string, unknown> {
+  const existingMeta = result._meta && typeof result._meta === "object" && !Array.isArray(result._meta)
+    ? result._meta as Record<string, unknown>
+    : {};
+  return {
+    resultType: "complete",
+    ...(cacheable ? { ttlMs: 0, cacheScope: "private" } : {}),
+    ...result,
+    _meta: { ...existingMeta, [SERVER_INFO_META_KEY]: SERVER_INFO },
+  };
+}
+
+function rpcResult(
+  id: JsonRpcId | undefined,
+  result: unknown,
+  options?: { modern?: boolean; cacheable?: boolean },
+): Response {
+  const payload = options?.modern && result !== null && typeof result === "object" && !Array.isArray(result)
+    ? modernResult(result as Record<string, unknown>, options.cacheable)
+    : result;
+  return json({ jsonrpc: "2.0", id: id ?? null, result: payload });
+}
+
+function isModernRequest(request: Request, body: JsonRpcRequest | undefined): boolean {
+  if (request.headers.get("mcp-protocol-version") === MODERN_PROTOCOL) return true;
+  const meta = body?.params?._meta;
+  return Boolean(
+    meta
+    && typeof meta === "object"
+    && !Array.isArray(meta)
+    && (meta as Record<string, unknown>)[PROTOCOL_VERSION_META_KEY] === MODERN_PROTOCOL,
+  );
 }
 
 function rpcError(id: JsonRpcId | undefined, code: number, message: string, data?: unknown, status = 200, headers?: HeadersInit): Response {
@@ -243,6 +275,7 @@ export async function handleActivityMcpRequest(request: Request, options?: Bridg
     authenticate(request, options);
     body = (await request.json()) as JsonRpcRequest;
     if (body.jsonrpc !== "2.0" || typeof body.method !== "string") return rpcError(body.id, -32600, "Invalid Request");
+    const modern = body.method === "server/discover" || isModernRequest(request, body);
 
     if (body.method === "initialize") {
       const requested = (body.params?.protocolVersion as string | undefined) ?? LEGACY_PROTOCOL;
@@ -250,11 +283,15 @@ export async function handleActivityMcpRequest(request: Request, options?: Bridg
       return rpcResult(body.id, { protocolVersion, capabilities: { tools: { listChanged: false } }, serverInfo: SERVER_INFO });
     }
     if (body.method === "server/discover") {
-      return rpcResult(body.id, { protocolVersion: MODERN_PROTOCOL, capabilities: { tools: { listChanged: false } }, serverInfo: SERVER_INFO });
+      return rpcResult(body.id, {
+        supportedVersions: [MODERN_PROTOCOL],
+        capabilities: { tools: { listChanged: false } },
+        instructions: "Read completed running activities and sample-level telemetry. This server is read-only.",
+      }, { modern: true, cacheable: true });
     }
     if (body.method === "notifications/initialized") return new Response(null, { status: 202 });
-    if (body.method === "ping") return rpcResult(body.id, {});
-    if (body.method === "tools/list") return rpcResult(body.id, { tools: activityMcpTools });
+    if (body.method === "ping") return rpcResult(body.id, {}, { modern });
+    if (body.method === "tools/list") return rpcResult(body.id, { tools: activityMcpTools }, { modern, cacheable: modern });
     if (body.method === "tools/call") {
       const name = body.params?.name;
       const args = body.params?.arguments;
@@ -263,9 +300,9 @@ export async function handleActivityMcpRequest(request: Request, options?: Bridg
       }
       const runtime = options?.runtime ?? getTrainingApiRuntime();
       try {
-        return rpcResult(body.id, toolEnvelope(await callTool(name, (args ?? {}) as Record<string, unknown>, runtime)));
+        return rpcResult(body.id, toolEnvelope(await callTool(name, (args ?? {}) as Record<string, unknown>, runtime)), { modern });
       } catch (error) {
-        return rpcResult(body.id, toolError(error));
+        return rpcResult(body.id, toolError(error), { modern });
       }
     }
     return rpcError(body.id, -32601, "Method not found");
