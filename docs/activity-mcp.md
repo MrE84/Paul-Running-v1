@@ -33,6 +33,7 @@ The endpoint exposes only:
 - `get_activity_analysis`
 - `get_activity_raw`
 - `get_activity_sample`
+- `compare_provider_streams` (PAU-47): fetches Intervals.icu `heartrate`, `raw_heartrate` and `fixed_heartrate` streams and compares them with the canonical FIT projection. The FIT record stays the system of record and is never overwritten.
 
 It cannot create, revise, apply, publish or delete training objects.
 

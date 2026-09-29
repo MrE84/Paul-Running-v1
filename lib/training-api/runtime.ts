@@ -4,6 +4,7 @@ import { ProductionActivityImporter } from "../integrations/production-activity-
 import { ProductionWorkoutPublisher } from "../integrations/production-publisher";
 import { InMemoryIntegrationStateStore } from "../integrations/state";
 import { IntervalsZoneSync } from "../integrations/intervals-icu/zone-sync";
+import { IntervalsIcuClient, type IntervalsIcuActivityStream } from "../integrations/intervals-icu/client";
 import type { IntegrationRuntime, IntegrationStateStore } from "../integrations/contracts";
 import { SerializedPostgresTrainingStore } from "./serialized-postgres-store";
 import type { TrainingApiStore } from "./contracts";
@@ -21,6 +22,12 @@ export interface TrainingApiRuntimeBundle {
   workoutPublisher?: ProductionWorkoutPublisher;
   activityImporter?: ProductionActivityImporter;
   zoneSync?: IntervalsZoneSync;
+  providerStreams?: ProviderStreamReader;
+}
+
+/** Read-only access to Intervals.icu activity streams (PAU-47 verification). */
+export interface ProviderStreamReader {
+  getActivityStreams(providerActivityId: string): Promise<IntervalsIcuActivityStream[]>;
 }
 
 const globalRuntime = globalThis as typeof globalThis & {
@@ -54,6 +61,17 @@ function intervalsZoneSync(apiKey: string | undefined): IntervalsZoneSync | unde
     apiKey,
     intervalsAthleteId: process.env.INTERVALS_ICU_ATHLETE_ID?.trim() || "0",
   });
+}
+
+function providerStreamReader(apiKey: string | undefined): ProviderStreamReader | undefined {
+  if (!apiKey) return undefined;
+  const client = new IntervalsIcuClient({
+    auth: { type: "api_key", apiKey },
+    athleteId: process.env.INTERVALS_ICU_ATHLETE_ID?.trim() || "0",
+  });
+  return {
+    getActivityStreams: async (providerActivityId) => (await client.getActivityStreams(providerActivityId)).data,
+  };
 }
 
 function productionActivityImporter(
@@ -117,6 +135,7 @@ export function getTrainingApiRuntime(): TrainingApiRuntimeBundle {
       workoutPublisher,
       activityImporter,
       zoneSync: intervalsZoneSync(apiKey),
+      providerStreams: providerStreamReader(apiKey),
     };
     return globalRuntime.__paulRunningTrainingApi;
   }
@@ -141,6 +160,7 @@ export function getTrainingApiRuntime(): TrainingApiRuntimeBundle {
     workoutPublisher,
     activityImporter,
     zoneSync: intervalsZoneSync(apiKey),
+    providerStreams: providerStreamReader(apiKey),
   };
   return globalRuntime.__paulRunningTrainingApi;
 }

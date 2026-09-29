@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { nearestIndex, type AnalysisProjection } from "../activity-analysis/projection";
+import { compareProviderStreams } from "../activity-analysis/provider-comparison";
 import { getTrainingApiRuntime, type TrainingApiRuntimeBundle } from "../training-api/runtime";
 import { TrainingApiError } from "../training-api/service";
 import {
@@ -203,6 +204,19 @@ export const activityMcpTools = [
       },
     },
   },
+  {
+    name: "compare_provider_streams",
+    title: "Compare Intervals.icu streams with the FIT record",
+    description: "Fetch the Intervals.icu heart-rate streams (heartrate, raw_heartrate, fixed_heartrate) for one activity and compare them with the canonical FIT-derived projection. Read-only: the canonical record is never changed.",
+    securitySchemes: [{ type: "oauth2", scopes: [ACTIVITY_MCP_SCOPE] }],
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["activityId"],
+      properties: { activityId: { type: "string" } },
+    },
+  },
 ] as const;
 
 function sampleAt(projection: AnalysisProjection, requestedElapsedSeconds: number) {
@@ -259,6 +273,19 @@ async function callTool(name: string, args: Record<string, unknown>, runtime: Tr
     case "get_activity_sample": {
       const projection = await service.getActivityAnalysis(runtime.primaryAthleteId, argString(args, "activityId"), false);
       return sampleAt(projection, finiteNumber(args, "elapsedSeconds"));
+    }
+    case "compare_provider_streams": {
+      if (!runtime.providerStreams) {
+        throw new TrainingApiError(503, "INTERVALS_ICU_NOT_CONFIGURED", "Intervals.icu stream reads are not configured on this server.");
+      }
+      const activityId = argString(args, "activityId");
+      const activity = await service.getActivity(runtime.primaryAthleteId, activityId);
+      const externalId = (activity.sourceMetadata as Record<string, unknown> | undefined)?.externalId;
+      if (typeof externalId !== "string" || !externalId) {
+        throw new TrainingApiError(409, "PROVIDER_ACTIVITY_UNKNOWN", "This activity has no Intervals.icu activity id.");
+      }
+      const projection = await service.getActivityAnalysis(runtime.primaryAthleteId, activityId, false);
+      return compareProviderStreams(projection, externalId, await runtime.providerStreams.getActivityStreams(externalId));
     }
     default:
       throw new TrainingApiError(404, "TOOL_NOT_FOUND", `Unknown activity MCP tool ${name}.`);
