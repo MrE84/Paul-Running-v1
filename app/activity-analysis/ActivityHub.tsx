@@ -14,6 +14,7 @@ type ActivityImportResult = {
   failed: number;
   items: Array<{ externalId: string; status: "imported" | "repaired" | "already_complete" | "failed"; errorMessage?: string }>;
 };
+const API_TOKEN_STORAGE_KEY = "pauls-running-api-token";
 
 const readinessLabel = {
   complete: "Analysis ready",
@@ -40,6 +41,11 @@ export default function ActivityHub() {
 
   async function restoreSession() {
     try {
+      const storedToken = window.localStorage.getItem(API_TOKEN_STORAGE_KEY);
+      if (storedToken) {
+        await establishSession(storedToken, false);
+        return;
+      }
       const response = await fetch("/api/analysis-session", { cache: "no-store" });
       const status = await response.json() as { authenticated?: boolean };
       if (status.authenticated) {
@@ -49,21 +55,26 @@ export default function ActivityHub() {
     } catch { setMessage("Could not check the activity session."); }
   }
 
-  async function establishSession() {
-    if (!token.trim()) return;
+  async function establishSession(providedToken?: string, announce = true) {
+    const credential = (providedToken ?? token).trim();
+    if (!credential) return;
     setBusy(true);
     try {
       const response = await fetch("/api/analysis-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: token.trim() }),
+        body: JSON.stringify({ token: credential }),
       });
       const body = await response.json().catch(() => ({})) as { authenticated?: boolean; error?: string };
       if (!response.ok || !body.authenticated) throw new Error(body.error ?? "Could not authenticate activity access.");
+      window.localStorage.setItem(API_TOKEN_STORAGE_KEY, credential);
       setToken("");
       setAuthenticated(true);
-      await loadActivities(true);
-    } catch (error) { setMessage(error instanceof Error ? error.message : String(error)); }
+      await loadActivities(announce);
+    } catch (error) {
+      if (providedToken) window.localStorage.removeItem(API_TOKEN_STORAGE_KEY);
+      setMessage(error instanceof Error ? error.message : String(error));
+    }
     finally { setBusy(false); }
   }
 
@@ -109,6 +120,7 @@ export default function ActivityHub() {
 
   async function signOut() {
     await fetch("/api/analysis-session", { method: "DELETE" }).catch(() => undefined);
+    window.localStorage.removeItem(API_TOKEN_STORAGE_KEY);
     setAuthenticated(false); setActivities([]); setMessage("Activity session closed.");
   }
 
@@ -130,7 +142,7 @@ export default function ActivityHub() {
     </header>
 
     <section className={styles.authCard}>
-      <div><strong>Canonical Garmin library</strong><span>{authenticated ? "Secure HTTP-only activity session active. The API token is not stored in browser JavaScript storage." : "Authenticate once for this activity-analysis session."}</span></div>
+      <div><strong>Canonical Garmin library</strong><span>{authenticated ? "Activity session active. Your local token is remembered in this browser for the next page visit." : "Authenticate once to remember this browser for activity analysis."}</span></div>
       <div className={styles.authControls}>
         {!authenticated ? <><input type="password" value={token} placeholder="PAUL_RUNNING_API_TOKEN" autoComplete="off" onChange={event => setToken(event.target.value)} onKeyDown={event => { if (event.key === "Enter") void establishSession(); }} /><button disabled={busy || !token.trim()} onClick={() => void establishSession()}>{busy ? "Opening…" : "Open library"}</button></> : <><button disabled={busy} onClick={() => void loadActivities()}>{busy ? "Working…" : "Refresh"}</button><button disabled={busy} onClick={() => void runImport("import")}>Sync latest</button><button disabled={busy || repairable === 0} title={repairable ? `Repair ${repairable} incomplete activities from the provider` : "No incomplete activities in this list"} onClick={() => void runImport("repair")}>Repair incomplete{repairable ? ` (${repairable})` : ""}</button><button disabled={busy} onClick={() => void signOut()}>Close session</button></>}
       </div>

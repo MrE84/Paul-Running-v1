@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { buildMonthGrid, monthLabel, monthQueryRange, shiftMonthKey } from "../../lib/calendar/month-grid";
 import { advancedLunchWalkSteps, RACE_WEEK_2026 } from "../../lib/workouts/race-week";
@@ -62,6 +62,7 @@ type CalendarSnapshot = {
 
 const RACE_WEEK_START_DATE = "2026-09-14";
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const API_TOKEN_STORAGE_KEY = "pauls-running-api-token";
 
 function errorText(value: unknown): string {
   if (value instanceof Error) return value.message;
@@ -104,6 +105,11 @@ export default function TrainingCalendarClient() {
   const [lunchDate, setLunchDate] = useState("");
   const [lunchTime, setLunchTime] = useState("");
   const [monthKey, setMonthKey] = useState(() => londonDateKey().slice(0, 7));
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem(API_TOKEN_STORAGE_KEY);
+    if (stored) setToken(stored);
+  }, []);
 
   async function api<T>(path: string, init: RequestInit = {}, idempotencyKey?: string): Promise<T> {
     if (!token.trim()) throw new Error("Enter the production API token first.");
@@ -189,6 +195,10 @@ export default function TrainingCalendarClient() {
       setBusy(false);
     }
   }
+
+  useEffect(() => {
+    if (token && !capabilities) void connect();
+  }, [token, capabilities]);
 
   async function moveMonth(delta: number) {
     const nextMonth = shiftMonthKey(monthKey, delta);
@@ -520,7 +530,12 @@ export default function TrainingCalendarClient() {
             className={styles.input}
             type="password"
             value={token}
-            onChange={(event) => setToken(event.target.value)}
+            onChange={(event) => {
+              const value = event.target.value;
+              setToken(value);
+              if (value) window.localStorage.setItem(API_TOKEN_STORAGE_KEY, value);
+              else window.localStorage.removeItem(API_TOKEN_STORAGE_KEY);
+            }}
             placeholder="PAUL_RUNNING_API_TOKEN"
             autoComplete="off"
             spellCheck={false}
