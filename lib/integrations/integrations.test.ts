@@ -269,6 +269,42 @@ test("sync coordinator stores external IDs and successful sync state separately 
   assert.equal(input.calendarItem.status, "planned");
 });
 
+test("sync coordinator removes the external reference after provider cancellation succeeds", async () => {
+  let cancelCalls = 0;
+  const connector: TrainingSyncConnector = {
+    provider: "intervals_icu",
+    async publish(): Promise<ConnectorResult> {
+      return { ok: true, externalId: "event-123" };
+    },
+    async update(): Promise<ConnectorResult> {
+      return { ok: true, externalId: "event-123" };
+    },
+    async cancel(): Promise<ConnectorResult> {
+      cancelCalls += 1;
+      return { ok: true, externalId: "event-123", providerMetadata: { deleted: true } };
+    },
+  };
+  const state = new InMemoryIntegrationStateStore();
+  const coordinator = new TrainingSyncCoordinator({ connector, state, runtime: runtime() });
+  const input = scheduledWorkout([step("active", timeDuration(600), paceTarget(300))]);
+
+  await coordinator.syncScheduledWorkout(input);
+  assert.equal(
+    (await state.findExternalReference("intervals_icu", "calendar_item", input.calendarItem.id))?.externalId,
+    "event-123",
+  );
+
+  const result = await coordinator.cancelCalendarItem(input.calendarItem, input.athlete.id);
+
+  assert.equal(result.ok, true);
+  assert.equal(cancelCalls, 1);
+  assert.equal(
+    await state.findExternalReference("intervals_icu", "calendar_item", input.calendarItem.id),
+    undefined,
+  );
+  assert.equal(state.listSyncJobs().filter((job) => job.operation === "cancel").at(-1)?.state, "succeeded");
+});
+
 test("sync coordinator persists Retry-After into nextAttemptAt for retryable failures", async () => {
   const connector: TrainingSyncConnector = {
     provider: "intervals_icu",

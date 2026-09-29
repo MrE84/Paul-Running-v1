@@ -137,6 +137,7 @@ export async function handleTrainingApiRequest(
           "POST /api/v1/training-plans/{id}/apply",
           "GET /api/v1/calendar-items/{id}/sync-status",
           "POST /api/v1/calendar-items/{id}/supersede",
+          "POST /api/v1/calendar-items/{id}/delete",
           "POST /api/v1/calendar-items/{id}/publish",
         ],
       });
@@ -152,6 +153,34 @@ export async function handleTrainingApiRequest(
     }
     if (method === "GET" && path.length === 3 && path[0] === "calendar-items" && path[2] === "sync-status") return ok(await service.getSyncStatus(path[1]));
     if (method === "POST" && path.length === 3 && path[0] === "calendar-items" && path[2] === "supersede") {
+      return ok(await service.supersedeCalendarItem(path[1], actor));
+    }
+    if (method === "POST" && path.length === 3 && path[0] === "calendar-items" && path[2] === "delete") {
+      if (!actor.idempotencyKey) {
+        throw new TrainingApiError(400, "IDEMPOTENCY_KEY_REQUIRED", "Delete operations require an Idempotency-Key header.");
+      }
+      const syncStatus = await service.getSyncStatus(path[1]);
+      if (syncStatus.externalReference) {
+        if (!runtime.workoutPublisher) {
+          throw new TrainingApiError(
+            503,
+            "INTERVALS_ICU_AUTH_NOT_CONFIGURED",
+            "This calendar item has already been sent to Intervals.icu, but provider cancellation is not configured.",
+          );
+        }
+        try {
+          await runtime.workoutPublisher.cancelCalendarItem(path[1], {
+            actorType: actor.type,
+            actorId: actor.id,
+            requestId: actor.requestId,
+          });
+        } catch (error) {
+          if (error instanceof ProductionWorkoutPublishError) {
+            throw new TrainingApiError(error.status, error.code, error.message, error.details);
+          }
+          throw error;
+        }
+      }
       return ok(await service.supersedeCalendarItem(path[1], actor));
     }
     if (method === "POST" && path.length === 3 && path[0] === "calendar-items" && path[2] === "publish") {

@@ -149,6 +149,52 @@ export class ProductionWorkoutPublisher {
     };
   }
 
+  async cancelCalendarItem(
+    calendarItemId: string,
+    actor?: WorkoutPublishActor,
+  ): Promise<ConnectorResult> {
+    const calendarItem = await this.store.getCalendarItem(calendarItemId);
+    if (!calendarItem) {
+      throw new ProductionWorkoutPublishError(
+        404,
+        "CALENDAR_ITEM_NOT_FOUND",
+        `Calendar item ${calendarItemId} was not found.`,
+      );
+    }
+
+    const connector = new IntervalsIcuTrainingConnector({ client: this.client });
+    const coordinator = new TrainingSyncCoordinator({
+      connector,
+      state: this.state,
+      runtime: this.runtime,
+    });
+    const result = await coordinator.cancelCalendarItem(calendarItem, calendarItem.athleteId);
+    if (!result.ok) {
+      throw new ProductionWorkoutPublishError(
+        result.kind === "permanent" ? 409 : 502,
+        result.code,
+        result.message,
+        result.providerMetadata,
+      );
+    }
+
+    if (actor) {
+      await this.store.appendAuditEvent({
+        id: this.runtime.idFactory(),
+        athleteId: calendarItem.athleteId,
+        actorType: actor.actorType,
+        actorId: actor.actorId,
+        action: "calendar_item.cancelled_external",
+        entityType: "calendar_item",
+        entityId: calendarItem.id,
+        entityVersion: calendarItem.workout.version,
+        requestId: actor.requestId,
+        occurredAt: this.runtime.now(),
+      });
+    }
+    return result;
+  }
+
   async publishCalendarItem(
     calendarItemId: string,
     actor?: WorkoutPublishActor,
