@@ -73,3 +73,17 @@
   .calendarItem button { justify-self: start; }
   .hero, .panel { padding: 20px; }
 }
+.planStats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 18px; }
+.planStats div { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: rgba(255,255,255,.035); }
+.planStats small, .stepRow small { color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.planStats strong { font-size: 1.2rem; }
+.stepList { display: grid; gap: 8px; margin-top: 12px; }
+.stepRow { display: grid; grid-template-columns: 90px minmax(0, 1fr) 130px 170px; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--border); border-left: 3px solid var(--blue); border-radius: 12px; background: rgba(255,255,255,.03); }
+.stepRow > span:not(.stepPhase) { display: grid; gap: 2px; font-weight: 700; }
+.stepRow p, .stepRepeat p { margin: 4px 0 0; font-size: .86rem; }
+.stepPhase { color: var(--green); font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.stepRepeat { display: grid; gap: 8px; padding: 12px; border: 1px dashed var(--border); border-radius: 14px; }
+@media (max-width: 720px) {
+  .stepRow { grid-template-columns: 1fr 1fr; }
+  .stepRow > div { grid-column: 1 / -1; order: -1; }
+}

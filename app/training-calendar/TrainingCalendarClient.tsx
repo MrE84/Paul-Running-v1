@@ -84,6 +84,11 @@ function activityDateKey(value: string): string {
   return londonDateKey(new Date(value));
 }
 
+function plannedHref(item: CalendarItem): string {
+  const query = new URLSearchParams({ date: item.scheduledLocalDate, time: item.scheduledLocalTime, tz: item.timezone, status: item.status });
+  return `/training-calendar/planned/${encodeURIComponent(item.workout.id)}?${query}`;
+}
+
 function statusClass(status: string): string {
   switch (status) {
     case "completed": return styles.completedEvent;
@@ -594,14 +599,14 @@ export default function TrainingCalendarClient() {
                       const status = sync[item.id];
                       const workout = workouts[item.workout.id];
                       const activity = item.activity;
-                      const activityHref = activity ? `/activity-analysis/${encodeURIComponent(activity.id)}` : "/activity-analysis";
+                      const activityHref = activity ? `/activity-analysis/${encodeURIComponent(activity.id)}` : plannedHref(item);
                       return (
                         <article className={`${styles.monthEvent} ${statusClass(item.status)}`} key={item.id}>
                           <div className={styles.eventTopline}>
                             <span>{activity ? new Date(activity.startedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: item.timezone }) : item.scheduledLocalTime}</span>
                             <small>{item.status}</small>
                           </div>
-                          <Link className={styles.eventLink} href={activityHref} aria-label={`Open activity details for ${activity?.title ?? workout?.currentRevision.name ?? item.workout.id}`}>
+                          <Link className={styles.eventLink} href={activityHref} aria-label={`Open ${activity ? "activity" : "planned workout"} details for ${activity?.title ?? workout?.currentRevision.name ?? item.workout.id}`}>
                             <strong>{activity?.title ?? workout?.currentRevision.name ?? item.workout.id}</strong>
                           </Link>
                           {activity && <span className={styles.deliveryState}>Activity synced from Intervals.icu</span>}
@@ -650,7 +655,7 @@ export default function TrainingCalendarClient() {
               const status = sync[item.id];
               const workout = workouts[item.workout.id];
               const activity = item.activity;
-              const activityHref = activity ? `/activity-analysis/${encodeURIComponent(activity.id)}` : "/activity-analysis";
+              const activityHref = activity ? `/activity-analysis/${encodeURIComponent(activity.id)}` : plannedHref(item);
               return (
                 <article className={styles.calendarItem} key={item.id}>
                   <div className={styles.dateBlock}>
@@ -658,7 +663,7 @@ export default function TrainingCalendarClient() {
                     <span>{item.scheduledLocalTime} · {item.timezone}</span>
                   </div>
                   <div className={styles.workoutBlock}>
-                    <Link className={styles.eventLink} href={activityHref} aria-label={`Open activity details for ${activity?.title ?? workout?.currentRevision.name ?? item.workout.id}`}>
+                    <Link className={styles.eventLink} href={activityHref} aria-label={`Open ${activity ? "activity" : "planned workout"} details for ${activity?.title ?? workout?.currentRevision.name ?? item.workout.id}`}>
                       <strong>{activity?.title ?? workout?.currentRevision.name ?? item.workout.id}</strong>
                     </Link>
                     <span>Plan: {item.status} · Delivery: {status?.state ?? "planned"}</span>
