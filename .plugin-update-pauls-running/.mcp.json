@@ -1,9 +1,12 @@
 {
   "mcpServers": {
+    "pauls-running-activity": {
+      "type": "http",
+      "url": "https://paul-running-v1.vercel.app/api/activity-mcp"
+    },
     "pauls-running-training": {
       "type": "http",
-      "url": "https://paul-running-v1.vercel.app/api/mcp",
-      "oauth_resource": "https://paul-running-v1.vercel.app/api/mcp"
+      "url": "https://paul-running-v1.vercel.app/api/mcp"
     }
   }
 }
