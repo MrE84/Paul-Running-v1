@@ -100,6 +100,33 @@ test("activity MCP exposes only the constrained read-only activity catalog", asy
   ]);
 });
 
+test("activity MCP supports 2026-07-28 discovery and tool listing", async () => {
+  const meta = { "io.modelcontextprotocol/protocolVersion": "2026-07-28" };
+  const discovered = await handleActivityMcpRequest(
+    request({ jsonrpc: "2.0", id: 20, method: "server/discover", params: { _meta: meta } }),
+    { token: "test-token", runtime: runtime() },
+  );
+  const discovery = await discovered.json();
+  assert.equal(discovery.result.resultType, "complete");
+  assert.deepEqual(discovery.result.supportedVersions, ["2026-07-28"]);
+  assert.equal(discovery.result.capabilities.tools.listChanged, false);
+  assert.equal(discovery.result._meta["io.modelcontextprotocol/serverInfo"].name, "pauls-running-activity");
+
+  const listed = await handleActivityMcpRequest(
+    request({ jsonrpc: "2.0", id: 21, method: "tools/list", params: { _meta: meta } }),
+    { token: "test-token", runtime: runtime() },
+  );
+  const payload = await listed.json();
+  assert.equal(payload.result.resultType, "complete");
+  assert.equal(payload.result.cacheScope, "private");
+  assert.deepEqual(payload.result.tools.map((tool: { name: string }) => tool.name), [
+    "list_activities",
+    "get_activity_analysis",
+    "get_activity_raw",
+    "get_activity_sample",
+  ]);
+});
+
 test("activity MCP returns the complete sample projection", async () => {
   const response = await handleActivityMcpRequest(
     request({ jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "get_activity_analysis", arguments: { activityId: "i185832465" } } }),
