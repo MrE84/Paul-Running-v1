@@ -5,6 +5,9 @@ export const TRAINING_MCP_SCOPE = "training:write";
 export const CHATGPT_CIMD_CLIENT_ID = "https://chatgpt.com/oauth/client.json";
 export const CHATGPT_OAUTH_REDIRECT_URI = "https://chatgpt.com/connector_platform_oauth_redirect";
 export const CODEX_CIMD_CLIENT_ID = "https://chatgpt.com/oauth/codex/client.json";
+export const CLAUDE_CIMD_CLIENT_ID = "https://claude.ai/oauth/mcp-oauth-client-metadata";
+export const CLAUDE_OAUTH_REDIRECT_URI = "https://claude.ai/api/mcp/auth_callback";
+export const CLAUDE_CODE_CIMD_CLIENT_ID = "https://claude.ai/oauth/claude-code-client-metadata";
 
 const ACCESS_TOKEN_SECONDS = 60 * 60;
 const REFRESH_TOKEN_SECONDS = 30 * 24 * 60 * 60;
@@ -170,7 +173,7 @@ function normalizeAuthorizationScope(params: AuthorizationParams, requestUrl: st
   return !params.scope ? { ...params, scope: expected } : params;
 }
 
-function validCodexLoopbackRedirect(redirectUri: string) {
+function validLoopbackRedirect(redirectUri: string) {
   try {
     const redirect = new URL(redirectUri);
     return redirect.protocol === "http:"
@@ -185,13 +188,27 @@ function validCodexLoopbackRedirect(redirectUri: string) {
   }
 }
 
+// Each accepted CIMD client is pinned to the redirect URIs its published
+// metadata document declares, so no client document is fetched at runtime.
 function validClient(clientId: string, redirectUri: string) {
   return (clientId === CHATGPT_CIMD_CLIENT_ID && redirectUri === CHATGPT_OAUTH_REDIRECT_URI)
-    || (clientId === CODEX_CIMD_CLIENT_ID && validCodexLoopbackRedirect(redirectUri));
+    || (clientId === CODEX_CIMD_CLIENT_ID && validLoopbackRedirect(redirectUri))
+    || (clientId === CLAUDE_CIMD_CLIENT_ID && redirectUri === CLAUDE_OAUTH_REDIRECT_URI)
+    || (clientId === CLAUDE_CODE_CIMD_CLIENT_ID && validLoopbackRedirect(redirectUri));
 }
 
 function recognizedClient(clientId: string) {
-  return clientId === CHATGPT_CIMD_CLIENT_ID || clientId === CODEX_CIMD_CLIENT_ID;
+  return clientId === CHATGPT_CIMD_CLIENT_ID
+    || clientId === CODEX_CIMD_CLIENT_ID
+    || clientId === CLAUDE_CIMD_CLIENT_ID
+    || clientId === CLAUDE_CODE_CIMD_CLIENT_ID;
+}
+
+function clientName(clientId: string) {
+  if (clientId === CLAUDE_CIMD_CLIENT_ID) return "Claude";
+  if (clientId === CLAUDE_CODE_CIMD_CLIENT_ID) return "Claude Code";
+  if (clientId === CODEX_CIMD_CLIENT_ID) return "Codex";
+  return "ChatGPT";
 }
 
 function validResource(resource: string, requestUrl: string, options?: OAuthOptions) {
@@ -211,7 +228,7 @@ function approvalOriginAllowed(request: Request, suppliedCredentialValid = false
   const host = firstForwardedValue(request.headers.get("host"));
   const forwardedProto = firstForwardedValue(request.headers.get("x-forwarded-proto")) || requestUrl.protocol.replace(":", "");
 
-  // Some ChatGPT/Codex OAuth browser flows submit the consent form from an
+  // Some ChatGPT/Codex/Claude OAuth browser flows submit the consent form from an
   // opaque browser context, which sends Origin: null. Accept that narrow case
   // only after the dedicated owner credential has been verified and only when
   // Vercel's public/forwarded host metadata is aligned with the HTTPS request.
@@ -318,6 +335,7 @@ function ownerSecretForResource(resource: string, requestUrl: string, options?: 
 
 function authorizationPage(params: AuthorizationParams, requestUrl: string, authenticated: boolean, message?: string) {
   const training = params.scope === TRAINING_MCP_SCOPE;
+  const client = escapeHtml(clientName(params.clientId));
   const consent = training
     ? { title: "Training: read and write", detail: "Read your profile, zones, workouts, plans and calendar; create and revise workouts and plans; publish scheduled workouts to Intervals.icu for Garmin delivery. No arbitrary network, database or account administration." }
     : { title: "Activities: read", detail: "Activity summaries, full sample streams, GPS, raw decoded FIT data and point lookups. No training-plan or workout writes." };
@@ -334,16 +352,16 @@ function authorizationPage(params: AuthorizationParams, requestUrl: string, auth
   const credentialLabel = training ? "Paul’s Running access token" : "Paul’s Running activity read token";
   const credential = authenticated ? "" : `
     <label>${credentialLabel}<input name="owner_token" type="password" autocomplete="current-password" required></label>
-    <small>The token is submitted only to Paul’s Running and is never sent to ChatGPT.</small>`;
+    <small>The token is submitted only to Paul’s Running and is never sent to ${client}.</small>`;
   const warning = message ? `<p class="error">${escapeHtml(message)}</p>` : "";
   return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Connect Paul’s Running</title><style>
     :root{color-scheme:dark}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#08111d;color:#eef6ff;font:16px/1.5 system-ui,sans-serif}.card{width:min(520px,calc(100% - 32px));box-sizing:border-box;padding:32px;border:1px solid #28425f;border-radius:20px;background:#101e2e;box-shadow:0 24px 80px #0008}h1{margin:0 0 8px;font-size:28px}p{color:#b9cadc}.scope{margin:24px 0;padding:16px;border-radius:12px;background:#0a1725}.scope strong{display:block;color:#6fe7c8}.scope span{font-size:14px;color:#b9cadc}label{display:grid;gap:8px;margin:18px 0 6px;font-weight:700}input{padding:13px;border:1px solid #45617f;border-radius:9px;background:#07111d;color:#fff;font:inherit}small{display:block;color:#90a6bc}.actions{display:flex;gap:12px;margin-top:26px}button{flex:1;padding:13px;border:0;border-radius:9px;background:#5de0bd;color:#06231b;font:700 16px system-ui;cursor:pointer}.deny{background:#263b51;color:#e7f0f8}.error{color:#ff9c9c}
-  </style></head><body><main class="card"><h1>Connect Paul’s Running</h1><p>ChatGPT is requesting ${training ? "training read and write" : "read-only activity"} access.</p><div class="scope"><strong>${consent.title}</strong><span>${consent.detail}</span></div>${warning}<form method="post" action="${escapeHtml(new URL(requestUrl).pathname)}">${hidden}${credential}<div class="actions"><button class="deny" name="decision" value="deny" formnovalidate>Cancel</button><button name="decision" value="approve">Allow access</button></div></form></main></body></html>`, {
+  </style></head><body><main class="card"><h1>Connect Paul’s Running</h1><p>${client} is requesting ${training ? "training read and write" : "read-only activity"} access.</p><div class="scope"><strong>${consent.title}</strong><span>${consent.detail}</span></div>${warning}<form method="post" action="${escapeHtml(new URL(requestUrl).pathname)}">${hidden}${credential}<div class="actions"><button class="deny" name="decision" value="deny" formnovalidate>Cancel</button><button name="decision" value="approve">Allow access</button></div></form></main></body></html>`, {
     status: message ? 401 : 200,
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
-      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://chatgpt.com http://localhost:* http://127.0.0.1:*; base-uri 'none'; frame-ancestors 'none'",
+      "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://chatgpt.com https://claude.ai http://localhost:* http://127.0.0.1:*; base-uri 'none'; frame-ancestors 'none'",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
     },
