@@ -1,0 +1,20 @@
+{
+  "apps": "./.app.json",
+  "interface": {
+    "displayName": "Paul’s Running",
+    "shortDescription": "Activity analysis and protected training-plan delivery",
+    "longDescription": "Read completed activities and sample-level telemetry from Paul’s Running. Create validated workouts and plans, schedule them on the canonical calendar, and explicitly publish eligible calendar items through Intervals.icu for Garmin delivery.",
+    "developerName": "Paul Evans",
+    "category": "Health & Fitness",
+    "capabilities": ["Interactive"],
+    "defaultPrompt": "Review my recent running and help manage my Paul’s Running training calendar."
+  },
+  "name": "pauls-running-activity",
+  "version": "0.3.0",
+  "description": "Read and analyse completed activities, manage structured workouts and plans, schedule calendar items, and publish eligible workouts through Intervals.icu from Paul’s Running.",
+  "author": {
+    "name": "Paul Evans"
+  },
+  "keywords": [],
+  "skills": "./skills"
+}
