@@ -12,14 +12,33 @@ function request(body: unknown, token = "test-token") {
   });
 }
 
-test("MCP bridge requires bearer authentication", async () => {
-  const response = await handleMcpRequest(
-    new Request("https://example.test/api/mcp", { method: "POST", body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) }),
+test("MCP bridge exposes tool metadata before authentication and challenges on tool calls", async () => {
+  const listed = await handleMcpRequest(
+    new Request("https://example.test/api/mcp", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list", params: {} }),
+    }),
     { token: "test-token" },
   );
-  assert.equal(response.status, 401);
-  const payload = await response.json();
-  assert.equal(payload.error.data.code, "UNAUTHORIZED");
+  assert.equal(listed.status, 200);
+  const catalog = await listed.json();
+  assert.equal(catalog.result.tools[0].securitySchemes[0].type, "oauth2");
+  assert.deepEqual(catalog.result.tools[0].securitySchemes[0].scopes, ["training:write"]);
+
+  const called = await handleMcpRequest(
+    new Request("https://example.test/api/mcp", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "get_profile", arguments: {} } }),
+    }),
+    { token: "test-token" },
+  );
+  assert.equal(called.status, 200);
+  const payload = await called.json();
+  assert.equal(payload.result.isError, true);
+  assert.match(payload.result._meta["mcp/www_authenticate"][0], /scope="training:write"/);
+  assert.match(payload.result._meta["mcp/www_authenticate"][0], /error="invalid_token"/);
 });
 
 test("MCP bridge accepts the dedicated training write bearer token before legacy fallbacks", async () => {
@@ -99,6 +118,10 @@ test("MCP bridge supports 2026-07-28 discovery and tool listing", async () => {
   assert.equal(listedPayload.result.cacheScope, "private");
   assert.ok(listedPayload.result.tools.some((tool: { name: string }) => tool.name === "get_profile"));
   assert.ok(listedPayload.result.tools.some((tool: { name: string }) => tool.name === "publish_calendar_item"));
+  assert.deepEqual(
+    listedPayload.result.tools.find((tool: { name: string }) => tool.name === "get_profile").securitySchemes[0].scopes,
+    ["training:write"],
+  );
 });
 
 test("scoped ChatGPT OAuth grants access to training tools, activity grants do not", async () => {
