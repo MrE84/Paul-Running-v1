@@ -174,6 +174,7 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
     refreshOverlayRef.current = scheduleOverlay;
     instance.on("move", scheduleOverlay);
     instance.on("zoom", scheduleOverlay);
+    instance.on("render", scheduleOverlay);
     instance.on("resize", scheduleOverlay);
 
     instance.on("load", () => {
