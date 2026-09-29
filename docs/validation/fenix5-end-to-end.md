@@ -23,21 +23,21 @@ The build gate verifies:
 - the live validation publisher is dry-run by default and performs no external request without `--publish`;
 - a live publish sends one event only and still respects the PAU-13 rolling sync window.
 
-These tests validate Paul's Running and the Intervals.icu representation. They do **not** claim that Garmin Connect or the physical watch has been observed yet.
+These tests validate Paul's Running and the Intervals.icu representation. The Garmin Connect and physical watch observations are recorded separately below.
 
 ## Device validation matrix
 
 | Case | Garmin Connect check | Fenix 5 check | Current status |
 | --- | --- | --- | --- |
-| Time automatic | Step shown as timed | Advances when timer expires without Lap | Device pending |
-| Distance automatic | Step shown as distance-based | Advances at prescribed distance | Device pending |
-| Repeat block | Three work/recovery repetitions visible | Executes three cycles in order | Device pending |
-| Warm-up / cool-down | Surround repeat block in correct order | Starts warm-up and finishes cool-down | Device pending |
-| Recovery | Separate recovery steps visible | Automatically transitions work -> recovery | Device pending |
-| HR target range | HR target attached to active step | Target/range guidance appears during step | Device pending |
-| Pace target range | Pace target attached to work step | Pace range/guidance appears during step | Device pending |
-| Manual Lap | Step represented as Lap-controlled | Continues until Lap press, then advances | Device pending |
-| Edit / resync | Existing scheduled workout updates, no duplicate | Only current revision is presented after sync | Device pending |
+| Time automatic | Step shown as timed | Advances when timer expires without Lap | Watch verified (2026-09-29) |
+| Distance automatic | Step shown as distance-based | Advances at prescribed distance | Watch verified (2026-09-29) |
+| Repeat block | Three work/recovery repetitions visible | Executes three cycles in order | Watch verified (2026-09-29) |
+| Warm-up / cool-down | Surround repeat block in correct order | Starts warm-up and finishes cool-down | Watch verified (2026-09-29) |
+| Recovery | Separate recovery steps visible | Automatically transitions work -> recovery | Watch verified (2026-09-29) |
+| HR target range | HR target attached to active step | Target/range guidance appears during step | Watch verified (2026-09-29) |
+| Pace target range | Pace target attached to work step | Pace range/guidance appears during step | Watch verified (2026-09-29) |
+| Manual Lap | Step represented as Lap-controlled | Continues until Lap press, then advances | Watch verified (2026-09-29) |
+| Edit / resync | Existing scheduled workout updates, no duplicate | Only current revision is presented after sync | Watch verified (2026-09-29) |
 
 ## Candidate reusable templates
 
@@ -49,7 +49,7 @@ The validation pack exposes five candidate templates:
 4. `fenix5-hr-range` — 1:00 warm-up, 3:00 HR-range work, 1:00 cool-down.
 5. `fenix5-manual-lap` — Lap-controlled warm-up, 1:00 pace work, Lap-controlled cool-down.
 
-They remain **candidates**, not `watch_verified`, until the Garmin Connect and Fenix 5 observations have been recorded.
+All nine device checks passed in Garmin Connect and on Paul's Fenix 5 (reported 2026-09-29), so these templates are now known-good structures for reuse.
 
 ## Safe live publisher
 
@@ -109,4 +109,9 @@ Add `--publish` only after the dry-run payload has been reviewed.
 
 Garmin's Fenix 5 documentation states that interval workouts can be based on time or distance and that downloaded workouts display each step and optional target. Garmin also documents HR and pace range alerts. Intervals.icu documents `Press lap` as a Garmin-specific flag: a nominal duration is retained for load calculation while Garmin can terminate the step on a Lap press.
 
-The remaining acceptance criterion is therefore observational: verify the Intervals.icu-generated structured representation in Garmin Connect and on Paul's physical Fenix 5.
+The remaining acceptance criterion was observational: verify the Intervals.icu-generated structured representation in Garmin Connect and on Paul's physical Fenix 5.
+
+## Device results
+
+- 2026-09-11: `F5 Validation - Time Auto` published live to Intervals.icu (event 135360144) and arrived in the Garmin calendar.
+- 2026-09-29: Paul reported that all nine matrix cases passed in both Garmin Connect and on the Fenix 5, with no representation or execution differences from the expectations above.
