@@ -338,7 +338,7 @@ export default function TrainingCalendarClient() {
     setBusy(true);
     try {
       await api<CalendarItem>(
-        `calendar-items/${item.id}/supersede`,
+        `calendar-items/${item.id}/delete`,
         { method: "POST" },
         `web-delete-${item.id}`,
       );
