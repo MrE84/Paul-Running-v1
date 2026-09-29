@@ -265,3 +265,48 @@ test("set capacity works for an athlete with no prior capacity and rejects impla
   await assert.rejects(() => service.setCapacity(athlete.id, { lt2HrBpm: 400 }, actor("c")), (error) => error instanceof TrainingApiError && error.code === "VALIDATION_FAILED");
   await assert.rejects(() => service.setCapacity(athlete.id, { maxHrBpm: 180 }, actor("d")), (error) => error instanceof TrainingApiError && error.code === "VALIDATION_FAILED");
 });
+
+const fiveHeartRateZones = [
+  { name: "Z1 Recovery", upperBound: 149 },
+  { name: "Z2 Easy aerobic", lowerBound: 150, upperBound: 157 },
+  { name: "Z3 Tempo", lowerBound: 158, upperBound: 165 },
+  { name: "Z4 Threshold", lowerBound: 166, upperBound: 175 },
+  { name: "Z5 Above threshold", lowerBound: 176, upperBound: 198 },
+];
+
+test("set zones closes the active set for the same sport/target, numbers zones and is idempotent", async () => {
+  const { service, store, actor } = harness();
+  const result = await service.setZones(athlete.id, { zones: fiveHeartRateZones, source: "athlete" }, actor("zones-1"));
+  assert.equal(result.zoneSet.sport, "running");
+  assert.equal(result.zoneSet.targetType, "heart_rate");
+  assert.deepEqual(result.zoneSet.zones.map((zone) => zone.zoneNumber), [1, 2, 3, 4, 5]);
+  assert.ok(result.zoneSet.zones.every((zone) => zone.unit === "bpm"));
+  assert.equal(result.zoneSet.zones[0].lowerBound, undefined, "open lower bound is preserved");
+  assert.deepEqual(result.zoneSets.map((set) => set.id), [result.zoneSet.id], "only the new set is active");
+  const history = await store.listZoneSets(athlete.id);
+  assert.equal(history.length, 2);
+  assert.equal(history.find((set) => set.id === "zones-1")?.effectiveTo, "2026-09-11T12:00:00.000Z");
+  const replay = await service.setZones(athlete.id, { zones: fiveHeartRateZones, source: "athlete" }, actor("zones-1"));
+  assert.deepEqual(replay, result);
+  assert.equal((await store.listZoneSets(athlete.id)).length, 2);
+  assert.ok((await store.listAuditEvents()).some((event) => event.action === "zones.set"));
+});
+
+test("set zones rejects overlapping, gapped-open, out-of-range and mis-united zones", async () => {
+  const { service, actor } = harness();
+  const rejects = (input: Parameters<TrainingApiService["setZones"]>[1], key: string) =>
+    assert.rejects(() => service.setZones(athlete.id, input, actor(key)), (error) => error instanceof TrainingApiError && error.code === "VALIDATION_FAILED");
+  await rejects({ zones: [{ name: "only", upperBound: 150 }] }, "a");
+  await rejects({ zones: [{ name: "Z1", upperBound: 150 }, { name: "Z2", lowerBound: 150, upperBound: 160 }] }, "b");
+  await rejects({ zones: [{ name: "Z1", upperBound: 150 }, { name: "Z2", upperBound: 160 }] }, "c");
+  await rejects({ zones: [{ name: "Z1" }, { name: "Z2", lowerBound: 151, upperBound: 160 }] }, "d");
+  await rejects({ zones: [{ name: "Z1", upperBound: 150 }, { name: "Z2", lowerBound: 151, upperBound: 400 }] }, "e");
+  await rejects({ unit: "%", zones: [{ name: "Z1", upperBound: 150 }, { name: "Z2", lowerBound: 151 }] }, "f");
+  await rejects({ zones: [{ name: " ", upperBound: 150 }, { name: "Z2", lowerBound: 151 }] }, "g");
+});
+
+test("set zones leaves other sports' and target types' zone sets active", async () => {
+  const { service, actor } = harness();
+  const result = await service.setZones(athlete.id, { sport: "cycling", zones: fiveHeartRateZones }, actor("cycling"));
+  assert.deepEqual(result.zoneSets.map((set) => set.id).sort(), [result.zoneSet.id, "zones-1"].sort());
+});

@@ -10,6 +10,7 @@ import {
   type CreatePlanInput,
   type CreateWorkoutInput,
   type SetCapacityInput,
+  type SetZonesInput,
   type PatchWorkoutInput,
 } from "../training-api/service";
 
@@ -169,6 +170,18 @@ export const mcpTools = [
       source: { type: "string" }, sourceNotes: { type: "string" },
     } },
   },
+  {
+    name: "set_zones", description: "Record the primary athlete's training zones for one sport and target type (default: running heart rate in bpm). Zones are ordered and non-overlapping; only the first may omit lowerBound and only the last upperBound. The previous set is closed, not overwritten. Heart-rate zones are also pushed to Intervals.icu sport settings (and on to Garmin) unless pushToIntervals is false.",
+    inputSchema: { type: "object", additionalProperties: false, required: ["zones"], properties: {
+      sport: { enum: ["running", "cycling", "walking", "other"] },
+      targetType: { enum: ["heart_rate", "pace", "power", "cadence"] },
+      name: { type: "string" }, unit: { type: "string" }, source: { type: "string" },
+      zones: { type: "array", minItems: 2, maxItems: 10, items: { type: "object", additionalProperties: false, required: ["name"], properties: {
+        name: { type: "string" }, lowerBound: { type: "number" }, upperBound: { type: "number" },
+      } } },
+      pushToIntervals: { type: "boolean", default: true },
+    } },
+  },
   { name: "get_zones", description: "Read the primary athlete's active training zone sets.", inputSchema: { type: "object", additionalProperties: false, properties: {} } },
   { name: "list_calendar", description: "List canonical training calendar items, optionally bounded by ISO timestamps.", inputSchema: { type: "object", additionalProperties: false, properties: { from: { type: "string" }, to: { type: "string" } } } },
   { name: "get_sync_status", description: "Read durable Intervals.icu/Garmin delivery state for a calendar item.", inputSchema: { type: "object", additionalProperties: false, required: ["calendarItemId"], properties: { calendarItemId: { type: "string" } } } },
@@ -220,6 +233,14 @@ async function callTool(name: string, args: Record<string, unknown>, request: Js
   switch (name) {
     case "get_profile": return service.getProfile(runtime.primaryAthleteId);
     case "set_capacity": return service.setCapacity(runtime.primaryAthleteId, args as SetCapacityInput, mutationActor);
+    case "set_zones": {
+      const { pushToIntervals, ...input } = args as unknown as SetZonesInput & { pushToIntervals?: boolean };
+      const result = await service.setZones(runtime.primaryAthleteId, input, mutationActor);
+      if (pushToIntervals === false || result.zoneSet.targetType !== "heart_rate") return { ...result, intervals: { state: "skipped" } };
+      if (!runtime.zoneSync) return { ...result, intervals: { state: "failed", code: "INTERVALS_ICU_AUTH_NOT_CONFIGURED", message: "Intervals.icu is not configured." } };
+      const profile = await service.getProfile(runtime.primaryAthleteId);
+      return { ...result, intervals: await runtime.zoneSync.push(result.zoneSet, profile.currentCapacity) };
+    }
     case "get_zones": return service.listZones(runtime.primaryAthleteId);
     case "list_calendar": return service.listCalendar(runtime.primaryAthleteId, args.from as string | undefined, args.to as string | undefined);
     case "get_sync_status": return service.getSyncStatus(argString(args, "calendarItemId"));
@@ -305,7 +326,7 @@ export async function handleMcpRequest(request: Request, options?: BridgeOptions
         ...tool,
         securitySchemes: [{ type: "oauth2", scopes: [TRAINING_MCP_SCOPE] }],
         annotations: {
-          readOnlyHint: !["set_capacity", "create_workout", "revise_workout", "create_training_plan", "apply_training_plan", "publish_calendar_item", "create_advanced_lunch_break_walk"].includes(tool.name),
+          readOnlyHint: !["set_capacity", "set_zones", "create_workout", "revise_workout", "create_training_plan", "apply_training_plan", "publish_calendar_item", "create_advanced_lunch_break_walk"].includes(tool.name),
         },
       })) }, { modern, cacheable: modern });
     }
