@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
   "mcpServers": {
     "pauls-running-training": {
-      "type": "http",
+      "type": "streamable-http",
       "url": "https://paul-running-v1.vercel.app/api/mcp",
       "oauth_resource": "https://paul-running-v1.vercel.app/api/mcp"
     }
