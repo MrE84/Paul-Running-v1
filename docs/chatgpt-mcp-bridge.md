@@ -64,6 +64,15 @@ On ChatGPT web with Developer mode enabled, create a remote Streamable HTTP app 
 
 Recommended permissions are read access to profile/zones/calendar/workouts/plans plus the named training writes above. No generic network or database permission is required.
 
+## Claude connection
+
+The same endpoint works as a Claude custom connector. The OAuth server accepts Claude's published Client ID Metadata Documents, each pinned to the redirect URIs that document declares:
+
+- Claude web, desktop and mobile: client `https://claude.ai/oauth/mcp-oauth-client-metadata`, redirect `https://claude.ai/api/mcp/auth_callback`.
+- Claude Code: client `https://claude.ai/oauth/claude-code-client-metadata`, loopback redirect `http://localhost:<port>/callback` or `http://127.0.0.1:<port>/callback`.
+
+In claude.ai, open **Settings > Connectors > Add custom connector**, enter `https://paul-running-v1.vercel.app/api/mcp`, and approve the `training:write` grant on Paul's Running's consent page. In Claude Code, run `claude mcp add --transport http paul-running https://paul-running-v1.vercel.app/api/mcp` and authenticate with `/mcp`. Adding Claude clients does not change existing ChatGPT or Codex grants or tokens.
+
 ## Relationship to Intervals.icu MCP
 
 PAU-46 tracks the newly confirmed official Intervals.icu MCP server, which Intervals.icu says is at the specification stage as of 9 September 2026.

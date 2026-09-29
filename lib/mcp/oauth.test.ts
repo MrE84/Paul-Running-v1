@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import test from "node:test";
 import {
   ACTIVITY_MCP_SCOPE,
@@ -7,6 +7,9 @@ import {
   CHATGPT_CIMD_CLIENT_ID,
   CHATGPT_OAUTH_REDIRECT_URI,
   CODEX_CIMD_CLIENT_ID,
+  CLAUDE_CIMD_CLIENT_ID,
+  CLAUDE_OAUTH_REDIRECT_URI,
+  CLAUDE_CODE_CIMD_CLIENT_ID,
   activityMcpChallenge,
   authorizationServerMetadata,
   handleOAuthAuthorizationRequest,
@@ -158,7 +161,7 @@ test("renders read-only consent for the exact ChatGPT CIMD client and rejects an
   assert.match(await page.text(), /Activities: read/);
   assert.match(
     page.headers.get("content-security-policy") ?? "",
-    /form-action 'self' https:\/\/chatgpt\.com http:\/\/localhost:\* http:\/\/127\.0\.0\.1:\*/,
+    /form-action 'self' https:\/\/chatgpt\.com https:\/\/claude\.ai http:\/\/localhost:\* http:\/\/127\.0\.0\.1:\*/,
   );
 
   const invalid = authorizationUrl();
@@ -357,6 +360,94 @@ test("accepts the official Codex CIMD client with an RFC 8252 loopback redirect"
       new Request(authorizationUrl(CODEX_CIMD_CLIENT_ID, invalidRedirect)), options());
     assert.equal(rejected.status, 400);
   }
+});
+
+test("accepts the Claude CIMD client only with its published claude.ai callback", async () => {
+  const page = await handleOAuthAuthorizationRequest(
+    new Request(authorizationUrl(CLAUDE_CIMD_CLIENT_ID, CLAUDE_OAUTH_REDIRECT_URI)), options());
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, /Claude is requesting/);
+  assert.doesNotMatch(html, /ChatGPT/);
+
+  const oauth = options();
+  const trainingResource = trainingMcpResource(`${origin}/api/mcp`, oauth);
+  const values = authorizationUrl(CLAUDE_CIMD_CLIENT_ID, CLAUDE_OAUTH_REDIRECT_URI).searchParams;
+  values.set("resource", trainingResource);
+  values.set("scope", TRAINING_MCP_SCOPE);
+  values.set("decision", "approve");
+  const approval = await handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize`, {
+    method: "POST", headers: { origin, "content-type": "application/x-www-form-urlencoded" }, body: values,
+  }), oauth);
+  assert.equal(approval.status, 302);
+  const location = new URL(approval.headers.get("location") ?? "");
+  assert.equal(location.origin + location.pathname, CLAUDE_OAUTH_REDIRECT_URI);
+  const code = location.searchParams.get("code") ?? "";
+
+  // A code issued to Claude cannot be redeemed by another recognized client.
+  const stolen = await handleOAuthTokenRequest(new Request(`${origin}/api/oauth/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "authorization_code", client_id: CHATGPT_CIMD_CLIENT_ID,
+      redirect_uri: CHATGPT_OAUTH_REDIRECT_URI, resource: trainingResource, code, code_verifier: verifier }),
+  }), oauth);
+  assert.equal(stolen.status, 400);
+
+  const response = await handleOAuthTokenRequest(new Request(`${origin}/api/oauth/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "authorization_code", client_id: CLAUDE_CIMD_CLIENT_ID,
+      redirect_uri: CLAUDE_OAUTH_REDIRECT_URI, resource: trainingResource, code, code_verifier: verifier }),
+  }), oauth);
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(validTrainingAccessToken(payload.access_token, `${origin}/api/mcp`, oauth), true);
+
+  for (const invalidRedirect of [
+    CHATGPT_OAUTH_REDIRECT_URI,
+    "https://claude.ai/api/mcp/other_callback",
+    "https://attacker.example/api/mcp/auth_callback",
+    "http://127.0.0.1:36669/callback",
+  ]) {
+    const rejected = await handleOAuthAuthorizationRequest(
+      new Request(authorizationUrl(CLAUDE_CIMD_CLIENT_ID, invalidRedirect)), options());
+    assert.equal(rejected.status, 400);
+  }
+});
+
+test("accepts the Claude Code CIMD client with a loopback redirect on any port", async () => {
+  for (const redirectUri of ["http://localhost:3118/callback", "http://127.0.0.1:52011/callback"]) {
+    const page = await handleOAuthAuthorizationRequest(
+      new Request(authorizationUrl(CLAUDE_CODE_CIMD_CLIENT_ID, redirectUri)), options());
+    assert.equal(page.status, 200);
+    assert.match(await page.text(), /Claude Code is requesting/);
+
+    const oauth = options();
+    const code = await authorize(oauth, CLAUDE_CODE_CIMD_CLIENT_ID, redirectUri);
+    const response = await exchange(code, oauth, CLAUDE_CODE_CIMD_CLIENT_ID, redirectUri);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    assert.equal(validActivityAccessToken(payload.access_token, `${origin}/api/activity-mcp`, oauth), true);
+  }
+
+  for (const invalidRedirect of [CLAUDE_OAUTH_REDIRECT_URI, "http://localhost:3118/not-callback", "http://attacker.example/callback"]) {
+    const rejected = await handleOAuthAuthorizationRequest(
+      new Request(authorizationUrl(CLAUDE_CODE_CIMD_CLIENT_ID, invalidRedirect)), options());
+    assert.equal(rejected.status, 400);
+  }
+});
+
+test("training tokens already issued to ChatGPT stay valid", () => {
+  // Built by hand in the existing wire format, as a token issued before Claude
+  // clients were added would have been, so this does not depend on issuance code.
+  const oauth = options();
+  const now = Math.floor(1_800_000_000_000 / 1000);
+  const encoded = Buffer.from(JSON.stringify({
+    iss: origin, aud: `${origin}/api/mcp`, client_id: CHATGPT_CIMD_CLIENT_ID, scope: TRAINING_MCP_SCOPE,
+    sub: "primary-athlete", typ: "access_token", iat: now - 60, exp: now + 3000, jti: "pre-existing",
+  })).toString("base64url");
+  const token = `${encoded}.${createHmac("sha256", "test-oauth-signing-secret").update(encoded).digest("base64url")}`;
+  assert.equal(validTrainingAccessToken(token, `${origin}/api/mcp`, oauth), true);
 });
 
 test("exchanges a PKCE authorization code for a scoped access token and refresh token", async () => {
