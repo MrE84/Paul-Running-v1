@@ -106,6 +106,15 @@ function authenticate(request: Request, options?: BridgeOptions) {
   }
 }
 
+function authenticationRequiredToolResult(request: Request, options?: BridgeOptions) {
+  const challenge = `${activityMcpChallenge(request.url, options?.oauth)}, error="invalid_token", error_description="Connect Paul’s Running Activity to continue"`;
+  return {
+    content: [{ type: "text", text: "Authentication required. Connect Paul’s Running Activity to continue." }],
+    _meta: { "mcp/www_authenticate": [challenge] },
+    isError: true,
+  };
+}
+
 function argString(args: Record<string, unknown>, key: string): string {
   const value = args[key];
   if (typeof value !== "string" || !value.trim()) throw new TrainingApiError(400, "VALIDATION_FAILED", `${key} is required.`);
@@ -272,7 +281,6 @@ function toolError(error: unknown) {
 export async function handleActivityMcpRequest(request: Request, options?: BridgeOptions): Promise<Response> {
   let body: JsonRpcRequest | undefined;
   try {
-    authenticate(request, options);
     body = (await request.json()) as JsonRpcRequest;
     if (body.jsonrpc !== "2.0" || typeof body.method !== "string") return rpcError(body.id, -32600, "Invalid Request");
     const modern = body.method === "server/discover" || isModernRequest(request, body);
@@ -291,12 +299,23 @@ export async function handleActivityMcpRequest(request: Request, options?: Bridg
     }
     if (body.method === "notifications/initialized") return new Response(null, { status: 202 });
     if (body.method === "ping") return rpcResult(body.id, {}, { modern });
-    if (body.method === "tools/list") return rpcResult(body.id, { tools: activityMcpTools }, { modern, cacheable: modern });
+    if (body.method === "tools/list") {
+      if (request.headers.get("authorization")) authenticate(request, options);
+      return rpcResult(body.id, { tools: activityMcpTools }, { modern, cacheable: modern });
+    }
     if (body.method === "tools/call") {
       const name = body.params?.name;
       const args = body.params?.arguments;
       if (typeof name !== "string" || (args !== undefined && (args === null || Array.isArray(args) || typeof args !== "object"))) {
         return rpcError(body.id, -32602, "Invalid params");
+      }
+      try {
+        authenticate(request, options);
+      } catch (error) {
+        if (error instanceof TrainingApiError && error.status === 401) {
+          return rpcResult(body.id, authenticationRequiredToolResult(request, options), { modern });
+        }
+        throw error;
       }
       const runtime = options?.runtime ?? getTrainingApiRuntime();
       try {
