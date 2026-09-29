@@ -152,6 +152,7 @@ test("scoped ChatGPT OAuth grants access to training tools, activity grants do n
   const listed = (await accepted.json()).result.tools;
   assert.equal(listed.find((tool: { name: string }) => tool.name === "get_profile").annotations.readOnlyHint, true);
   assert.equal(listed.find((tool: { name: string }) => tool.name === "publish_calendar_item").annotations.readOnlyHint, false);
+  assert.equal(listed.find((tool: { name: string }) => tool.name === "set_zones").annotations.readOnlyHint, false);
   const rejected = await handleMcpRequest(request(body, activity), { token: "legacy-token", oauth });
   assert.equal(rejected.status, 401);
   assert.match(rejected.headers.get("WWW-Authenticate")!, /scope="training:write"/);

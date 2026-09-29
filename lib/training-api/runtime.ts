@@ -3,6 +3,7 @@ import type { Athlete } from "../domain/contracts";
 import { ProductionActivityImporter } from "../integrations/production-activity-importer";
 import { ProductionWorkoutPublisher } from "../integrations/production-publisher";
 import { InMemoryIntegrationStateStore } from "../integrations/state";
+import { IntervalsZoneSync } from "../integrations/intervals-icu/zone-sync";
 import type { IntegrationRuntime, IntegrationStateStore } from "../integrations/contracts";
 import { SerializedPostgresTrainingStore } from "./serialized-postgres-store";
 import type { TrainingApiStore } from "./contracts";
@@ -19,6 +20,7 @@ export interface TrainingApiRuntimeBundle {
   activityImportConfigured: boolean;
   workoutPublisher?: ProductionWorkoutPublisher;
   activityImporter?: ProductionActivityImporter;
+  zoneSync?: IntervalsZoneSync;
 }
 
 const globalRuntime = globalThis as typeof globalThis & {
@@ -41,6 +43,14 @@ function productionPublisher(
     store,
     state,
     runtime,
+    apiKey,
+    intervalsAthleteId: process.env.INTERVALS_ICU_ATHLETE_ID?.trim() || "0",
+  });
+}
+
+function intervalsZoneSync(apiKey: string | undefined): IntervalsZoneSync | undefined {
+  if (!apiKey) return undefined;
+  return new IntervalsZoneSync({
     apiKey,
     intervalsAthleteId: process.env.INTERVALS_ICU_ATHLETE_ID?.trim() || "0",
   });
@@ -106,6 +116,7 @@ export function getTrainingApiRuntime(): TrainingApiRuntimeBundle {
       activityImportConfigured: Boolean(activityImporter),
       workoutPublisher,
       activityImporter,
+      zoneSync: intervalsZoneSync(apiKey),
     };
     return globalRuntime.__paulRunningTrainingApi;
   }
@@ -129,6 +140,7 @@ export function getTrainingApiRuntime(): TrainingApiRuntimeBundle {
     activityImportConfigured: Boolean(activityImporter),
     workoutPublisher,
     activityImporter,
+    zoneSync: intervalsZoneSync(apiKey),
   };
   return globalRuntime.__paulRunningTrainingApi;
 }

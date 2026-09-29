@@ -15,6 +15,9 @@ import type {
   Workout,
   WorkoutRevision,
   WorkoutStep,
+  WorkoutTargetType,
+  Zone,
+  ZoneSet,
 } from "../domain/contracts";
 import { applyTrainingPlan } from "../calendar/apply-plan";
 import { parseLocalDate, parseLocalTime, assertValidTimeZone } from "../calendar/timezone";
@@ -62,6 +65,25 @@ const CAPACITY_BOUNDS: Record<keyof Omit<SetCapacityInput, "source" | "sourceNot
   lt1PaceSecPerKm: [120, 900],
   lt2PaceSecPerKm: [120, 900],
 };
+
+export interface SetZonesInput {
+  sport?: Sport;
+  targetType?: WorkoutTargetType;
+  name?: string;
+  unit?: string;
+  zones: Array<{ name: string; lowerBound?: number; upperBound?: number }>;
+  source?: string;
+}
+
+export interface SetZonesResult {
+  zoneSet: ZoneSet;
+  zoneSets: ZoneSet[];
+}
+
+const ZONE_SPORTS: readonly Sport[] = ["running", "cycling", "walking", "other"];
+const ZONE_TARGET_TYPES: readonly WorkoutTargetType[] = ["heart_rate", "pace", "power", "cadence"];
+const DEFAULT_ZONE_UNITS: Partial<Record<WorkoutTargetType, string>> = { heart_rate: "bpm", pace: "s/km", power: "w", cadence: "spm" };
+const HEART_RATE_ZONE_BOUNDS: [number, number] = [30, 240];
 
 export interface CreateWorkoutInput {
   athleteId: string;
@@ -326,6 +348,70 @@ export class TrainingApiService {
       await this.store.saveCapacity(next);
       await this.audit(actor, "capacity.set", "capacity", next.id);
       return this.getProfile(athleteId);
+    });
+  }
+
+  /**
+   * Record a new zone set for one sport and target type. Zones must be ordered and
+   * non-overlapping; only the first may omit its lower bound and only the last its upper
+   * bound. The active set for the same sport/target type is closed rather than overwritten.
+   */
+  async setZones(athleteId: string, input: SetZonesInput, actor: TrainingApiActor): Promise<SetZonesResult> {
+    return this.idempotent(actor, "set_zones", { athleteId, input }, async () => {
+      await this.requireAthlete(athleteId);
+      const fail = (message: string): never => { throw new TrainingApiError(400, "VALIDATION_FAILED", message); };
+      const sport = input.sport ?? "running";
+      if (!ZONE_SPORTS.includes(sport)) fail(`sport must be one of ${ZONE_SPORTS.join(", ")}.`);
+      const targetType = input.targetType ?? "heart_rate";
+      if (!ZONE_TARGET_TYPES.includes(targetType)) fail(`targetType must be one of ${ZONE_TARGET_TYPES.join(", ")}.`);
+      const unit = input.unit ?? DEFAULT_ZONE_UNITS[targetType] ?? "";
+      if (targetType === "heart_rate" && unit !== "bpm") fail("Heart-rate zones must use bpm.");
+      if (!Array.isArray(input.zones) || input.zones.length < 2 || input.zones.length > 10) fail("Provide between 2 and 10 zones.");
+      const isBound = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+      input.zones.forEach((zone, index) => {
+        const label = `zones[${index}]`;
+        if (typeof zone?.name !== "string" || !zone.name.trim()) fail(`${label}.name is required.`);
+        for (const key of ["lowerBound", "upperBound"] as const) {
+          const value = zone[key];
+          if (value === undefined) continue;
+          if (!isBound(value)) fail(`${label}.${key} must be a number.`);
+          if (targetType === "heart_rate" && (value < HEART_RATE_ZONE_BOUNDS[0] || value > HEART_RATE_ZONE_BOUNDS[1])) {
+            fail(`${label}.${key} must be between ${HEART_RATE_ZONE_BOUNDS[0]} and ${HEART_RATE_ZONE_BOUNDS[1]} bpm.`);
+          }
+        }
+        if (zone.lowerBound === undefined && index !== 0) fail(`${label}.lowerBound is required; only the first zone may be open below.`);
+        if (zone.upperBound === undefined && index !== input.zones.length - 1) fail(`${label}.upperBound is required; only the last zone may be open above.`);
+        if (zone.lowerBound !== undefined && zone.upperBound !== undefined && zone.lowerBound > zone.upperBound) fail(`${label}.lowerBound must not exceed upperBound.`);
+        const previous = input.zones[index - 1];
+        if (previous?.upperBound !== undefined && zone.lowerBound !== undefined && zone.lowerBound <= previous.upperBound) {
+          fail(`${label}.lowerBound must be above the previous zone's upperBound (zones may not overlap).`);
+        }
+      });
+      const now = this.runtime.now();
+      const zones: Zone[] = input.zones.map((zone, index) => ({
+        id: this.runtime.idFactory(),
+        zoneNumber: index + 1,
+        name: zone.name.trim(),
+        ...(zone.lowerBound !== undefined ? { lowerBound: zone.lowerBound } : {}),
+        ...(zone.upperBound !== undefined ? { upperBound: zone.upperBound } : {}),
+        unit,
+      }));
+      const next: ZoneSet = {
+        id: this.runtime.idFactory(),
+        athleteId,
+        sport,
+        targetType,
+        name: input.name?.trim() || `${sport} ${targetType.replace("_", " ")} zones`,
+        effectiveFrom: now,
+        source: input.source ?? "manual",
+        zones,
+        createdAt: now,
+      };
+      const superseded = (await this.qaContext(athleteId)).zoneSets.filter((set) => set.sport === sport && set.targetType === targetType);
+      for (const set of superseded) await this.store.saveZoneSet({ ...set, effectiveTo: now });
+      await this.store.saveZoneSet(next);
+      await this.audit(actor, "zones.set", "zone_set", next.id);
+      return { zoneSet: next, zoneSets: [...(await this.qaContext(athleteId)).zoneSets] };
     });
   }
 

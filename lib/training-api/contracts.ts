@@ -64,6 +64,8 @@ export interface TrainingApiStore {
   /** Persist a capacity revision (and any predecessor it closes via effectiveTo). */
   saveCapacity(capacity: CapacityRevision): Promise<void>;
   listZoneSets(athleteId: string): Promise<ZoneSet[]>;
+  /** Persist a zone set (and any predecessor it closes via effectiveTo). */
+  saveZoneSet(zoneSet: ZoneSet): Promise<void>;
 
   listWorkouts(athleteId: string): Promise<Workout[]>;
   getWorkout(id: string): Promise<Workout | undefined>;

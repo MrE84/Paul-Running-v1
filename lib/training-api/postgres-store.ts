@@ -203,6 +203,10 @@ export class PostgresTrainingStore implements TrainingApiStore, IntegrationState
     return sortBy(await this.list<ZoneSet>("zone_set", athleteId), (item) => item.effectiveFrom);
   }
 
+  async saveZoneSet(zoneSet: ZoneSet): Promise<void> {
+    await this.write("zone_set", zoneSet.id, zoneSet.athleteId, zoneSet, zoneSet.effectiveFrom);
+  }
+
   async listWorkouts(athleteId: string): Promise<Workout[]> {
     return (await this.list<Workout>("workout", athleteId)).sort((a, b) => a.id.localeCompare(b.id));
   }

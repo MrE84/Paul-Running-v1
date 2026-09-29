@@ -30,6 +30,24 @@ export interface IntervalsIcuEventPayload {
   external_id: string;
 }
 
+/** Subset of Intervals.icu SportSettings written when publishing heart-rate zones. */
+export interface IntervalsIcuHeartRateSportSettings {
+  lthr?: number;
+  max_hr?: number;
+  /** Upper bound of each zone in bpm, strictly increasing. */
+  hr_zones: number[];
+  hr_zone_names: string[];
+}
+
+export interface IntervalsIcuSportSettingsResponse extends Record<string, unknown> {
+  id?: string | number;
+  types?: string[];
+  lthr?: number;
+  max_hr?: number;
+  hr_zones?: number[];
+  hr_zone_names?: string[];
+}
+
 export interface IntervalsIcuWorkoutDoc extends Record<string, unknown> {
   steps?: unknown[];
 }
@@ -198,6 +216,21 @@ export class IntervalsIcuClient {
     return this.request<IntervalsIcuEventResponse[]>(
       `/athlete/${encodeURIComponent(this.athleteId)}/events/bulk?upsert=true`,
       { method: "POST", body: JSON.stringify(events) },
+    );
+  }
+
+  /**
+   * Update the athlete's sport settings for one activity type (e.g. "Run"). The
+   * recalcHrZones=false flag stops Intervals.icu replacing explicit bounds with
+   * zones derived from LTHR/max HR.
+   */
+  async updateHeartRateSportSettings(
+    activityType: string,
+    settings: IntervalsIcuHeartRateSportSettings,
+  ): Promise<IntervalsIcuResponse<IntervalsIcuSportSettingsResponse>> {
+    return this.request<IntervalsIcuSportSettingsResponse>(
+      `/athlete/${encodeURIComponent(this.athleteId)}/sport-settings/${encodeURIComponent(activityType)}?recalcHrZones=false`,
+      { method: "PUT", body: JSON.stringify(settings) },
     );
   }
 

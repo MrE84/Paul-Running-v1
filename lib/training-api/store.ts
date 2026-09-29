@@ -57,6 +57,11 @@ export class InMemoryTrainingApiStore implements TrainingApiStore {
     else this.capacities.push(capacity);
   }
   async listZoneSets(athleteId: string) { return this.zones.filter((item) => item.athleteId === athleteId).sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)); }
+  async saveZoneSet(zoneSet: ZoneSet) {
+    const index = this.zones.findIndex((item) => item.id === zoneSet.id);
+    if (index >= 0) this.zones[index] = zoneSet;
+    else this.zones.push(zoneSet);
+  }
   async listWorkouts(athleteId: string) { return [...this.workouts.values()].filter((item) => item.athleteId === athleteId).sort((a, b) => a.id.localeCompare(b.id)); }
   async getWorkout(id: string) { return this.workouts.get(id); }
   async getWorkoutRevision(id: string, version: number) { return this.workoutRevisions.get(revisionKey(id, version)); }

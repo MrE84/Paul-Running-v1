@@ -8,3 +8,4 @@ export * from "./fenix5-publisher";
 export * from "./intervals-icu/client";
 export * from "./intervals-icu/connector";
 export * from "./intervals-icu/translation";
+export * from "./intervals-icu/zone-sync";
