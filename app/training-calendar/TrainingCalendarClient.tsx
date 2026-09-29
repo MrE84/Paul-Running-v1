@@ -333,6 +333,24 @@ export default function TrainingCalendarClient() {
     }
   }
 
+  async function deleteItem(item: CalendarItem) {
+    if (!window.confirm("Remove this event from the calendar?")) return;
+    setBusy(true);
+    try {
+      await api<CalendarItem>(
+        `calendar-items/${item.id}/supersede`,
+        { method: "POST" },
+        `web-delete-${item.id}`,
+      );
+      await refreshCalendar(monthKey);
+      setMessage("The calendar event was removed.");
+    } catch (error) {
+      setMessage(errorText(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function createLunchWalk() {
     if (!capabilities?.integrations.intervalsIcuPublishingConfigured) {
       setMessage("Configure INTERVALS_ICU_API_KEY in Vercel Production before creating the live lunch-walk delivery test.");
@@ -521,9 +539,14 @@ export default function TrainingCalendarClient() {
                             <span>{item.scheduledLocalTime}</span>
                             <small>{item.status}</small>
                           </div>
-                          <strong>{workout?.currentRevision.name ?? item.workout.id}</strong>
+                          <Link className={styles.eventLink} href="/activity-analysis" aria-label={`Open activity details for ${workout?.currentRevision.name ?? item.workout.id}`}>
+                            <strong>{workout?.currentRevision.name ?? item.workout.id}</strong>
+                          </Link>
                           <span className={styles.deliveryState}>Garmin: {status?.state ?? "planned"}</span>
-                          <button className={styles.syncButton} onClick={() => void publishItem(item.id)} disabled={busy || !capabilities}>Evaluate sync</button>
+                          <div className={styles.eventActions}>
+                            <button className={styles.syncButton} onClick={() => void publishItem(item.id)} disabled={busy || !capabilities}>Evaluate sync</button>
+                            <button className={styles.deleteButton} onClick={() => void deleteItem(item)} disabled={busy || item.status !== "planned"}>Delete</button>
+                          </div>
                         </article>
                       );
                     })}
@@ -555,12 +578,17 @@ export default function TrainingCalendarClient() {
                     <span>{item.scheduledLocalTime} · {item.timezone}</span>
                   </div>
                   <div className={styles.workoutBlock}>
-                    <strong>{workout?.currentRevision.name ?? item.workout.id}</strong>
+                    <Link className={styles.eventLink} href="/activity-analysis" aria-label={`Open activity details for ${workout?.currentRevision.name ?? item.workout.id}`}>
+                      <strong>{workout?.currentRevision.name ?? item.workout.id}</strong>
+                    </Link>
                     <span>Plan: {item.status} · Delivery: {status?.state ?? "planned"}</span>
                     {status?.externalReference?.externalId && <small>Intervals ref: {status.externalReference.externalId}</small>}
                     {status?.latestJob?.lastErrorMessage && <small>{status.latestJob.lastErrorMessage}</small>}
                   </div>
-                  <button className={styles.secondary} onClick={() => void publishItem(item.id)} disabled={busy}>Evaluate sync</button>
+                  <div className={styles.eventActions}>
+                    <button className={styles.secondary} onClick={() => void publishItem(item.id)} disabled={busy}>Evaluate sync</button>
+                    <button className={styles.deleteButton} onClick={() => void deleteItem(item)} disabled={busy || item.status !== "planned"}>Delete</button>
+                  </div>
                 </article>
               );
             })}

@@ -1,10 +1,10 @@
 export const athleteProfile = {
   test: {
-    name: "Pentons Lactate Test",
-    date: "21 Aug 2026",
-    clinic: "Pentons Performance Therapy",
-    analyser: "Lactate Pro 2",
-    note: "Official Pentons / Proven Performance athlete report",
+    name: "Current athlete state",
+    date: "29 Sep 2026",
+    clinic: "Reported by Paul",
+    analyser: "Running HR capacity",
+    note: "Current threshold state supersedes the historical lactate-test HR anchor",
   },
   thresholds: [
     {
@@ -19,24 +19,24 @@ export const athleteProfile = {
     {
       key: "LT2",
       name: "Anaerobic threshold",
-      pace: "5:17/km",
-      speed: "11.35 km/h",
-      heartRate: "165 bpm",
-      lactate: "~4.5 mmol/L",
-      description: "Functional threshold; approximately the maximum sustainable 40–60 minute effort.",
+      pace: "Not recorded",
+      speed: "Not recorded",
+      heartRate: "176 bpm",
+      lactate: "Current LTHR",
+      description: "Current heart-rate threshold used for training prescription and Garmin workouts.",
     },
   ],
   zones: [
-    { zone: "Z1", name: "Easy / Recovery", pace: ">6:37/km", heartRate: "<132 bpm", share: "<80% LT2" },
-    { zone: "Z2", name: "Aerobic / Base", pace: "5:56–6:37/km", heartRate: "132–147 bpm", share: "80–89% LT2" },
-    { zone: "Z3", name: "Tempo", pace: "5:38–5:55/km", heartRate: "148–155 bpm", share: "90–94% LT2" },
-    { zone: "Z4", name: "Threshold", pace: "5:02–5:37/km", heartRate: "157–173 bpm", share: "95–105% LT2" },
-    { zone: "Z5", name: "VO₂ Max / Speed", pace: "<5:02/km", heartRate: ">173 bpm", share: ">105% LT2" },
+    { zone: "Z1", name: "Recovery", pace: "Use effort", heartRate: "≤149 bpm", share: "<85% LTHR" },
+    { zone: "Z2", name: "Aerobic", pace: "Use effort", heartRate: "150–157 bpm", share: "85–89% LTHR" },
+    { zone: "Z3", name: "Tempo", pace: "Use effort", heartRate: "158–166 bpm", share: "90–94% LTHR" },
+    { zone: "Z4", name: "Sub-threshold", pace: "Use effort", heartRate: "167–175 bpm", share: "95–99% LTHR" },
+    { zone: "Z5", name: "Threshold+", pace: "Use effort", heartRate: "176–198 bpm", share: "≥100% LTHR" },
   ],
   domains: [
     { name: "Moderate", range: "Below LT1", detail: "Slower than 6:34/km · typically below ~144 bpm" },
-    { name: "Heavy", range: "LT1 → LT2", detail: "6:34 → 5:17/km · ~144–165 bpm" },
-    { name: "Severe", range: "Above LT2", detail: "Faster than 5:17/km · typically above ~165 bpm" },
+    { name: "Sub-threshold", range: "Z4", detail: "167–175 bpm · 95–99% of current LTHR" },
+    { name: "Threshold+", range: "Z5", detail: "176–198 bpm · at or above current LTHR" },
   ],
   personalBests: [
     { distance: "5K", value: "24:47", detail: "Cheltenham parkrun PB", source: "Run history" },

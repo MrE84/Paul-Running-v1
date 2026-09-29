@@ -45,6 +45,12 @@
 .dayEvents { display: grid; gap: 6px; }
 .monthEvent { display: grid; gap: 4px; padding: 8px; border: 1px solid var(--border); border-left-width: 3px; border-radius: 10px; background: rgba(255,255,255,.035); }
 .monthEvent strong { font-size: .76rem; line-height: 1.25; overflow-wrap: anywhere; }
+.eventLink { display: block; color: inherit; text-decoration: none; }
+.eventLink:hover strong { color: var(--green); }
+.eventActions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.deleteButton { border: 1px solid rgba(255,130,130,.4); border-radius: 9px; background: rgba(255,100,100,.08); color: #ffb0b0; padding: 7px 10px; font: inherit; font-size: .76rem; font-weight: 800; cursor: pointer; }
+.deleteButton:hover:not(:disabled) { background: rgba(255,100,100,.18); }
+.deleteButton:disabled { opacity: .45; cursor: not-allowed; }
 .eventTopline { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
 .eventTopline span, .eventTopline small, .deliveryState { color: var(--muted); font-size: .66rem; }
 .eventTopline small { text-transform: capitalize; }
