@@ -137,6 +137,7 @@ export async function handleTrainingApiRequest(
           "POST /api/v1/training-plans/{id}/apply",
           "GET /api/v1/calendar-items/{id}/sync-status",
           "POST /api/v1/calendar-items/{id}/supersede",
+          "POST /api/v1/calendar-items/{id}/delete",
           "POST /api/v1/calendar-items/{id}/publish",
         ],
       });
