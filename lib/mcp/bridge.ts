@@ -1,5 +1,5 @@
 import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
-import { trainingMcpChallenge, validTrainingAccessToken, type OAuthOptions } from "./oauth";
+import { TRAINING_MCP_SCOPE, trainingMcpChallenge, validTrainingAccessToken, type OAuthOptions } from "./oauth";
 import type { WorkoutStep } from "../domain/contracts";
 import { ProductionWorkoutPublishError } from "../integrations/production-publisher";
 import type { TrainingApiActor } from "../training-api/contracts";
@@ -100,6 +100,15 @@ function authenticate(request: Request, options?: BridgeOptions) {
   if (!supplied || !secureEqual(supplied, expected)) {
     throw new TrainingApiError(401, "UNAUTHORIZED", "A valid Bearer token is required.");
   }
+}
+
+function authenticationRequiredToolResult(request: Request, options?: BridgeOptions) {
+  const challenge = `${trainingMcpChallenge(request.url, options?.oauth)}, error="invalid_token", error_description="Connect Paul’s Running Training to continue"`;
+  return {
+    content: [{ type: "text", text: "Authentication required. Connect Paul’s Running Training to continue." }],
+    _meta: { "mcp/www_authenticate": [challenge] },
+    isError: true,
+  };
 }
 
 function stable(value: unknown): string {
@@ -260,7 +269,6 @@ function toolError(error: unknown) {
 export async function handleMcpRequest(request: Request, options?: BridgeOptions): Promise<Response> {
   let body: JsonRpcRequest | undefined;
   try {
-    authenticate(request, options);
     body = (await request.json()) as JsonRpcRequest;
     if (body.jsonrpc !== "2.0" || typeof body.method !== "string") return rpcError(body.id, -32600, "Invalid Request");
     const modern = body.method === "server/discover" || isModernRequest(request, body);
@@ -279,14 +287,29 @@ export async function handleMcpRequest(request: Request, options?: BridgeOptions
     }
     if (body.method === "notifications/initialized") return new Response(null, { status: 202 });
     if (body.method === "ping") return rpcResult(body.id, {}, { modern });
-    if (body.method === "tools/list") return rpcResult(body.id, { tools: mcpTools.map(tool => ({
-      ...tool, annotations: { readOnlyHint: !["create_workout", "revise_workout", "create_training_plan", "apply_training_plan", "publish_calendar_item", "create_advanced_lunch_break_walk"].includes(tool.name) },
-    })) }, { modern, cacheable: modern });
+    if (body.method === "tools/list") {
+      if (request.headers.get("authorization")) authenticate(request, options);
+      return rpcResult(body.id, { tools: mcpTools.map(tool => ({
+        ...tool,
+        securitySchemes: [{ type: "oauth2", scopes: [TRAINING_MCP_SCOPE] }],
+        annotations: {
+          readOnlyHint: !["create_workout", "revise_workout", "create_training_plan", "apply_training_plan", "publish_calendar_item", "create_advanced_lunch_break_walk"].includes(tool.name),
+        },
+      })) }, { modern, cacheable: modern });
+    }
     if (body.method === "tools/call") {
       const name = body.params?.name;
       const args = body.params?.arguments;
       if (typeof name !== "string" || (args !== undefined && (typeof args !== "object" || args === null || Array.isArray(args)))) {
         return rpcError(body.id, -32602, "Invalid tools/call parameters");
+      }
+      try {
+        authenticate(request, options);
+      } catch (error) {
+        if (error instanceof TrainingApiError && error.status === 401) {
+          return rpcResult(body.id, authenticationRequiredToolResult(request, options), { modern });
+        }
+        throw error;
       }
       const runtime = options?.runtime ?? getTrainingApiRuntime();
       try {
@@ -299,7 +322,7 @@ export async function handleMcpRequest(request: Request, options?: BridgeOptions
   } catch (error) {
     if (error instanceof TrainingApiError) {
       const response = rpcError(body?.id, -32001, error.message, { code: error.code, details: error.details }, error.status);
-      if (error.status === 401) response.headers.set("WWW-Authenticate", trainingMcpChallenge(request.url));
+      if (error.status === 401) response.headers.set("WWW-Authenticate", trainingMcpChallenge(request.url, options?.oauth));
       return response;
     }
     return rpcError(body?.id, -32603, "Internal error", undefined, 500);
