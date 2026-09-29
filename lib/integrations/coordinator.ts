@@ -210,6 +210,11 @@ export class TrainingSyncCoordinator {
     const result = await this.connector.cancel(item, reference);
     const finishedAt = this.runtime.now();
     if (result.ok) {
+      await this.state.deleteExternalReference(
+        this.connector.provider,
+        "calendar_item",
+        item.id,
+      );
       await this.state.saveSyncJob({
         ...runningJob,
         state: "succeeded",
