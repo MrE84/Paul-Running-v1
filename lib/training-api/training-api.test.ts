@@ -238,3 +238,30 @@ test("sync status is a separate projection from canonical calendar status", asyn
   assert.equal(sync.state, "sent");
   assert.equal(sync.externalReference?.externalId, "provider-1");
 });
+
+test("set capacity closes the active revision, carries forward omitted values and is idempotent", async () => {
+  const { service, store, actor } = harness();
+  const profile = await service.setCapacity(athlete.id, { lt2HrBpm: 184, maxHrBpm: 203, source: "intervals_icu" }, actor("cap-1"));
+  assert.equal(profile.currentCapacity?.lt2HrBpm, 184);
+  assert.equal(profile.currentCapacity?.maxHrBpm, 203);
+  assert.equal(profile.currentCapacity?.restingHrBpm, 61, "omitted values carry forward");
+  const history = await store.listCapacities(athlete.id);
+  assert.equal(history.length, 2);
+  assert.equal(history.find((item) => item.id === "capacity-1")?.effectiveTo, "2026-09-11T12:00:00.000Z");
+  const replay = await service.setCapacity(athlete.id, { lt2HrBpm: 184, maxHrBpm: 203, source: "intervals_icu" }, actor("cap-1"));
+  assert.deepEqual(replay, profile);
+  assert.equal((await store.listCapacities(athlete.id)).length, 2);
+  assert.ok((await store.listAuditEvents()).some((event) => event.action === "capacity.set"));
+});
+
+test("set capacity works for an athlete with no prior capacity and rejects implausible values", async () => {
+  let id = 0;
+  const store = new InMemoryTrainingApiStore({ athletes: [athlete] });
+  const service = new TrainingApiService(store, { idFactory: () => `id-${++id}`, now: () => "2026-09-11T12:00:00.000Z" });
+  const actor = (key: string) => ({ type: "ai_client" as const, id: "chatgpt", requestId: `req-${key}`, idempotencyKey: key });
+  const profile = await service.setCapacity(athlete.id, { lt2HrBpm: 184 }, actor("a"));
+  assert.equal(profile.currentCapacity?.lt2HrBpm, 184);
+  await assert.rejects(() => service.setCapacity(athlete.id, {}, actor("b")), (error) => error instanceof TrainingApiError && error.code === "VALIDATION_FAILED");
+  await assert.rejects(() => service.setCapacity(athlete.id, { lt2HrBpm: 400 }, actor("c")), (error) => error instanceof TrainingApiError && error.code === "VALIDATION_FAILED");
+  await assert.rejects(() => service.setCapacity(athlete.id, { maxHrBpm: 180 }, actor("d")), (error) => error instanceof TrainingApiError && error.code === "VALIDATION_FAILED");
+});

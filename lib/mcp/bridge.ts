@@ -9,6 +9,7 @@ import {
   type ApplyPlanApiInput,
   type CreatePlanInput,
   type CreateWorkoutInput,
+  type SetCapacityInput,
   type PatchWorkoutInput,
 } from "../training-api/service";
 
@@ -159,6 +160,15 @@ const stepSchema = {
 
 export const mcpTools = [
   { name: "get_profile", description: "Read the primary athlete profile and active physiological capacity.", inputSchema: { type: "object", additionalProperties: false, properties: {} } },
+  {
+    name: "set_capacity", description: "Record the primary athlete's physiological thresholds (e.g. LTHR as lt2HrBpm, max HR). Omitted fields carry forward; the previous revision is closed, not overwritten. Heart-rate workout targets need lt2HrBpm or maxHrBpm set before they can publish to Intervals.icu.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {
+      maxHrBpm: { type: "number" }, restingHrBpm: { type: "number" }, lt1HrBpm: { type: "number" },
+      lt2HrBpm: { type: "number", description: "Lactate threshold heart rate (LTHR)." },
+      lt1PaceSecPerKm: { type: "number" }, lt2PaceSecPerKm: { type: "number", description: "Threshold pace in seconds per km." },
+      source: { type: "string" }, sourceNotes: { type: "string" },
+    } },
+  },
   { name: "get_zones", description: "Read the primary athlete's active training zone sets.", inputSchema: { type: "object", additionalProperties: false, properties: {} } },
   { name: "list_calendar", description: "List canonical training calendar items, optionally bounded by ISO timestamps.", inputSchema: { type: "object", additionalProperties: false, properties: { from: { type: "string" }, to: { type: "string" } } } },
   { name: "get_sync_status", description: "Read durable Intervals.icu/Garmin delivery state for a calendar item.", inputSchema: { type: "object", additionalProperties: false, required: ["calendarItemId"], properties: { calendarItemId: { type: "string" } } } },
@@ -209,6 +219,7 @@ async function callTool(name: string, args: Record<string, unknown>, request: Js
   const mutationActor = actor(name, args, request);
   switch (name) {
     case "get_profile": return service.getProfile(runtime.primaryAthleteId);
+    case "set_capacity": return service.setCapacity(runtime.primaryAthleteId, args as SetCapacityInput, mutationActor);
     case "get_zones": return service.listZones(runtime.primaryAthleteId);
     case "list_calendar": return service.listCalendar(runtime.primaryAthleteId, args.from as string | undefined, args.to as string | undefined);
     case "get_sync_status": return service.getSyncStatus(argString(args, "calendarItemId"));
@@ -294,7 +305,7 @@ export async function handleMcpRequest(request: Request, options?: BridgeOptions
         ...tool,
         securitySchemes: [{ type: "oauth2", scopes: [TRAINING_MCP_SCOPE] }],
         annotations: {
-          readOnlyHint: !["create_workout", "revise_workout", "create_training_plan", "apply_training_plan", "publish_calendar_item", "create_advanced_lunch_break_walk"].includes(tool.name),
+          readOnlyHint: !["set_capacity", "create_workout", "revise_workout", "create_training_plan", "apply_training_plan", "publish_calendar_item", "create_advanced_lunch_break_walk"].includes(tool.name),
         },
       })) }, { modern, cacheable: modern });
     }

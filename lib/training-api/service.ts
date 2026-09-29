@@ -7,6 +7,7 @@ import { reportAnalysisFailure } from "../activity-analysis/telemetry";
 import type {
   Activity,
   AuditEvent,
+  CapacityRevision,
   Sport,
   TrainingPlan,
   TrainingPlanItem,
@@ -41,6 +42,26 @@ export class TrainingApiError extends Error {
     this.name = "TrainingApiError";
   }
 }
+
+export interface SetCapacityInput {
+  maxHrBpm?: number;
+  restingHrBpm?: number;
+  lt1HrBpm?: number;
+  lt2HrBpm?: number;
+  lt1PaceSecPerKm?: number;
+  lt2PaceSecPerKm?: number;
+  source?: string;
+  sourceNotes?: string;
+}
+
+const CAPACITY_BOUNDS: Record<keyof Omit<SetCapacityInput, "source" | "sourceNotes">, [number, number]> = {
+  maxHrBpm: [100, 240],
+  restingHrBpm: [25, 120],
+  lt1HrBpm: [80, 230],
+  lt2HrBpm: [80, 235],
+  lt1PaceSecPerKm: [120, 900],
+  lt2PaceSecPerKm: [120, 900],
+};
 
 export interface CreateWorkoutInput {
   athleteId: string;
@@ -261,6 +282,51 @@ export class TrainingApiService {
   async validateWorkout(id: string) {
     const workout = await this.getWorkout(id);
     return validateWorkoutForSync({ workout: workout.currentRevision, context: await this.qaContext(workout.athleteId) });
+  }
+
+  /**
+   * Record a new physiological capacity revision. Fields left out carry forward from the
+   * currently active revision, which is closed (effectiveTo = now) rather than overwritten
+   * so the history of thresholds stays auditable.
+   */
+  async setCapacity(athleteId: string, input: SetCapacityInput, actor: TrainingApiActor): Promise<ProfileView> {
+    return this.idempotent(actor, "set_capacity", { athleteId, input }, async () => {
+      await this.requireAthlete(athleteId);
+      const metrics = Object.keys(CAPACITY_BOUNDS) as Array<keyof typeof CAPACITY_BOUNDS>;
+      const provided = metrics.filter((key) => input[key] !== undefined);
+      if (!provided.length) throw new TrainingApiError(400, "VALIDATION_FAILED", "Provide at least one capacity value.");
+      for (const key of provided) {
+        const value = input[key];
+        const [low, high] = CAPACITY_BOUNDS[key];
+        if (typeof value !== "number" || !Number.isFinite(value) || value < low || value > high) {
+          throw new TrainingApiError(400, "VALIDATION_FAILED", `${key} must be a number between ${low} and ${high}.`);
+        }
+      }
+      const now = this.runtime.now();
+      const current = (await this.qaContext(athleteId)).capacity;
+      const next: CapacityRevision = {
+        id: this.runtime.idFactory(),
+        athleteId,
+        effectiveFrom: now,
+        source: input.source ?? "manual",
+        ...(input.sourceNotes ? { sourceNotes: input.sourceNotes } : {}),
+        createdAt: now,
+      };
+      for (const key of metrics) {
+        const value = input[key] ?? current?.[key];
+        if (value !== undefined) next[key] = value;
+      }
+      if (next.maxHrBpm !== undefined && next.lt2HrBpm !== undefined && next.lt2HrBpm >= next.maxHrBpm) {
+        throw new TrainingApiError(400, "VALIDATION_FAILED", "lt2HrBpm must be below maxHrBpm.");
+      }
+      if (next.lt1HrBpm !== undefined && next.lt2HrBpm !== undefined && next.lt1HrBpm >= next.lt2HrBpm) {
+        throw new TrainingApiError(400, "VALIDATION_FAILED", "lt1HrBpm must be below lt2HrBpm.");
+      }
+      if (current) await this.store.saveCapacity({ ...current, effectiveTo: now });
+      await this.store.saveCapacity(next);
+      await this.audit(actor, "capacity.set", "capacity", next.id);
+      return this.getProfile(athleteId);
+    });
   }
 
   async createWorkout(input: CreateWorkoutInput, actor: TrainingApiActor): Promise<WorkoutMutationResult> {
