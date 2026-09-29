@@ -142,9 +142,14 @@ function longitudeToTile(longitude: number, zoom: number) {
  */
 export function osmTileLayout(viewport: MapViewport): OsmTile[] {
   if (viewport.width <= 0 || viewport.height <= 0 || !Number.isFinite(viewport.zoom)) return [];
-  const tileZoom = Math.max(0, Math.min(19, Math.floor(viewport.zoom)));
+  // MapLibre defines zoom against a 512 px world tile, while the direct OSM
+  // images below are 256 px tiles. The equivalent OSM zoom is therefore one
+  // level higher. Without this conversion the street map renders at half the
+  // GPS overlay's scale and visibly slides away during pan/fit operations.
+  const osmZoom = viewport.zoom + 1;
+  const tileZoom = Math.max(0, Math.min(19, Math.floor(osmZoom)));
   const tileCount = 2 ** tileZoom;
-  const scale = 2 ** (viewport.zoom - tileZoom);
+  const scale = 2 ** (osmZoom - tileZoom);
   const size = 256 * scale;
   const centerX = longitudeToTile(viewport.longitude, tileZoom);
   const centerY = latitudeToTile(viewport.latitude, tileZoom);

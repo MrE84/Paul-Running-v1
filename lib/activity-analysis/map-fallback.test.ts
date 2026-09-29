@@ -52,7 +52,7 @@ test("orients an exact GPS runner sample using adjacent travel direction", () =>
   assert.ok(runner.bearing < 5 || runner.bearing > 355);
 });
 
-test("builds direct OpenStreetMap DOM tiles around a Cheltenham viewport", () => {
+test("builds direct OpenStreetMap DOM tiles at MapLibre's equivalent 256 px zoom", () => {
   const tiles = osmTileLayout({
     longitude: -2.066,
     latitude: 51.9385,
@@ -62,6 +62,6 @@ test("builds direct OpenStreetMap DOM tiles around a Cheltenham viewport", () =>
   });
 
   assert.ok(tiles.length >= 9);
-  assert.ok(tiles.every(tile => tile.url.startsWith("https://tile.openstreetmap.org/13/")));
+  assert.ok(tiles.every(tile => tile.url.startsWith("https://tile.openstreetmap.org/14/")));
   assert.ok(tiles.every(tile => Number.isFinite(tile.left) && Number.isFinite(tile.top) && tile.size > 256));
 });
