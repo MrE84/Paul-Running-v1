@@ -210,6 +210,10 @@ export const mcpTools = [
     inputSchema: { type: "object", additionalProperties: false, required: ["calendarItemId"], properties: { calendarItemId: { type: "string" } } },
   },
   {
+    name: "sync_activities", description: "Pull recently completed activities from Intervals.icu (Garmin) into Paul's Running so they can be listed and analysed. Idempotent: activities already stored complete are skipped. Call this before reading activities if a recent session is missing. maxPages (1-3, default 1) sets how far back to look; each page covers about 15 days.",
+    inputSchema: { type: "object", additionalProperties: false, properties: { maxPages: { type: "integer", minimum: 1, maximum: 3, default: 1 } } },
+  },
+  {
     name: "create_advanced_lunch_break_walk", description: "Create the known-safe 10-minute validation walk: five automatic two-minute walking steps with no physiological target.",
     inputSchema: { type: "object", additionalProperties: false, properties: { name: { type: "string", default: "Advanced Lunch Break Walk" } } },
   },
@@ -274,6 +278,12 @@ async function callTool(name: string, args: Record<string, unknown>, request: Js
       if (!runtime.workoutPublisher) throw new TrainingApiError(503, "INTERVALS_ICU_AUTH_NOT_CONFIGURED", "Intervals.icu publishing is not configured.");
       return runtime.workoutPublisher.publishCalendarItem(calendarItemId, { actorType: mutationActor.type, actorId: mutationActor.id, requestId: mutationActor.requestId });
     }
+    case "sync_activities": {
+      const maxPages = args.maxPages === undefined ? 1 : argNumber(args, "maxPages");
+      if (!Number.isInteger(maxPages) || maxPages < 1 || maxPages > 3) throw new TrainingApiError(400, "VALIDATION_FAILED", "maxPages must be an integer from 1 to 3.");
+      if (!runtime.activityImporter) throw new TrainingApiError(503, "INTERVALS_ICU_ACTIVITY_IMPORT_NOT_CONFIGURED", "Intervals.icu activity import is not configured.");
+      return runtime.activityImporter.importRecent(maxPages);
+    }
     case "create_advanced_lunch_break_walk": {
       const steps: WorkoutStep[] = Array.from({ length: 5 }, (_, index) => ({
         id: randomUUID(), kind: "step", sequence: index, phase: "active", name: `Walk ${index + 1}`,
@@ -326,7 +336,7 @@ export async function handleMcpRequest(request: Request, options?: BridgeOptions
         ...tool,
         securitySchemes: [{ type: "oauth2", scopes: [TRAINING_MCP_SCOPE] }],
         annotations: {
-          readOnlyHint: !["set_capacity", "set_zones", "create_workout", "revise_workout", "create_training_plan", "apply_training_plan", "publish_calendar_item", "create_advanced_lunch_break_walk"].includes(tool.name),
+          readOnlyHint: !["set_capacity", "set_zones", "create_workout", "revise_workout", "create_training_plan", "apply_training_plan", "publish_calendar_item", "sync_activities", "create_advanced_lunch_break_walk"].includes(tool.name),
         },
       })) }, { modern, cacheable: modern });
     }

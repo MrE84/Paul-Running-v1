@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { handleMcpRequest, mcpTools } from "./bridge";
 import { createHash } from "node:crypto";
+import type { TrainingApiRuntimeBundle } from "../training-api/runtime";
 import { CHATGPT_CIMD_CLIENT_ID, CHATGPT_OAUTH_REDIRECT_URI, handleOAuthAuthorizationRequest, handleOAuthTokenRequest, type OAuthOptions } from "./oauth";
 
 function request(body: unknown, token = "test-token") {
@@ -156,4 +157,44 @@ test("scoped ChatGPT OAuth grants access to training tools, activity grants do n
   const rejected = await handleMcpRequest(request(body, activity), { token: "legacy-token", oauth });
   assert.equal(rejected.status, 401);
   assert.match(rejected.headers.get("WWW-Authenticate")!, /scope="training:write"/);
+});
+
+test("sync_activities imports recent activities through the configured importer", async () => {
+  const calls: number[] = [];
+  const result = { items: [], pagesProcessed: 1, imported: 1, repaired: 0, alreadyComplete: 3, alreadyImported: 3, failed: 0 };
+  const runtime = {
+    primaryAthleteId: "primary-athlete",
+    service: {},
+    activityImporter: { importRecent: async (maxPages: number) => { calls.push(maxPages); return result; } },
+  } as unknown as TrainingApiRuntimeBundle;
+
+  const call = (args: Record<string, unknown>) => handleMcpRequest(
+    request({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "sync_activities", arguments: args } }),
+    { token: "test-token", runtime },
+  ).then(response => response.json());
+
+  const defaulted = await call({});
+  assert.equal(defaulted.result.isError, undefined);
+  assert.equal(defaulted.result.structuredContent.imported, 1);
+  const wider = await call({ maxPages: 3 });
+  assert.equal(wider.result.structuredContent.alreadyComplete, 3);
+  assert.deepEqual(calls, [1, 3]);
+
+  const invalid = await call({ maxPages: 4 });
+  assert.equal(invalid.result.isError, true);
+  assert.equal(invalid.result.structuredContent.error.code, "VALIDATION_FAILED");
+  assert.deepEqual(calls, [1, 3]);
+
+  const listed = await (await handleMcpRequest(request({ jsonrpc: "2.0", id: 2, method: "tools/list" }), { token: "test-token" })).json();
+  assert.equal(listed.result.tools.find((tool: { name: string }) => tool.name === "sync_activities").annotations.readOnlyHint, false);
+});
+
+test("sync_activities reports a clear error when import is not configured", async () => {
+  const runtime = { primaryAthleteId: "primary-athlete", service: {} } as unknown as TrainingApiRuntimeBundle;
+  const payload = await (await handleMcpRequest(
+    request({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "sync_activities", arguments: {} } }),
+    { token: "test-token", runtime },
+  )).json();
+  assert.equal(payload.result.isError, true);
+  assert.equal(payload.result.structuredContent.error.code, "INTERVALS_ICU_ACTIVITY_IMPORT_NOT_CONFIGURED");
 });
