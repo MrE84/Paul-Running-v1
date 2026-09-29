@@ -96,8 +96,9 @@ function authenticate(request: Request, options?: BridgeOptions) {
   const header = request.headers.get("authorization") ?? "";
   const supplied = header.startsWith("Bearer ") ? header.slice(7) : "";
   if (supplied && validTrainingAccessToken(supplied, request.url, options?.oauth)) return;
-  const expected = configuredToken(options);
-  if (!supplied || !secureEqual(supplied, expected)) {
+  let expected = "";
+  try { expected = configuredToken(options); } catch { /* OAuth can be configured independently. */ }
+  if (!supplied || !expected || !secureEqual(supplied, expected)) {
     throw new TrainingApiError(401, "UNAUTHORIZED", "A valid Bearer token is required.");
   }
 }
