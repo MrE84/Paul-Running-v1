@@ -46,6 +46,14 @@ export class InMemoryIntegrationStateStore implements IntegrationStateStore {
     );
   }
 
+  async deleteExternalReference(provider: string, entityType: string, entityId: string): Promise<void> {
+    const key = entityKey(provider, entityType, entityId);
+    const existing = this.referencesByEntity.get(key);
+    if (!existing) return;
+    this.referencesByEntity.delete(key);
+    this.referencesByExternalId.delete(externalKey(provider, entityType, existing.externalId));
+  }
+
   async findSyncJobByIdempotencyKey(idempotencyKey: string): Promise<SyncJob | undefined> {
     return this.jobsByKey.get(idempotencyKey);
   }
