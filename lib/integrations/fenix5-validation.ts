@@ -61,7 +61,7 @@ export const FENIX5_VALIDATION_MATRIX: readonly Fenix5ValidationCase[] = [
     automatedExpectation: "Intervals text contains explicit time durations and no press-lap flag.",
     garminConnectExpectation: "Workout step is represented as a timed running step.",
     watchExpectation: "Step ends automatically when its timer expires.",
-    status: "device_pending",
+    status: "watch_verified",
   },
   {
     id: "distance_auto",
@@ -71,7 +71,7 @@ export const FENIX5_VALIDATION_MATRIX: readonly Fenix5ValidationCase[] = [
     automatedExpectation: "Intervals text contains metric distance tokens and no press-lap flag.",
     garminConnectExpectation: "Workout step is represented as a distance-based running step.",
     watchExpectation: "Step ends automatically at the prescribed distance.",
-    status: "device_pending",
+    status: "watch_verified",
   },
   {
     id: "repeat_block",
@@ -81,7 +81,7 @@ export const FENIX5_VALIDATION_MATRIX: readonly Fenix5ValidationCase[] = [
     automatedExpectation: "Intervals text contains one top-level repeat block with three repetitions.",
     garminConnectExpectation: "Three work/recovery repetitions are visible in the structured workout.",
     watchExpectation: "Watch executes three work/recovery cycles in order.",
-    status: "device_pending",
+    status: "watch_verified",
   },
   {
     id: "warmup_cooldown",
@@ -91,7 +91,7 @@ export const FENIX5_VALIDATION_MATRIX: readonly Fenix5ValidationCase[] = [
     automatedExpectation: "Warm-up is first and cool-down is last in translated workout text.",
     garminConnectExpectation: "Warm-up and cool-down appear around the repeat set.",
     watchExpectation: "Watch starts in warm-up and finishes in cool-down after repeats.",
-    status: "device_pending",
+    status: "watch_verified",
   },
   {
     id: "recovery",
@@ -101,7 +101,7 @@ export const FENIX5_VALIDATION_MATRIX: readonly Fenix5ValidationCase[] = [
     automatedExpectation: "Each work step is followed by an explicit recovery duration.",
     garminConnectExpectation: "Recovery steps are present between work repetitions.",
     watchExpectation: "Watch transitions from work to recovery automatically on each repetition.",
-    status: "device_pending",
+    status: "watch_verified",
   },
   {
     id: "heart_rate_range",
@@ -111,7 +111,7 @@ export const FENIX5_VALIDATION_MATRIX: readonly Fenix5ValidationCase[] = [
     automatedExpectation: "BPM range is translated to an explicit percentage-of-LTHR range.",
     garminConnectExpectation: "A heart-rate target range is attached to the active step.",
     watchExpectation: "Watch shows/alerts against the intended HR range without changing step duration semantics.",
-    status: "device_pending",
+    status: "watch_verified",
   },
   {
     id: "pace_range",
@@ -121,7 +121,7 @@ export const FENIX5_VALIDATION_MATRIX: readonly Fenix5ValidationCase[] = [
     automatedExpectation: "Absolute sec/km bounds render as an explicit min/max pace range.",
     garminConnectExpectation: "A pace target range is attached to the work step.",
     watchExpectation: "Watch displays the pace range and out-of-range guidance during work steps.",
-    status: "device_pending",
+    status: "watch_verified",
   },
   {
     id: "manual_lap",
@@ -131,7 +131,7 @@ export const FENIX5_VALIDATION_MATRIX: readonly Fenix5ValidationCase[] = [
     automatedExpectation: "Translated step includes the Intervals.icu press-lap flag plus a load-only placeholder duration.",
     garminConnectExpectation: "Step is represented as Lap-controlled rather than an ordinary automatic timer.",
     watchExpectation: "Step continues until Lap is pressed, then advances immediately.",
-    status: "device_pending",
+    status: "watch_verified",
   },
   {
     id: "edit_resync",
@@ -141,7 +141,7 @@ export const FENIX5_VALIDATION_MATRIX: readonly Fenix5ValidationCase[] = [
     automatedExpectation: "Stable external_id is preserved while changed source content produces an update payload.",
     garminConnectExpectation: "Existing scheduled workout is updated rather than duplicated.",
     watchExpectation: "After Garmin sync, only the current revision is offered for the scheduled session.",
-    status: "device_pending",
+    status: "watch_verified",
   },
 ] as const;
 
