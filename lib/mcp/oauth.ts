@@ -219,7 +219,7 @@ function firstForwardedValue(value: string | null): string {
   return (value ?? "").split(",")[0]?.trim() ?? "";
 }
 
-function approvalOriginAllowed(request: Request, suppliedCredentialValid = false): boolean {
+function approvalOriginAllowed(request: Request, suppliedCredentialValid = false, ownerAuthenticated = false): boolean {
   const suppliedOrigin = request.headers.get("origin");
   if (!suppliedOrigin) return false;
 
@@ -228,14 +228,18 @@ function approvalOriginAllowed(request: Request, suppliedCredentialValid = false
   const host = firstForwardedValue(request.headers.get("host"));
   const forwardedProto = firstForwardedValue(request.headers.get("x-forwarded-proto")) || requestUrl.protocol.replace(":", "");
 
-  // Some ChatGPT/Codex/Claude OAuth browser flows submit the consent form from an
-  // opaque browser context, which sends Origin: null. Accept that narrow case
-  // only after the dedicated owner credential has been verified and only when
-  // Vercel's public/forwarded host metadata is aligned with the HTTPS request.
+  // Some OAuth browser flows submit the consent form from an opaque context.
+  // A verified owner credential is sufficient. For an existing owner session,
+  // require browser fetch metadata proving a same-origin document navigation.
+  // Both cases also require aligned HTTPS host metadata.
   if (suppliedOrigin === "null") {
     const candidateHosts = [forwardedHost, host].filter(Boolean);
     const hostsAligned = candidateHosts.length > 0 && candidateHosts.every(candidate => candidate === requestUrl.host);
-    return suppliedCredentialValid
+    const sameOriginSessionSubmission = ownerAuthenticated
+      && request.headers.get("sec-fetch-site") === "same-origin"
+      && request.headers.get("sec-fetch-mode") === "navigate"
+      && request.headers.get("sec-fetch-dest") === "document";
+    return (suppliedCredentialValid || sameOriginSessionSubmission)
       && requestUrl.protocol === "https:"
       && forwardedProto === "https"
       && hostsAligned;
@@ -409,7 +413,7 @@ export async function handleOAuthAuthorizationRequest(request: Request, options?
   const ownerSecret = ownerSecretForResource(params.resource, request.url, options);
   const suppliedCredentialValid = Boolean(ownerSecret && supplied && secureEqual(supplied, ownerSecret));
 
-  if (!approvalOriginAllowed(request, suppliedCredentialValid)) {
+  if (!approvalOriginAllowed(request, suppliedCredentialValid, Boolean(options?.ownerAuthenticated))) {
     console.warn("OAuth approval origin rejected", {
       requestOrigin: new URL(request.url).origin,
       suppliedOrigin: request.headers.get("origin"),

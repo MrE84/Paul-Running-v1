@@ -298,6 +298,34 @@ test("accepts an opaque null Origin only with the verified dedicated activity cr
   assert.equal(misalignedHost.status, 403);
 });
 
+test("accepts null-Origin consent from an authenticated same-origin browser navigation", async () => {
+  const values = authorizationUrl().searchParams;
+  values.set("decision", "approve");
+  const headers = {
+    origin: "null",
+    "content-type": "application/x-www-form-urlencoded",
+    "x-forwarded-host": "example.test",
+    "x-forwarded-proto": "https",
+    host: "example.test",
+    "sec-fetch-site": "same-origin",
+    "sec-fetch-mode": "navigate",
+    "sec-fetch-dest": "document",
+  };
+  const submit = (ownerAuthenticated: boolean, overrides: Record<string, string> = {}) =>
+    handleOAuthAuthorizationRequest(new Request(`${origin}/api/oauth/authorize`, {
+      method: "POST", headers: { ...headers, ...overrides }, body: values,
+    }), { ...options(), ownerAuthenticated });
+
+  const approved = await submit(true);
+  assert.equal(approved.status, 302);
+  assert.ok(new URL(approved.headers.get("location")!).searchParams.get("code"));
+
+  assert.equal((await submit(false)).status, 403);
+  assert.equal((await submit(true, { "sec-fetch-site": "cross-site" })).status, 403);
+  assert.equal((await submit(true, { "sec-fetch-mode": "cors" })).status, 403);
+  assert.equal((await submit(true, { "x-forwarded-host": "other.example" })).status, 403);
+});
+
 test("uses the dedicated activity read credential for activity consent without granting training access", async () => {
   const oauth: OAuthOptions = {
     ...options(),
