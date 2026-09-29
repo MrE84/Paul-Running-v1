@@ -301,6 +301,8 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
   }, [selection, ready]);
 
   useEffect(() => {
+    // The visible runner lives in the SVG overlay, which otherwise only redraws on camera events.
+    refreshOverlayRef.current?.();
     const m = map.current;
     if (!m || !ready || !m.isStyleLoaded()) return;
     const cursorSource = m.getSource("cursor") as GeoJSONSource | undefined;
