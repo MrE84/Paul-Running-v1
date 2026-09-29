@@ -56,7 +56,7 @@ function runtime(): TrainingApiRuntimeBundle {
       sport: "running",
       startedAt: projection.activity.startedAt,
       sourceFileName: "Saturday run.fit",
-      sourceMetadata: { name: "Saturday run" },
+      sourceMetadata: { name: "Saturday run", externalId: "i185832465" },
       normalizedData: { records: [{ heart_rate: 165, enhanced_altitude: 67.4 }] },
     }),
   };
@@ -110,6 +110,7 @@ test("activity MCP exposes only the constrained read-only activity catalog", asy
     "get_activity_analysis",
     "get_activity_raw",
     "get_activity_sample",
+    "compare_provider_streams",
   ]);
 });
 
@@ -137,6 +138,7 @@ test("activity MCP supports 2026-07-28 discovery and tool listing", async () => 
     "get_activity_analysis",
     "get_activity_raw",
     "get_activity_sample",
+    "compare_provider_streams",
   ]);
 });
 
@@ -178,4 +180,44 @@ test("activity MCP exposes the stored decoded FIT payload", async () => {
   const payload = await response.json();
   assert.equal(payload.result.structuredContent.activity.id, "i185832465");
   assert.equal(payload.result.structuredContent.normalizedData.records[0].heart_rate, 165);
+});
+
+test("activity MCP compares Intervals.icu HR streams with the canonical FIT projection", async () => {
+  const bundle = runtime();
+  const requested: string[] = [];
+  bundle.providerStreams = {
+    getActivityStreams: async (id) => {
+      requested.push(id);
+      return [
+        { type: "time", data: [1120, 1123, 1126, 5000] },
+        { type: "heartrate", data: [163, 165, 168, 150] },
+        { type: "raw_heartrate", data: [163, 166, 166, 150] },
+      ];
+    },
+  };
+  const response = await handleActivityMcpRequest(
+    request({ jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "compare_provider_streams", arguments: { activityId: "i185832465" } } }),
+    { token: "test-token", runtime: bundle },
+  );
+  const value = (await response.json()).result.structuredContent;
+  assert.deepEqual(requested, ["i185832465"]);
+  assert.equal(value.canonicalModified, false);
+  assert.equal(value.rawHeartRateAvailable, true);
+  const [hr, raw, fixed] = value.heartRate;
+  assert.equal(hr.alignedSamples, 3);
+  assert.equal(hr.maxAbsoluteDiffBpm, 2);
+  assert.equal(hr.withinOneBpmPercent, 66.7);
+  assert.equal(raw.meanAbsoluteDiffBpm, 0.33);
+  assert.equal(fixed.available, false);
+  assert.deepEqual(projection.streams.channels.heart_rate, [163, 165, 166]);
+});
+
+test("activity MCP stream comparison reports when Intervals.icu is not configured", async () => {
+  const response = await handleActivityMcpRequest(
+    request({ jsonrpc: "2.0", id: 7, method: "tools/call", params: { name: "compare_provider_streams", arguments: { activityId: "i185832465" } } }),
+    { token: "test-token", runtime: runtime() },
+  );
+  const payload = await response.json();
+  assert.equal(payload.result.isError, true);
+  assert.equal(payload.result.structuredContent.error.code, "INTERVALS_ICU_NOT_CONFIGURED");
 });
