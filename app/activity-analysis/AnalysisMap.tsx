@@ -181,22 +181,22 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
       try {
         const current = routeData.current;
         instance.addSource("route-base", { type: "geojson", data: current.baseRoute });
-        instance.addLayer({ id: "route-base-line", type: "line", source: "route-base", paint: { "line-color": "#38bdf8", "line-width": 6, "line-opacity": .9 }, layout: { "line-cap": "round", "line-join": "round" } });
+        instance.addLayer({ id: "route-base-line", type: "line", source: "route-base", paint: { "line-color": "#38bdf8", "line-width": 6, "line-opacity": 0 }, layout: { "line-cap": "round", "line-join": "round" } });
         instance.addSource("route", { type: "geojson", data: current.features });
         instance.addLayer({ id: "route-hit", type: "line", source: "route", paint: { "line-width": 20, "line-opacity": 0 } });
         try {
-          instance.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": ["get", "color"], "line-width": 4 }, layout: { "line-cap": "round" } });
+          instance.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": ["get", "color"], "line-width": 4, "line-opacity": 0 }, layout: { "line-cap": "round" } });
         } catch {
-          instance.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": "#60a5fa", "line-width": 4 }, layout: { "line-cap": "round" } });
+          instance.addLayer({ id: "route-line", type: "line", source: "route", paint: { "line-color": "#60a5fa", "line-width": 4, "line-opacity": 0 }, layout: { "line-cap": "round" } });
         }
         instance.addLayer({ id: "route-selection", type: "line", source: "route", filter: ["==", ["get", "index"], -1], paint: { "line-color": "#ffffff", "line-width": 7, "line-opacity": .8 } });
         instance.addSource("markers", { type: "geojson", data: current.markers });
-        instance.addLayer({ id: "lap-markers", type: "circle", source: "markers", paint: { "circle-radius": ["case", ["==", ["get", "kind"], "lap"], 4, 7], "circle-color": ["match", ["get", "kind"], "start", "#6ee7b7", "finish", "#fb7185", "#94a3b8"], "circle-stroke-color": "#0c1422", "circle-stroke-width": 2 } });
+        instance.addLayer({ id: "lap-markers", type: "circle", source: "markers", paint: { "circle-radius": ["case", ["==", ["get", "kind"], "lap"], 4, 7], "circle-color": ["match", ["get", "kind"], "start", "#6ee7b7", "finish", "#fb7185", "#94a3b8"], "circle-opacity": 0, "circle-stroke-opacity": 0, "circle-stroke-color": "#0c1422", "circle-stroke-width": 2 } });
         instance.addSource("weather", { type: "geojson", data: emptyCollection });
         instance.addLayer({ id: "weather-arrows", type: "line", source: "weather", paint: { "line-color": ["case", ["get", "selected"], "#ffffff", "#7dd3fc"], "line-width": ["case", ["get", "selected"], 4, 2], "line-opacity": .9 } });
         instance.addLayer({ id: "weather-markers", type: "circle", source: "weather", paint: { "circle-radius": 3, "circle-color": "#7dd3fc", "circle-stroke-color": "#122033", "circle-stroke-width": 1 } });
         instance.addSource("cursor", { type: "geojson", data: emptyCollection });
-        instance.addLayer({ id: "cursor", type: "circle", source: "cursor", paint: { "circle-radius": 8, "circle-color": "#ffffff", "circle-stroke-color": "#60a5fa", "circle-stroke-width": 3 } });
+        instance.addLayer({ id: "cursor", type: "circle", source: "cursor", paint: { "circle-radius": 8, "circle-color": "#ffffff", "circle-opacity": 0, "circle-stroke-opacity": 0, "circle-stroke-color": "#60a5fa", "circle-stroke-width": 3 } });
         setReady(true);
         fitPoints(instance, current.points);
         scheduleOverlay();
@@ -322,19 +322,20 @@ export default memo(function AnalysisMap({ projection, hover, selection, onHover
       {tiles && <div aria-hidden="true" style={{ position: "absolute", inset: 1, overflow: "hidden", zIndex: 1, pointerEvents: "none", borderRadius: 11 }}>
         {browserOverlay.tiles.map(tile => <img key={tile.key} src={tile.url} alt="" draggable={false} onError={() => setTileError(true)} style={{ position: "absolute", left: tile.left, top: tile.top, width: tile.size + 1, height: tile.size + 1, maxWidth: "none", opacity: .82, filter: "saturate(.75) brightness(.72)" }} />)}
       </div>}
-      <div ref={container} className={styles.map} aria-label="Interactive activity map" style={{ position: "relative", background: "transparent" }} />
-      <svg aria-hidden="true" width="100%" height="100%" style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none" }}>
-        {browserOverlay.paths.map(path => <path key={`base-${path.segment}`} d={path.d} fill="none" stroke="#38bdf8" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" opacity=".9" />)}
-        {browserOverlay.lines.map(line => <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={line.color} strokeWidth="4" strokeLinecap="round" />)}
-        {browserOverlay.markers.map(marker => <circle key={marker.kind} cx={marker.x} cy={marker.y} r="7" fill={marker.kind === "start" ? "#6ee7b7" : "#fb7185"} stroke="#0c1422" strokeWidth="2" />)}
-        {browserOverlay.runner && <circle cx={browserOverlay.runner.x} cy={browserOverlay.runner.y} r="5.5" fill="#60a5fa" stroke="#ffffff" strokeWidth="2.5" />}
-      </svg>
+      <div className={styles.mapStack}>
+        <div ref={container} className={styles.map} aria-label="Interactive activity map" style={{ position: "relative", background: "transparent" }} />
+        <svg aria-hidden="true" width="100%" height="100%" style={{ position: "absolute", inset: 0, zIndex: 2, pointerEvents: "none" }}>
+          {browserOverlay.lines.map(line => <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke={line.color} strokeWidth="4" strokeLinecap="round" />)}
+          {browserOverlay.markers.map(marker => <circle key={marker.kind} cx={marker.x} cy={marker.y} r="7" fill={marker.kind === "start" ? "#6ee7b7" : "#fb7185"} stroke="#0c1422" strokeWidth="2" />)}
+          {browserOverlay.runner && <circle cx={browserOverlay.runner.x} cy={browserOverlay.runner.y} r="5.5" fill="#60a5fa" stroke="#ffffff" strokeWidth="2.5" />}
+        </svg>
+      </div>
       {tiles && <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style={{ position: "absolute", right: 4, bottom: 3, zIndex: 6, fontSize: 9, color: "#d8e7f7", background: "rgba(6,17,29,.8)", padding: "2px 4px", borderRadius: 3 }}>© OpenStreetMap contributors</a>}
     </div>
     {error && <p role="status" className={styles.quiet}>{error}</p>}
     {tileError && tiles && <p role="status" className={styles.quiet}>Some OpenStreetMap tile images were blocked or unavailable. The recorded GPS route remains visible independently.</p>}
     {!points.length && <p className={styles.quiet}>No route points are currently visible. Set start / finish privacy to Off or clear custom masks.</p>}
-    <p className={styles.quiet}>GPS samples {gpsSamples.toLocaleString()} · visible route points {points.length.toLocaleString()} · base route segments {baseRoute.features.length.toLocaleString()} · coloured segments {features.features.length.toLocaleString()} · position {hover === null ? "waiting for chart scrub" : browserOverlay.runner ? "synced" : "hidden at route gap"} · browser overlay {browserOverlay.paths.length ? "active" : "waiting"} · street tiles {tiles ? browserOverlay.tiles.length.toLocaleString() : "off"} · map {ready ? "ready" : "loading"}</p>
+    <p className={styles.quiet}>GPS samples {gpsSamples.toLocaleString()} · visible route points {points.length.toLocaleString()} · base route segments {baseRoute.features.length.toLocaleString()} · coloured segments {features.features.length.toLocaleString()} · position {hover === null ? "waiting for chart scrub" : browserOverlay.runner ? "synced" : "hidden at route gap"} · browser overlay {browserOverlay.lines.length ? "active" : "waiting"} · street tiles {tiles ? browserOverlay.tiles.length.toLocaleString() : "off"} · map {ready ? "ready" : "loading"}</p>
     <div className={styles.mapLegend}><span>{formatChannel(metric, limits.min, units)}</span><i /><span>{formatChannel(metric, limits.max, units)}</span></div>
     <p className={styles.quiet}>Scrub any chart to move the position marker along the same GPS moment. Start <span style={{ color: "#6ee7b7" }}>●</span> · Finish <span style={{ color: "#fb7185" }}>●</span>{projection.weather?.status === "available" ? " · Blue arrows show wind direction" : ""} · Click a lap marker to select it.</p>
     <details className={styles.details}><summary>Map privacy & detail <span>{radius ? `${radius} m masked` : "Mask off"}</span></summary>
