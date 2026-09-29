@@ -61,6 +61,8 @@ export interface TrainingApiStore {
 
   getAthlete(id: string): Promise<Athlete | undefined>;
   listCapacities(athleteId: string): Promise<CapacityRevision[]>;
+  /** Persist a capacity revision (and any predecessor it closes via effectiveTo). */
+  saveCapacity(capacity: CapacityRevision): Promise<void>;
   listZoneSets(athleteId: string): Promise<ZoneSet[]>;
 
   listWorkouts(athleteId: string): Promise<Workout[]>;

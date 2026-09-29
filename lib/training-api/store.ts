@@ -51,6 +51,11 @@ export class InMemoryTrainingApiStore implements TrainingApiStore {
   async withIdempotencyLock<T>(_key: string, operation: () => Promise<T>): Promise<T> { return operation(); }
   async getAthlete(id: string) { return this.athletes.get(id); }
   async listCapacities(athleteId: string) { return this.capacities.filter((item) => item.athleteId === athleteId).sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)); }
+  async saveCapacity(capacity: CapacityRevision) {
+    const index = this.capacities.findIndex((item) => item.id === capacity.id);
+    if (index >= 0) this.capacities[index] = capacity;
+    else this.capacities.push(capacity);
+  }
   async listZoneSets(athleteId: string) { return this.zones.filter((item) => item.athleteId === athleteId).sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)); }
   async listWorkouts(athleteId: string) { return [...this.workouts.values()].filter((item) => item.athleteId === athleteId).sort((a, b) => a.id.localeCompare(b.id)); }
   async getWorkout(id: string) { return this.workouts.get(id); }

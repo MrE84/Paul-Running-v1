@@ -195,6 +195,10 @@ export class PostgresTrainingStore implements TrainingApiStore, IntegrationState
     return sortBy(await this.list<CapacityRevision>("capacity", athleteId), (item) => item.effectiveFrom);
   }
 
+  async saveCapacity(capacity: CapacityRevision): Promise<void> {
+    await this.write("capacity", capacity.id, capacity.athleteId, capacity, capacity.effectiveFrom);
+  }
+
   async listZoneSets(athleteId: string): Promise<ZoneSet[]> {
     return sortBy(await this.list<ZoneSet>("zone_set", athleteId), (item) => item.effectiveFrom);
   }
