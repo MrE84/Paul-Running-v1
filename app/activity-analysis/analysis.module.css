@@ -2,7 +2,8 @@
 /* Native resize handles keep the first-load dimensions and let ResizeObserver reflow both renderers. */
 .plot { resize: both; overflow: hidden; min-width: min(240px, 100%); min-height: 145px; max-width: 100%; }
 .mapViewport { position: relative; overflow: hidden; resize: both; width: 100%; height: 440px; min-width: min(280px, 100%); min-height: 260px; max-width: 100%; border-radius: 12px; background: #122033; }
-.mapStack { position: relative; width: 100%; height: 100%; z-index: 1; }
-.mapViewport .map { width: 100%; height: 100%; }
+.mapStack { position: relative; width: 100%; height: 100%; }
+.mapViewport .map { width: 100%; height: 100%; border: 0; }
+.mapOverlay { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .mapViewport:fullscreen { resize: none; width: 100vw; max-width: none; height: 100vh; border-radius: 0; }
 .mapActions { display: flex; gap: 8px; flex-wrap: wrap; }
