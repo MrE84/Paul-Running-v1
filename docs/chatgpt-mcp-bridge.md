@@ -32,6 +32,9 @@ Read tools:
 - `get_workout`
 - `list_training_plans`
 - `get_training_plan`
+- `get_activity_debrief` (PAU-85)
+- `list_activity_debriefs` (PAU-85)
+- `get_debrief_guide` (PAU-88)
 
 Write tools:
 
@@ -41,8 +44,25 @@ Write tools:
 - `apply_training_plan`
 - `publish_calendar_item`
 - `create_advanced_lunch_break_walk`
+- `save_activity_debrief` (PAU-84)
 
 The bridge deliberately exposes no arbitrary HTTP fetch, SQL, shell, filesystem, environment-variable, or provider-credential operations.
+
+## Post-run debriefs (PAU-80)
+
+Paul talks a run through with Claude (or ChatGPT) and the result is saved against that activity and shown in the **Debrief** section of its page on the website. The workflow for any client:
+
+1. `sync_activities` if the run is missing, then find the activity id with `list_activities` on the activity connection.
+2. `get_debrief_guide` before starting. It returns the debrief protocol (ask first and interpret second, what to cover, when to save) and the coaching knowledge base with its question bank.
+3. Talk the run through with Paul. Read the numbers with `get_activity_analysis`, and check `get_activity_debrief` for an existing debrief.
+4. After Paul confirms, `save_activity_debrief` once per activity. Back-to-back runs are separate activities with separate debriefs.
+5. The debrief appears under the Debrief heading on `/activity-analysis/{activityId}`, and the calendar marks completed runs that have one.
+
+`save_activity_debrief` lives on this write-scoped training connection because the activity connection is read-only. The activity connection can still read debriefs (`get_activity_debrief`, `list_activity_debriefs`), so anything Paul has authorised to read activities can also read his debriefs. Debriefs can contain health details such as niggles: they are only served through authenticated routes, and their text is never written to audit events or logs.
+
+Saving is create-or-update, one debrief per activity. Fields left out keep their saved value; an empty string (or `null` for `rpe`) clears one. Saving identical content is a no-op, so repeating a call is safe. Pass `expectedVersion` (the `version` from `get_activity_debrief`, or `0` if none) to get a `VERSION_CONFLICT` instead of overwriting a website edit. Claude only acts while Paul is in the conversation; there is no background debriefing.
+
+The coaching guide is `lib/debriefs/guide/coaching-knowledge-base.md`. Edit or extend that markdown file to change what `get_debrief_guide` returns; no code change is needed. The protocol text lives in `lib/debriefs/protocol.ts`.
 
 ## Safety and idempotency
 

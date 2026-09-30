@@ -205,6 +205,31 @@ export const activityMcpTools = [
     },
   },
   {
+    name: "get_activity_debrief",
+    title: "Get a post-run debrief",
+    description: "Read Paul's saved debrief for one completed activity (RPE, how the body and mind felt, context, learnings), or null if none has been recorded. Debriefs can contain health details; use them only to help Paul with his running.",
+    securitySchemes: [{ type: "oauth2", scopes: [ACTIVITY_MCP_SCOPE] }],
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["activityId"],
+      properties: { activityId: { type: "string" } },
+    },
+  },
+  {
+    name: "list_activity_debriefs",
+    title: "List recent post-run debriefs",
+    description: "List Paul's recent post-run debriefs, newest first, so patterns such as repeated niggles or easy runs run too fast can be spotted. Read-only.",
+    securitySchemes: [{ type: "oauth2", scopes: [ACTIVITY_MCP_SCOPE] }],
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: { limit: { type: "integer", minimum: 1, maximum: 100, default: 10 } },
+    },
+  },
+  {
     name: "compare_provider_streams",
     title: "Compare Intervals.icu streams with the FIT record",
     description: "Fetch the Intervals.icu heart-rate streams (heartrate, raw_heartrate, fixed_heartrate) for one activity and compare them with the canonical FIT-derived projection. Read-only: the canonical record is never changed.",
@@ -274,6 +299,10 @@ async function callTool(name: string, args: Record<string, unknown>, runtime: Tr
       const projection = await service.getActivityAnalysis(runtime.primaryAthleteId, argString(args, "activityId"), false);
       return sampleAt(projection, finiteNumber(args, "elapsedSeconds"));
     }
+    case "get_activity_debrief":
+      return service.getActivityDebrief(runtime.primaryAthleteId, argString(args, "activityId"));
+    case "list_activity_debriefs":
+      return service.listActivityDebriefs(runtime.primaryAthleteId, { limit: boundedInteger(args, "limit", 10, 1, 100) });
     case "compare_provider_streams": {
       if (!runtime.providerStreams) {
         throw new TrainingApiError(503, "INTERVALS_ICU_NOT_CONFIGURED", "Intervals.icu stream reads are not configured on this server.");

@@ -20,6 +20,14 @@ import type {
   ZoneSet,
 } from "../domain/contracts";
 import { applyTrainingPlan } from "../calendar/apply-plan";
+import type {
+  ActivityDebrief,
+  ActivityDebriefRevision,
+  ActivityDebriefView,
+  ListDebriefsOptions,
+  SaveDebriefInput,
+} from "../debriefs/contracts";
+import { hasDebriefContent, mergeDebriefFields, validateSaveDebriefInput } from "../debriefs/validation";
 import { parseLocalDate, parseLocalTime, assertValidTimeZone } from "../calendar/timezone";
 import type { IntegrationStateStore } from "../integrations/contracts";
 import { validateWorkoutForSync } from "../qa";
@@ -543,6 +551,80 @@ export class TrainingApiService {
     const externalReference = await this.integrationState?.findExternalReference(this.provider, "calendar_item", calendarItemId);
     const state: SyncStatusView["state"] = latestJob?.state === "succeeded" && externalReference ? "sent" : latestJob?.state === "retryable_failure" || latestJob?.state === "permanent_failure" ? "failed" : latestJob ? "queued" : "planned";
     return { calendarItem, provider: this.provider, state, latestJob, externalReference };
+  }
+
+  private debriefView(activity: Activity | undefined, debrief: ActivityDebrief): ActivityDebriefView {
+    const durationSeconds = activity?.summary.durationSeconds;
+    const sessionRpeLoad = debrief.rpe !== undefined && durationSeconds ? Math.round(debrief.rpe * (durationSeconds / 60)) : undefined;
+    return {
+      ...debrief,
+      ...(activity ? { activityTitle: activityListItem(activity).title } : {}),
+      activityStartedAt: activity?.startedAt ?? debrief.recordedAt,
+      derived: { ...(durationSeconds ? { durationSeconds } : {}), ...(sessionRpeLoad !== undefined ? { sessionRpeLoad } : {}) },
+    };
+  }
+
+  /** PAU-83: the debrief for one activity, or null when none has been recorded yet. */
+  async getActivityDebrief(athleteId: string, activityId: string): Promise<ActivityDebriefView | null> {
+    const activity = await this.getActivity(athleteId, activityId);
+    const debrief = await this.store.getActivityDebrief(activityId);
+    return debrief && debrief.athleteId === athleteId ? this.debriefView(activity, debrief) : null;
+  }
+
+  async getActivityDebriefHistory(athleteId: string, activityId: string): Promise<ActivityDebriefRevision[]> {
+    await this.getActivity(athleteId, activityId);
+    return this.store.listActivityDebriefRevisions(activityId);
+  }
+
+  /** Recent debriefs, newest first. Activities that have since been removed still appear. */
+  async listActivityDebriefs(athleteId: string, options: ListDebriefsOptions = {}): Promise<ActivityDebriefView[]> {
+    await this.requireAthlete(athleteId);
+    const limit = Math.max(1, Math.min(100, Math.floor(options.limit ?? 10)));
+    const debriefs = await this.store.listActivityDebriefs(athleteId, limit, { from: options.from, to: options.to });
+    return Promise.all(debriefs.map(async (debrief) => this.debriefView(await this.store.getActivity(debrief.activityId), debrief)));
+  }
+
+  /**
+   * Create or update the debrief for one activity (one per activity, versioned). Omitted
+   * fields carry forward; null or blank text clears a field. Saving identical content is a
+   * no-op, so repeated calls from Claude are safe. Free text is never audited or logged.
+   */
+  async saveActivityDebrief(athleteId: string, activityId: string, input: SaveDebriefInput, actor: TrainingApiActor): Promise<ActivityDebriefView> {
+    const now = this.runtime.now();
+    const problems = validateSaveDebriefInput(input, now);
+    if (problems.length) throw new TrainingApiError(400, "VALIDATION_FAILED", problems.map((problem) => problem.message).join(" "), problems);
+    const activity = await this.getActivity(athleteId, activityId);
+    return this.store.withIdempotencyLock(`entity:debrief:${activityId}`, async () => {
+      const current = await this.store.getActivityDebrief(activityId);
+      if (current && current.athleteId !== athleteId) throw new TrainingApiError(404, "NOT_FOUND", "Activity was not found.");
+      const currentVersion = current?.version ?? 0;
+      if (input.expectedVersion !== undefined && input.expectedVersion !== currentVersion) {
+        throw new TrainingApiError(409, "VERSION_CONFLICT", `Expected debrief version ${input.expectedVersion}, current version is ${currentVersion}. Re-read the debrief and merge before saving.`, { currentVersion, expectedVersion: input.expectedVersion });
+      }
+      const fields = mergeDebriefFields(current, input);
+      if (!hasDebriefContent(fields)) throw new TrainingApiError(400, "VALIDATION_FAILED", "A debrief needs an RPE or at least one written field.");
+      const recordedAt = input.recordedAt ? new Date(input.recordedAt).toISOString() : current?.recordedAt ?? now;
+      const source = input.source ?? current?.source ?? "text-chat";
+      const unchanged = current
+        && current.rpe === fields.rpe
+        && (["bodyFeel", "mentalState", "context", "planNotes", "learnings"] as const).every((field) => current[field] === fields[field])
+        && current.recordedAt === recordedAt
+        && current.source === source;
+      if (current && unchanged) return this.debriefView(activity, current);
+      const debrief: ActivityDebrief = {
+        activityId,
+        athleteId,
+        version: currentVersion + 1,
+        ...fields,
+        recordedAt,
+        source,
+        createdAt: current?.createdAt ?? now,
+        updatedAt: now,
+      };
+      await this.store.saveActivityDebrief(debrief, { ...debrief, savedByActorType: actor.type, savedByActorId: actor.id });
+      await this.audit(actor, "debrief.saved", "activity_debrief", activityId, debrief.version);
+      return this.debriefView(activity, debrief);
+    });
   }
 
   async ingestActivity(activity: Activity) { await this.store.saveActivity(activity); }

@@ -14,6 +14,7 @@ import type {
   WorkoutRevision,
   ZoneSet,
 } from "../domain/contracts";
+import type { ActivityDebrief, ActivityDebriefRevision } from "../debriefs/contracts";
 import type { IntegrationStateStore } from "../integrations/contracts";
 import type { PlanApplication, ScheduledCalendarItem } from "../calendar/contracts";
 import {
@@ -96,6 +97,10 @@ export class PostgresTrainingStore implements TrainingApiStore, IntegrationState
 
           create index if not exists training_api_documents_payload_gin_idx
             on training_api_documents using gin (payload jsonb_path_ops);
+
+          create index if not exists training_api_documents_debrief_idx
+            on training_api_documents (athlete_id, sort_key desc nulls last)
+            where kind = 'activity_debrief';
 
           create table if not exists training_api_idempotency (
             key text primary key,
@@ -342,6 +347,44 @@ export class PostgresTrainingStore implements TrainingApiStore, IntegrationState
   async getAnalysisCache(id: string): Promise<ProjectionCacheEntry | undefined> { return this.read<ProjectionCacheEntry>("activity_analysis", id); }
   async saveAnalysisCache(id: string, athleteId: string, entry: ProjectionCacheEntry): Promise<void> {
     await this.write("activity_analysis", id, athleteId, entry);
+  }
+
+  /** PAU-82: debriefs are JSON documents keyed by activity id (kind "activity_debrief"). */
+  async getActivityDebrief(activityId: string): Promise<ActivityDebrief | undefined> {
+    return this.read<ActivityDebrief>("activity_debrief", activityId);
+  }
+
+  async saveActivityDebrief(debrief: ActivityDebrief, revision: ActivityDebriefRevision): Promise<void> {
+    await this.transaction(async () => {
+      await this.write("activity_debrief_revision", `${revision.activityId}@${revision.version}`, revision.athleteId, revision, revision.updatedAt);
+      await this.write("activity_debrief", debrief.activityId, debrief.athleteId, debrief, debrief.recordedAt);
+    });
+  }
+
+  async listActivityDebriefs(
+    athleteId: string,
+    limit = 20,
+    filters: { from?: string; to?: string } = {},
+  ): Promise<ActivityDebrief[]> {
+    const result = await this.query<DocumentRow>(
+      `select payload from training_api_documents
+       where kind = 'activity_debrief' and athlete_id = $1
+         and ($2::timestamptz is null or sort_key >= $2::timestamptz)
+         and ($3::timestamptz is null or sort_key <= $3::timestamptz)
+       order by sort_key desc nulls last, entity_id asc limit $4`,
+      [athleteId, filters.from ?? null, filters.to ?? null, Math.max(0, Math.min(100, limit))],
+    );
+    return result.rows.map((row) => row.payload as ActivityDebrief);
+  }
+
+  async listActivityDebriefRevisions(activityId: string): Promise<ActivityDebriefRevision[]> {
+    const result = await this.query<DocumentRow>(
+      `select payload from training_api_documents
+       where kind = 'activity_debrief_revision' and entity_id like $1
+       order by sort_key asc nulls last, entity_id asc`,
+      [`${activityId.replace(/[\\%_]/g, "\\$&")}@%`],
+    );
+    return result.rows.map((row) => row.payload as ActivityDebriefRevision).sort((a, b) => a.version - b.version);
   }
 
   async appendAuditEvent(event: AuditEvent): Promise<void> {

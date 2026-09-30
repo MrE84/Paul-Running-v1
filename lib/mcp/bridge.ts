@@ -3,6 +3,8 @@ import { TRAINING_MCP_SCOPE, trainingMcpChallenge, validTrainingAccessToken, typ
 import type { WorkoutStep } from "../domain/contracts";
 import { ProductionWorkoutPublishError } from "../integrations/production-publisher";
 import type { TrainingApiActor } from "../training-api/contracts";
+import { DEBRIEF_LIMITS, DEBRIEF_SOURCES, type SaveDebriefInput } from "../debriefs/contracts";
+import { loadDebriefGuide } from "../debriefs/protocol";
 import { getTrainingApiRuntime, type TrainingApiRuntimeBundle } from "../training-api/runtime";
 import {
   TrainingApiError,
@@ -214,6 +216,25 @@ export const mcpTools = [
     inputSchema: { type: "object", additionalProperties: false, properties: { maxPages: { type: "integer", minimum: 1, maximum: 3, default: 1 } } },
   },
   {
+    name: "save_activity_debrief",
+    description: "Save Paul's post-run debrief for one completed activity so it appears in the Debrief section of that activity on his website. Call it only AFTER you have talked the run through with Paul (call get_debrief_guide first and follow its protocol) and he has confirmed what to save. One debrief per activity; calling again updates it. Fields you leave out keep their saved value; send an empty string (or null for rpe) to clear one. Use Paul's own words, do not invent an RPE he has not given, and leave out anything he did not cover. Pass expectedVersion (from get_activity_debrief) when a debrief already exists so a website edit is not overwritten; saving identical content is a no-op. Debriefs can contain health details and are private to Paul.",
+    inputSchema: { type: "object", additionalProperties: false, required: ["activityId"], properties: {
+      activityId: { type: "string", description: "Activity id from list_activities. Back-to-back runs are separate activities." },
+      rpe: { type: ["number", "null"], minimum: DEBRIEF_LIMITS.rpeMin, maximum: DEBRIEF_LIMITS.rpeMax, multipleOf: DEBRIEF_LIMITS.rpeStep, description: "Session rating of perceived exertion, 1-10 in steps of 0.5." },
+      bodyFeel: { type: ["string", "null"], maxLength: DEBRIEF_LIMITS.textMaxLength, description: "Legs, breathing, niggles: how the body felt." },
+      mentalState: { type: ["string", "null"], maxLength: DEBRIEF_LIMITS.textMaxLength, description: "Motivation, confidence, mindset." },
+      context: { type: ["string", "null"], maxLength: DEBRIEF_LIMITS.textMaxLength, description: "Sleep, food, stress, kit, time since last run, anything unusual." },
+      planNotes: { type: ["string", "null"], maxLength: DEBRIEF_LIMITS.textMaxLength, description: "What differed from the plan and why." },
+      learnings: { type: ["string", "null"], maxLength: DEBRIEF_LIMITS.textMaxLength, description: "What went well and what to change next time." },
+      recordedAt: { type: "string", description: "ISO 8601 timestamp with time zone for when the debrief happened. Defaults to now." },
+      source: { enum: [...DEBRIEF_SOURCES], description: "How the debrief was captured. Defaults to text-chat." },
+      expectedVersion: { type: "integer", minimum: 0, description: "The debrief version you last read (0 if none). Rejects the save if it has changed since." },
+    } },
+  },
+  { name: "get_activity_debrief", description: "Read Paul's saved debrief for one activity, or null if none has been recorded. Includes the version to pass as expectedVersion and the derived session-RPE load.", inputSchema: { type: "object", additionalProperties: false, required: ["activityId"], properties: { activityId: { type: "string" } } } },
+  { name: "list_activity_debriefs", description: "List Paul's recent debriefs, newest first, to spot patterns such as repeated niggles or easy runs run too fast.", inputSchema: { type: "object", additionalProperties: false, properties: { limit: { type: "integer", minimum: 1, maximum: 100, default: 10 }, from: { type: "string" }, to: { type: "string" } } } },
+  { name: "get_debrief_guide", description: "Read this BEFORE starting a post-run debrief with Paul. Returns the debrief protocol (how to ask, what to cover, when to save) and the coaching knowledge base with question bank. Ask questions first and interpret second.", inputSchema: { type: "object", additionalProperties: false, properties: {} } },
+  {
     name: "create_advanced_lunch_break_walk", description: "Create the known-safe 10-minute validation walk: five automatic two-minute walking steps with no physiological target.",
     inputSchema: { type: "object", additionalProperties: false, properties: { name: { type: "string", default: "Advanced Lunch Break Walk" } } },
   },
@@ -284,6 +305,20 @@ async function callTool(name: string, args: Record<string, unknown>, request: Js
       if (!runtime.activityImporter) throw new TrainingApiError(503, "INTERVALS_ICU_ACTIVITY_IMPORT_NOT_CONFIGURED", "Intervals.icu activity import is not configured.");
       return runtime.activityImporter.importRecent(maxPages);
     }
+    case "save_activity_debrief": {
+      const input: SaveDebriefInput = {};
+      for (const key of ["rpe", "bodyFeel", "mentalState", "context", "planNotes", "learnings", "recordedAt", "source", "expectedVersion"] as const) {
+        if (args[key] !== undefined) (input as Record<string, unknown>)[key] = args[key];
+      }
+      return service.saveActivityDebrief(runtime.primaryAthleteId, argString(args, "activityId"), input, mutationActor);
+    }
+    case "get_activity_debrief": return service.getActivityDebrief(runtime.primaryAthleteId, argString(args, "activityId"));
+    case "list_activity_debriefs": {
+      const limit = args.limit === undefined ? 10 : argNumber(args, "limit");
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new TrainingApiError(400, "VALIDATION_FAILED", "limit must be an integer from 1 to 100.");
+      return service.listActivityDebriefs(runtime.primaryAthleteId, { limit, from: args.from as string | undefined, to: args.to as string | undefined });
+    }
+    case "get_debrief_guide": return loadDebriefGuide();
     case "create_advanced_lunch_break_walk": {
       const steps: WorkoutStep[] = Array.from({ length: 5 }, (_, index) => ({
         id: randomUUID(), kind: "step", sequence: index, phase: "active", name: `Walk ${index + 1}`,
@@ -336,7 +371,7 @@ export async function handleMcpRequest(request: Request, options?: BridgeOptions
         ...tool,
         securitySchemes: [{ type: "oauth2", scopes: [TRAINING_MCP_SCOPE] }],
         annotations: {
-          readOnlyHint: !["set_capacity", "set_zones", "create_workout", "revise_workout", "create_training_plan", "apply_training_plan", "publish_calendar_item", "sync_activities", "create_advanced_lunch_break_walk"].includes(tool.name),
+          readOnlyHint: !["set_capacity", "set_zones", "create_workout", "revise_workout", "create_training_plan", "apply_training_plan", "publish_calendar_item", "sync_activities", "create_advanced_lunch_break_walk", "save_activity_debrief"].includes(tool.name),
         },
       })) }, { modern, cacheable: modern });
     }

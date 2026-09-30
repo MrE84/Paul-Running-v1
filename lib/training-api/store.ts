@@ -12,6 +12,7 @@ import type {
 import type { PlanApplication, ScheduledCalendarItem } from "../calendar/contracts";
 import type { IdempotencyRecord, TrainingApiSeed, TrainingApiStore } from "./contracts";
 import { activityListItem, type ProjectionCacheEntry } from "../activity-analysis/projection";
+import type { ActivityDebrief, ActivityDebriefRevision } from "../debriefs/contracts";
 
 const revisionKey = (id: string, version: number) => `${id}@${version}`;
 
@@ -29,6 +30,8 @@ export class InMemoryTrainingApiStore implements TrainingApiStore {
   private readonly activities = new Map<string, Activity>();
   private readonly analysisCache = new Map<string, ProjectionCacheEntry>();
   private readonly applications = new Map<string, PlanApplication>();
+  private readonly debriefs = new Map<string, ActivityDebrief>();
+  private readonly debriefRevisions = new Map<string, ActivityDebriefRevision[]>();
   private readonly audits: AuditEvent[] = [];
   private readonly idempotency = new Map<string, IdempotencyRecord>();
 
@@ -45,6 +48,7 @@ export class InMemoryTrainingApiStore implements TrainingApiStore {
     for (const item of seed.calendarItems ?? []) this.calendar.set(item.id, item);
     for (const activity of seed.activities ?? []) this.activities.set(activity.id, activity);
     for (const application of seed.applications ?? []) this.applications.set(application.id, application);
+    for (const debrief of seed.debriefs ?? []) this.debriefs.set(debrief.activityId, debrief);
     this.audits.push(...(seed.auditEvents ?? []));
   }
 
@@ -94,6 +98,20 @@ export class InMemoryTrainingApiStore implements TrainingApiStore {
     this.analysisCache.set(id, entry);
     if (this.analysisCache.size > 24) this.analysisCache.delete(this.analysisCache.keys().next().value!);
   }
+  async getActivityDebrief(activityId: string) { return this.debriefs.get(activityId); }
+  async saveActivityDebrief(debrief: ActivityDebrief, revision: ActivityDebriefRevision) {
+    this.debriefs.set(debrief.activityId, debrief);
+    this.debriefRevisions.set(debrief.activityId, [...(this.debriefRevisions.get(debrief.activityId) ?? []), revision]);
+  }
+  async listActivityDebriefs(athleteId: string, limit = 20, filters: { from?: string; to?: string } = {}) {
+    return [...this.debriefs.values()]
+      .filter((item) => item.athleteId === athleteId)
+      .filter((item) => !filters.from || item.recordedAt >= filters.from)
+      .filter((item) => !filters.to || item.recordedAt <= filters.to)
+      .sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))
+      .slice(0, Math.max(0, limit));
+  }
+  async listActivityDebriefRevisions(activityId: string) { return [...(this.debriefRevisions.get(activityId) ?? [])].sort((a, b) => a.version - b.version); }
   async appendAuditEvent(event: AuditEvent) { this.audits.push(event); }
   async listAuditEvents() { return [...this.audits]; }
   async findIdempotency(key: string) { return this.idempotency.get(key); }

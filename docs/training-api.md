@@ -34,7 +34,13 @@ POST /api/v1/training-plans
 GET  /api/v1/training-plans/{planId}
 POST /api/v1/training-plans/{planId}/apply
 GET  /api/v1/calendar-items/{calendarItemId}/sync-status
+GET  /api/v1/activities/{activityId}/debrief            # debrief, or null if none yet
+GET  /api/v1/activities/{activityId}/debrief?history=1  # every saved version
+PUT  /api/v1/activities/{activityId}/debrief            # create or update (PAU-83)
+GET  /api/v1/debriefs?limit=10&from={iso}&to={iso}      # recent debriefs, newest first
 ```
+
+Debrief writes are a natural upsert rather than an idempotency-key command: see `docs/architecture/activity-debriefs.md`.
 
 All list routes accept `athleteId` as a query parameter; otherwise the configured primary athlete is used.
 
