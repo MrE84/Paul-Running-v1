@@ -53,9 +53,12 @@ type PublishResult = {
   externalId?: string;
 };
 
+type DebriefSummary = { activityId: string; rpe?: number };
+
 type CalendarSnapshot = {
   items: CalendarItem[];
   activities: ActivitySummary[];
+  debriefs: Record<string, number | null>;
   workoutList: Workout[];
   workoutMap: Record<string, Workout>;
 };
@@ -103,6 +106,7 @@ export default function TrainingCalendarClient() {
   const [capabilities, setCapabilities] = useState<Capabilities | null>(null);
   const [calendar, setCalendar] = useState<CalendarItem[]>([]);
   const [completedActivities, setCompletedActivities] = useState<ActivitySummary[]>([]);
+  const [debriefs, setDebriefs] = useState<Record<string, number | null>>({});
   const [workouts, setWorkouts] = useState<Record<string, Workout>>({});
   const [sync, setSync] = useState<Record<string, SyncStatus>>({});
   const [busy, setBusy] = useState(false);
@@ -138,10 +142,12 @@ export default function TrainingCalendarClient() {
 
   async function loadCalendarSnapshot(targetMonth = monthKey): Promise<CalendarSnapshot> {
     const range = monthQueryRange(targetMonth);
-    const [items, workoutList, activities] = await Promise.all([
+    const [items, workoutList, activities, debriefList] = await Promise.all([
       api<CalendarItem[]>(`calendar-items?from=${encodeURIComponent(range.from)}&to=${encodeURIComponent(range.to)}`),
       api<Workout[]>("workouts"),
       api<ActivitySummary[]>("activities?view=summary&limit=100"),
+      // Debrief markers are a convenience; the calendar must still load if they cannot be read.
+      api<DebriefSummary[]>("debriefs?limit=100").catch(() => [] as DebriefSummary[]),
     ]);
     const byCalendarItem = new Map(
       activities.filter((activity) => activity.calendarItemId).map((activity) => [activity.calendarItemId!, activity]),
@@ -159,6 +165,7 @@ export default function TrainingCalendarClient() {
     return {
       items: linkedItems,
       activities,
+      debriefs: Object.fromEntries(debriefList.map((debrief) => [debrief.activityId, debrief.rpe ?? null])),
       workoutList,
       workoutMap: Object.fromEntries(workoutList.map((workout) => [workout.id, workout])),
     };
@@ -169,6 +176,7 @@ export default function TrainingCalendarClient() {
     setWorkouts(snapshot.workoutMap);
     setCalendar(snapshot.items);
     setCompletedActivities(snapshot.activities);
+    setDebriefs(snapshot.debriefs);
 
     const visibleItems = snapshot.items.filter((item) => item.status !== "superseded");
     const today = londonDateKey();
@@ -516,6 +524,12 @@ export default function TrainingCalendarClient() {
     );
   }, [monthKey, sortedCalendar]);
 
+  function debriefNote(activityId: string, href: string) {
+    if (!(activityId in debriefs)) return null;
+    const rpe = debriefs[activityId];
+    return <small>Debrief recorded{rpe ? ` · RPE ${rpe}` : ""} · <Link href={`${href}#debrief`}>Read debrief →</Link></small>;
+  }
+
   const unplannedActivities = useMemo(
     () => completedActivities.filter((activity) => !calendar.some((item) => item.activity?.id === activity.id)),
     [calendar, completedActivities],
@@ -614,6 +628,7 @@ export default function TrainingCalendarClient() {
                     </Link>
                     <span>Plan: {item.status} · Delivery: {status?.state ?? "planned"}</span>
                     {activity && <small>Completed activity synced from Intervals.icu · <Link href={activityHref}>Open analysis →</Link></small>}
+                    {activity && debriefNote(activity.id, activityHref)}
                   </div>
                   <div className={styles.eventActions}>
                     <button className={styles.secondary} onClick={() => void publishItem(item.id)} disabled={busy}>Evaluate sync</button>
@@ -634,6 +649,7 @@ export default function TrainingCalendarClient() {
                     <Link className={styles.eventLink} href={activityHref}><strong>{activity.title}</strong></Link>
                     <span>Completed activity · Synced from Intervals.icu</span>
                     <small><Link href={activityHref}>Open analysis →</Link></small>
+                    {debriefNote(activity.id, activityHref)}
                   </div>
                 </article>
               );
@@ -716,6 +732,7 @@ export default function TrainingCalendarClient() {
                             <strong>{activity.title}</strong>
                           </Link>
                           <span className={styles.deliveryState}>Synced from Intervals.icu</span>
+                          {debriefNote(activity.id, activityHref)}
                         </article>
                       );
                     })}
@@ -754,6 +771,7 @@ export default function TrainingCalendarClient() {
                     </Link>
                     <span>Plan: {item.status} · Delivery: {status?.state ?? "planned"}</span>
                     {activity && <small>Completed activity synced from Intervals.icu · <Link href={activityHref}>Open analysis →</Link></small>}
+                    {activity && debriefNote(activity.id, activityHref)}
                     {status?.externalReference?.externalId && <small>Intervals ref: {status.externalReference.externalId}</small>}
                     {status?.latestJob?.lastErrorMessage && <small>{status.latestJob.lastErrorMessage}</small>}
                   </div>

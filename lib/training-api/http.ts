@@ -2,6 +2,7 @@ import { randomUUID, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { ProductionWorkoutPublishError } from "../integrations/production-publisher";
 import type { TrainingApiActor } from "./contracts";
+import type { SaveDebriefInput } from "../debriefs/contracts";
 import { getTrainingApiRuntime } from "./runtime";
 import { ANALYSIS_COOKIE, validBrowserSession } from "./browser-session";
 import {
@@ -125,6 +126,9 @@ export async function handleTrainingApiRequest(
           "GET /api/v1/activities/{id}/analysis",
           "GET /api/v1/activities/{id}/weather",
           "GET /api/v1/activities/{id}/raw",
+          "GET|PUT /api/v1/activities/{id}/debrief",
+          "GET /api/v1/activities/{id}/debrief?history=1",
+          "GET /api/v1/debriefs",
           "GET /api/v1/activities/comparison?id={id}&id={id}",
           "GET /api/v1/activity-trends",
           "POST /api/v1/activities/import",
@@ -247,6 +251,28 @@ export async function handleTrainingApiRequest(
         fitnessTimeConstantDays: fitness,
         fatigueTimeConstantDays: fatigue,
       }, rawLimit));
+    }
+    if (method === "GET" && path.length === 1 && path[0] === "debriefs") {
+      const rawLimit = Number(request.nextUrl.searchParams.get("limit") ?? "10");
+      const limit = Number.isFinite(rawLimit) ? Math.min(100, Math.max(1, Math.floor(rawLimit))) : 10;
+      return ok(await service.listActivityDebriefs(athleteId, {
+        limit,
+        from: dateBound(request.nextUrl.searchParams.get("from")),
+        to: dateBound(request.nextUrl.searchParams.get("to"), true),
+      }));
+    }
+    if (path.length === 3 && path[0] === "activities" && path[2] === "debrief") {
+      if (method === "GET") {
+        return ok(request.nextUrl.searchParams.get("history") === "1"
+          ? await service.getActivityDebriefHistory(athleteId, path[1])
+          : await service.getActivityDebrief(athleteId, path[1]));
+      }
+      if (method === "PUT") {
+        const body = await jsonBody<SaveDebriefInput & Record<string, unknown>>(request);
+        if (body === null || typeof body !== "object" || Array.isArray(body)) throw new TrainingApiError(400, "VALIDATION_FAILED", "Request body must be a JSON object.");
+        const { rpe, bodyFeel, mentalState, context, planNotes, learnings, recordedAt, source, expectedVersion } = body;
+        return ok(await service.saveActivityDebrief(athleteId, path[1], { rpe, bodyFeel, mentalState, context, planNotes, learnings, recordedAt, source, expectedVersion }, actor));
+      }
     }
     if (method === "GET" && path.length === 3 && path[0] === "activities") {
       if (path[2] === "analysis") return ok(await service.getActivityAnalysis(athleteId, path[1], request.nextUrl.searchParams.get("recompute") === "1"));

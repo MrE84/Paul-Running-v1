@@ -110,6 +110,8 @@ test("activity MCP exposes only the constrained read-only activity catalog", asy
     "get_activity_analysis",
     "get_activity_raw",
     "get_activity_sample",
+    "get_activity_debrief",
+    "list_activity_debriefs",
     "compare_provider_streams",
   ]);
 });
@@ -138,6 +140,8 @@ test("activity MCP supports 2026-07-28 discovery and tool listing", async () => 
     "get_activity_analysis",
     "get_activity_raw",
     "get_activity_sample",
+    "get_activity_debrief",
+    "list_activity_debriefs",
     "compare_provider_streams",
   ]);
 });

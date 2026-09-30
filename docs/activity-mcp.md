@@ -33,9 +33,11 @@ The endpoint exposes only:
 - `get_activity_analysis`
 - `get_activity_raw`
 - `get_activity_sample`
+- `get_activity_debrief` (PAU-85): Paul's saved post-run debrief for one activity (RPE, body, mind, context, learnings), or `null`.
+- `list_activity_debriefs` (PAU-85): recent debriefs, newest first.
 - `compare_provider_streams` (PAU-47): fetches Intervals.icu `heartrate`, `raw_heartrate` and `fixed_heartrate` streams and compares them with the canonical FIT projection. The FIT record stays the system of record and is never overwritten.
 
-It cannot create, revise, apply, publish or delete training objects.
+It cannot create, revise, apply, publish or delete training objects, and it cannot write debriefs. Debriefs are written only through the training connection's `save_activity_debrief`; see `docs/chatgpt-mcp-bridge.md`.
 
 ### Persistent machine-key deployment
 

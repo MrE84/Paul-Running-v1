@@ -14,6 +14,7 @@ import type {
 } from "../domain/contracts";
 import type { ActivityListItem, ProjectionCacheEntry } from "../activity-analysis/projection";
 import type { PlanApplication, ScheduledCalendarItem } from "../calendar/contracts";
+import type { ActivityDebrief, ActivityDebriefRevision } from "../debriefs/contracts";
 
 export interface TrainingApiActor {
   type: "ai_client" | "user";
@@ -52,6 +53,7 @@ export interface TrainingApiSeed {
   activities?: Activity[];
   applications?: PlanApplication[];
   auditEvents?: AuditEvent[];
+  debriefs?: ActivityDebrief[];
 }
 
 export interface TrainingApiStore {
@@ -88,6 +90,13 @@ export interface TrainingApiStore {
   getAnalysisCache(id: string): Promise<ProjectionCacheEntry | undefined>;
   saveAnalysisCache(id: string, athleteId: string, entry: ProjectionCacheEntry): Promise<void>;
   saveActivity(activity: Activity): Promise<void>;
+
+  /** PAU-82: post-run debriefs, keyed by activity id and independent of the activity document. */
+  getActivityDebrief(activityId: string): Promise<ActivityDebrief | undefined>;
+  /** Persist the current debrief and append the matching immutable revision. */
+  saveActivityDebrief(debrief: ActivityDebrief, revision: ActivityDebriefRevision): Promise<void>;
+  listActivityDebriefs(athleteId: string, limit?: number, filters?: { from?: string; to?: string }): Promise<ActivityDebrief[]>;
+  listActivityDebriefRevisions(activityId: string): Promise<ActivityDebriefRevision[]>;
 
   appendAuditEvent(event: AuditEvent): Promise<void>;
   listAuditEvents(): Promise<AuditEvent[]>;

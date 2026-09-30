@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "test": "npm run test:calendar && npm run test:workouts && npm run test:qa && npm run test:integrations && npm run test:analysis && npm run test:api && npm run test:mcp",
+    "test": "npm run test:calendar && npm run test:workouts && npm run test:qa && npm run test:integrations && npm run test:analysis && npm run test:api && npm run test:mcp && npm run test:debriefs",
     "test:calendar": "node --import tsx --test lib/calendar/*.test.ts",
     "test:workouts": "node --import tsx --test lib/workouts/*.test.ts",
     "test:qa": "node --import tsx --test lib/qa/*.test.ts",
@@ -16,7 +16,8 @@
     "prebuild": "npm test",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:debriefs": "node --import tsx --test lib/debriefs/*.test.ts"
   },
   "dependencies": {
     "fit-file-parser": "^3.0.2",
