@@ -110,6 +110,8 @@ export default function TrainingCalendarClient() {
   const [lunchDate, setLunchDate] = useState("");
   const [lunchTime, setLunchTime] = useState("");
   const [monthKey, setMonthKey] = useState(() => londonDateKey().slice(0, 7));
+  const [todayItems, setTodayItems] = useState<CalendarItem[]>([]);
+  const [todayStandaloneActivities, setTodayStandaloneActivities] = useState<ActivitySummary[]>([]);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(API_TOKEN_STORAGE_KEY);
@@ -169,6 +171,18 @@ export default function TrainingCalendarClient() {
     setCompletedActivities(snapshot.activities);
 
     const visibleItems = snapshot.items.filter((item) => item.status !== "superseded");
+    const today = londonDateKey();
+    if (targetMonth === today.slice(0, 7)) {
+      const linkedActivityIds = new Set(
+        visibleItems.map((item) => item.activity?.id).filter((id): id is string => Boolean(id)),
+      );
+      setTodayItems(visibleItems.filter((item) => item.scheduledLocalDate === today));
+      setTodayStandaloneActivities(
+        snapshot.activities.filter(
+          (activity) => activityDateKey(activity.startedAt) === today && !linkedActivityIds.has(activity.id),
+        ),
+      );
+    }
     const statuses = await Promise.all(
       visibleItems.map(async (item) => {
         try {
@@ -495,10 +509,12 @@ export default function TrainingCalendarClient() {
     return grouped;
   }, [sortedCalendar]);
 
-  const currentMonthCalendar = useMemo(
-    () => sortedCalendar.filter((item) => item.scheduledLocalDate.startsWith(monthKey)),
-    [monthKey, sortedCalendar],
-  );
+  const upcomingMonthCalendar = useMemo(() => {
+    const today = londonDateKey();
+    return sortedCalendar.filter(
+      (item) => item.scheduledLocalDate.startsWith(monthKey) && item.scheduledLocalDate > today,
+    );
+  }, [monthKey, sortedCalendar]);
 
   const unplannedActivities = useMemo(
     () => completedActivities.filter((activity) => !calendar.some((item) => item.activity?.id === activity.id)),
@@ -515,6 +531,13 @@ export default function TrainingCalendarClient() {
 
   const monthCells = useMemo(() => buildMonthGrid(monthKey), [monthKey]);
   const todayKey = londonDateKey();
+  const todayLabel = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
 
   return (
     <main className={styles.page}>
@@ -552,6 +575,69 @@ export default function TrainingCalendarClient() {
           <div className={styles.statusRow}>
             <span>Storage: <strong>{capabilities.storageMode}</strong></span>
             <span>Intervals.icu: <strong>{capabilities.integrations.intervalsIcuPublishingConfigured ? "ready" : "not configured"}</strong></span>
+          </div>
+        )}
+      </section>
+
+      <section className={`${styles.panel} ${styles.todayPanel}`}>
+        <div className={styles.todayHeading}>
+          <div>
+            <span className={styles.sectionEyebrow}>TODAY</span>
+            <h2>{todayLabel}</h2>
+            <p>Your current-day training is shown first. Use the month view below for the wider schedule.</p>
+          </div>
+          {monthKey !== todayKey.slice(0, 7) && (
+            <button className={styles.secondary} onClick={() => void goToCurrentMonth()} disabled={busy}>View current month</button>
+          )}
+        </div>
+
+        {!capabilities ? (
+          <p className={styles.empty}>Connect above to load today&apos;s protected training data.</p>
+        ) : todayItems.length === 0 && todayStandaloneActivities.length === 0 ? (
+          <p className={styles.empty}>No training or completed activity is recorded for today.</p>
+        ) : (
+          <div className={styles.todayList}>
+            {todayItems.map((item) => {
+              const status = sync[item.id];
+              const workout = workouts[item.workout.id];
+              const activity = item.activity;
+              const activityHref = activity ? `/activity-analysis/${encodeURIComponent(activity.id)}` : plannedHref(item);
+              return (
+                <article className={styles.calendarItem} key={`today-${item.id}`}>
+                  <div className={styles.dateBlock}>
+                    <strong>Today</strong>
+                    <span>{activity ? new Date(activity.startedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: item.timezone }) : item.scheduledLocalTime} · {item.timezone}</span>
+                  </div>
+                  <div className={styles.workoutBlock}>
+                    <Link className={styles.eventLink} href={activityHref}>
+                      <strong>{activity?.title ?? workout?.currentRevision.name ?? item.workout.id}</strong>
+                    </Link>
+                    <span>Plan: {item.status} · Delivery: {status?.state ?? "planned"}</span>
+                    {activity && <small>Completed activity synced from Intervals.icu · <Link href={activityHref}>Open analysis →</Link></small>}
+                  </div>
+                  <div className={styles.eventActions}>
+                    <button className={styles.secondary} onClick={() => void publishItem(item.id)} disabled={busy}>Evaluate sync</button>
+                    <button className={styles.deleteButton} onClick={() => void deleteItem(item)} disabled={busy || item.status !== "planned"}>Delete</button>
+                  </div>
+                </article>
+              );
+            })}
+            {todayStandaloneActivities.map((activity) => {
+              const activityHref = `/activity-analysis/${encodeURIComponent(activity.id)}`;
+              return (
+                <article className={styles.calendarItem} key={`today-activity-${activity.id}`}>
+                  <div className={styles.dateBlock}>
+                    <strong>Today</strong>
+                    <span>{new Date(activity.startedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })} · Europe/London</span>
+                  </div>
+                  <div className={styles.workoutBlock}>
+                    <Link className={styles.eventLink} href={activityHref}><strong>{activity.title}</strong></Link>
+                    <span>Completed activity · Synced from Intervals.icu</span>
+                    <small><Link href={activityHref}>Open analysis →</Link></small>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </section>
@@ -644,14 +730,14 @@ export default function TrainingCalendarClient() {
 
       <section className={styles.panel}>
         <div className={styles.headingRow}>
-          <div><h2>{monthLabel(monthKey)} details</h2><p>Detailed canonical records and Garmin delivery state for this month.</p></div>
+          <div><h2>Upcoming workouts</h2><p>Today is shown above. This list only includes future sessions in {monthLabel(monthKey)}.</p></div>
           <button className={styles.secondary} onClick={() => void refreshCalendar(monthKey)} disabled={busy || !capabilities}>Refresh</button>
         </div>
-        {currentMonthCalendar.length === 0 ? (
-          <p className={styles.empty}>{capabilities ? "No calendar items scheduled in this month." : "Connect to load the protected calendar."}</p>
+        {upcomingMonthCalendar.length === 0 ? (
+          <p className={styles.empty}>{capabilities ? `No upcoming workouts in ${monthLabel(monthKey)}. Past sessions remain available in the calendar above.` : "Connect to load the protected calendar."}</p>
         ) : (
           <div className={styles.calendarList}>
-            {currentMonthCalendar.map((item) => {
+            {upcomingMonthCalendar.map((item) => {
               const status = sync[item.id];
               const workout = workouts[item.workout.id];
               const activity = item.activity;
@@ -674,22 +760,6 @@ export default function TrainingCalendarClient() {
                   <div className={styles.eventActions}>
                     <button className={styles.secondary} onClick={() => void publishItem(item.id)} disabled={busy}>Evaluate sync</button>
                     <button className={styles.deleteButton} onClick={() => void deleteItem(item)} disabled={busy || item.status !== "planned"}>Delete</button>
-                  </div>
-                </article>
-              );
-            })}
-            {unplannedActivities.filter((activity) => activityDateKey(activity.startedAt).startsWith(monthKey)).map((activity) => {
-              const activityHref = `/activity-analysis/${encodeURIComponent(activity.id)}`;
-              return (
-                <article className={styles.calendarItem} key={`activity-${activity.id}`}>
-                  <div className={styles.dateBlock}>
-                    <strong>{activityDateKey(activity.startedAt)}</strong>
-                    <span>{new Date(activity.startedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })} · Europe/London</span>
-                  </div>
-                  <div className={styles.workoutBlock}>
-                    <Link className={styles.eventLink} href={activityHref}><strong>{activity.title}</strong></Link>
-                    <span>Completed activity · Synced from Intervals.icu</span>
-                    <small><Link href={activityHref}>Open analysis →</Link></small>
                   </div>
                 </article>
               );
