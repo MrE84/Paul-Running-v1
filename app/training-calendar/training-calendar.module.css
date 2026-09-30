@@ -23,6 +23,10 @@
 .statusRow { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 12px; color: var(--muted); font-size: .9rem; }
 .statusRow strong { color: var(--text); }
 .sectionEyebrow { display: block; margin-bottom: 6px; color: var(--green); font-size: .72rem; font-weight: 800; letter-spacing: .12em; }
+.todayPanel { border-color: rgba(88,214,141,.3); }
+.todayHeading { display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.todayHeading p { margin: 6px 0 0; }
+.todayList { display: grid; gap: 10px; margin-top: 18px; }
 .monthControls { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .legend { display: flex; gap: 18px; flex-wrap: wrap; margin: 18px 0 12px; color: var(--muted); font-size: .82rem; }
 .legend span { display: inline-flex; align-items: center; gap: 7px; }
@@ -66,12 +70,34 @@
 .empty { margin: 18px 0 0; padding: 18px; border: 1px dashed var(--border); border-radius: 14px; text-align: center; }
 
 @media (max-width: 760px) {
-  .page { width: min(100% - 20px, 1180px); padding-top: 20px; }
-  .headingRow, .calendarHeading { align-items: stretch; flex-direction: column; }
+  .page { width: min(100% - 20px, 1180px); padding-top: 20px; overflow-x: hidden; }
+  .headingRow, .calendarHeading, .todayHeading { align-items: stretch; flex-direction: column; }
   .monthControls { justify-content: flex-start; }
   .calendarItem { grid-template-columns: 1fr; }
   .calendarItem button { justify-self: start; }
   .hero, .panel { padding: 20px; }
+
+  .calendarViewport { width: 100%; overflow-x: hidden; padding-bottom: 0; }
+  .weekHeader, .monthGrid { width: 100%; min-width: 0; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .weekHeader div { min-width: 0; padding: 7px 2px; font-size: .62rem; letter-spacing: .02em; }
+  .dayCell { min-width: 0; min-height: 88px; padding: 4px 3px; overflow: hidden; }
+  .dayHeader { min-width: 0; min-height: 18px; margin-bottom: 4px; gap: 2px; }
+  .dayHeader > span { font-size: .68rem; }
+  .dayHeader strong { display: none; }
+  .dayEvents { min-width: 0; gap: 3px; }
+  .monthEvent { min-width: 0; gap: 2px; padding: 4px 3px; border-radius: 6px; }
+  .monthEvent strong {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: .58rem;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .eventTopline { min-width: 0; gap: 2px; }
+  .eventTopline span { overflow: hidden; font-size: .54rem; text-overflow: ellipsis; white-space: nowrap; }
+  .eventTopline small, .monthEvent .deliveryState, .monthEvent .eventActions { display: none; }
 }
 .planStats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 18px; }
 .planStats div { display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 14px; background: rgba(255,255,255,.035); }
