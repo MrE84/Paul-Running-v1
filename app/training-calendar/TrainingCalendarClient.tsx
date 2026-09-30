@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { buildMonthGrid, monthLabel, monthQueryRange, shiftMonthKey } from "../../lib/calendar/month-grid";
+import { linkActivitiesToItems } from "../../lib/calendar/link-activities";
+import { buildMonthGrid,monthLabel, monthQueryRange, shiftMonthKey } from "../../lib/calendar/month-grid";
 import { advancedLunchWalkSteps, RACE_WEEK_2026 } from "../../lib/workouts/race-week";
 import { classifyRaceWeekCalendar } from "../../lib/workouts/race-week-reconcile";
 import styles from "./training-calendar.module.css";
@@ -149,19 +150,7 @@ export default function TrainingCalendarClient() {
       // Debrief markers are a convenience; the calendar must still load if they cannot be read.
       api<DebriefSummary[]>("debriefs?limit=100").catch(() => [] as DebriefSummary[]),
     ]);
-    const byCalendarItem = new Map(
-      activities.filter((activity) => activity.calendarItemId).map((activity) => [activity.calendarItemId!, activity]),
-    );
-    const byDate = new Map<string, ActivitySummary[]>();
-    for (const activity of activities) {
-      const date = activityDateKey(activity.startedAt);
-      (byDate.get(date) ?? byDate.set(date, []).get(date)!).push(activity);
-    }
-    const linkedItems = items.map((item) => {
-      const linked = byCalendarItem.get(item.id)
-        ?? byDate.get(item.scheduledLocalDate)?.find((activity) => !activity.calendarItemId);
-      return linked ? { ...item, activity: linked, status: "completed" } : item;
-    });
+    const linkedItems = linkActivitiesToItems(items, activities, activityDateKey) as CalendarItem[];
     return {
       items: linkedItems,
       activities,
