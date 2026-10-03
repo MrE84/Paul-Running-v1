@@ -26,6 +26,15 @@ export default function TrainingPlansPage() {
 
       <section className={styles.section}>
         <div className={styles.sectionHeading}>
+          <div><span className={styles.sectionEyebrow}>CURRENT MASTER PLAN</span><h2>The road to a 1:30 half marathon</h2></div>
+          <span className={styles.status}>5 OCT–9 NOV PROGRAMME</span>
+        </div>
+        <p>The complete master plan, five weekly coaching programmes and all 26 corrected running workouts. Parkruns are Saturdays at 09:00. The programme is already scheduled in Tredict for Garmin delivery.</p>
+        <Link href="/master-plan" className={styles.primaryLink}>Open master plan →</Link>
+      </section>
+
+      <section className={styles.section}>
+        <div className={styles.sectionHeading}>
           <div>
             <span className={styles.sectionEyebrow}>CURRENT APPROVAL WORKFLOW</span>
             <h2>Post-Half Recovery Week</h2>

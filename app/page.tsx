@@ -2,6 +2,7 @@ import Link from "next/link";
 import { athleteProfile } from "../lib/athlete-profile";
 
 const modules = [
+  ["Master Plan", "The complete 1:30 half-marathon plan, weekly guidance and corrected workout programme", "/master-plan"],
   ["Training Calendar", "Month view of past, current and upcoming sessions with protected Garmin delivery controls", "/training-calendar"],
   ["Training Plans", "Review coach-created plans and approval gates before they alter the canonical calendar", "/training-plans"],
   ["Activity Analysis", "FIT Activity Explorer integrated with private browser-local decoding", "/activity-analysis"],
@@ -13,8 +14,8 @@ export default function Home() {
     <main>
       <section className="hero">
         <div className="eyebrow">PAUL&apos;S RUNNING · CURRENT FOCUS</div>
-        <p>One place for the training plan, activity evidence and delivery pipeline behind three clear targets: a sub-1:30 half marathon, a sub-25-minute 5K and a 40–41-minute 10K.</p>
-        <div className="goalStrip"><span>HALF MARATHON <strong>&lt;1:30</strong></span><span>5K <strong>&lt;25:00</strong></span><span>10K <strong>40–41:00</strong></span></div>
+        <p>One place for the training plan, activity evidence and delivery pipeline behind three clear targets: a 1:30 half marathon, a 20:30–21:00 5K and a 41:30–42:15 10K.</p>
+        <div className="goalStrip"><span>HALF MARATHON <strong>&lt;1:30</strong></span><span>5K <strong>20:30–21:00</strong></span><span>10K <strong>41:30–42:15</strong></span></div>
         <div className="architectureLabel">Training architecture</div>
         <div className="flow">
           <span>ChatGPT + Claude</span><b>→</b><span>Paul&apos;s Running</span><b>→</b><span>Intervals.icu</span><b>→</b><span>Garmin / Watch</span>

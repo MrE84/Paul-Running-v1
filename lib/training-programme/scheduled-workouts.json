@@ -1,0 +1,1725 @@
+[
+  {
+    "id": "jSEKQkdtrBQp9Z9ejPEzcr",
+    "scheduledStart": "2026-10-05T17:00:00.245Z",
+    "timezone": "Europe/London",
+    "title": "Long Aerobic 80 min",
+    "notes": "Easy aerobic durability. HR-led. Main target 135–145 bpm, pace roughly 5:55–6:25/km. Slow on hills if HR rises above ~148.",
+    "durationSeconds": 4800.0,
+    "workout": {
+      "workoutName": "Long Aerobic 80 min",
+      "description": "Easy aerobic durability. HR-led. Main target 135–145 bpm, pace roughly 5:55–6:25/km. Slow on hills if HR rises above ~148.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "Easy warm-up",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 1,
+          "intensity": "INTERVAL",
+          "description": "Main aerobic: genuinely easy",
+          "durationType": "TIME",
+          "durationValue": 3600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 135,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 140,
+          "extraValueSpeed": 2.7027027027027026
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 2,
+          "intensity": "COOLDOWN",
+          "description": "Easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        }
+      ]
+    }
+  },
+  {
+    "id": "7iQhBYmLxhGGfEms2mkqGD",
+    "scheduledStart": "2026-10-07T17:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Threshold 3 × 8 min",
+    "notes": "Controlled threshold. Reps 4:50–5:00/km. Expected HR generally rises into ~162–170 bpm. If breathing becomes 5K-like early, back off 5–10 sec/km.",
+    "durationSeconds": 3480.0,
+    "workout": {
+      "workoutName": "Threshold 3 × 8 min",
+      "description": "Controlled threshold. Reps 4:50–5:00/km. Expected HR generally rises into ~162–170 bpm. If breathing becomes 5K-like early, back off 5–10 sec/km.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "15 min easy warm-up",
+          "durationType": "TIME",
+          "durationValue": 900,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 131,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 138,
+          "extraValueSpeed": 2.6881720430107525
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 3,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "Threshold: controlled hard",
+              "durationType": "TIME",
+              "durationValue": 480,
+              "targetType": "SPEED",
+              "targetValueLow": 3.3333333333333335,
+              "targetValueHigh": 3.4482758620689653,
+              "extraValueHeartrate": 166,
+              "extraValueSpeed": 3.389830508474576
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "3 min easy jog",
+              "durationType": "TIME",
+              "durationValue": 180,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 137,
+              "targetValueHigh": 153,
+              "extraValueHeartrate": 145,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 4,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 128,
+          "targetValueHigh": 142,
+          "extraValueHeartrate": 135,
+          "extraValueSpeed": 2.5641025641025643
+        }
+      ]
+    }
+  },
+  {
+    "id": "3V5dmhrUHJThTrQbhS52Px",
+    "scheduledStart": "2026-10-08T17:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Easy 40 min + 4 Strides",
+    "notes": "Low-fatigue aerobic run. Easy running 5:55–6:25/km, HR 132–145. Strides smooth and relaxed, not sprints.",
+    "durationSeconds": 2780.0,
+    "workout": {
+      "workoutName": "Easy 40 min + 4 Strides",
+      "description": "Low-fatigue aerobic run. Easy running 5:55–6:25/km, HR 132–145. Strides smooth and relaxed, not sprints.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "INTERVAL",
+          "description": "40 min easy aerobic",
+          "durationType": "TIME",
+          "durationValue": 2400,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 131,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 138,
+          "extraValueSpeed": 2.7027027027027026
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 4,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "20 sec relaxed stride",
+              "durationType": "TIME",
+              "durationValue": 20,
+              "targetType": "SPEED",
+              "targetValueLow": 3.9215686274509802,
+              "targetValueHigh": 4.25531914893617,
+              "extraValueSpeed": 4.081632653061225
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "75 sec easy recovery",
+              "durationType": "TIME",
+              "durationValue": 75,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 125,
+              "targetValueHigh": 145,
+              "extraValueHeartrate": 135,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "jRW4U9RivN5QdZdioEqPpo",
+    "scheduledStart": "2026-10-10T08:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Controlled Parkrun 5K",
+    "notes": "Not a PB attempt. Full warm-up. Target 4:40–4:45/km average; expected HR mostly ~175–185 once settled. Hold effort on hills. Do not repeat the 4:01 opening km from 3 Oct.",
+    "durationSeconds": 3320.0,
+    "workout": {
+      "workoutName": "Controlled Parkrun 5K",
+      "description": "Not a PB attempt. Full warm-up. Target 4:40–4:45/km average; expected HR mostly ~175–185 once settled. Hold effort on hills. Do not repeat the 4:01 opening km from 3 Oct.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "2.5 km easy warm-up",
+          "durationType": "DISTANCE",
+          "durationValue": 2500,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 134,
+          "targetValueHigh": 150,
+          "extraValueHeartrate": 142,
+          "extraValueSpeed": 2.7027027027027026
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 4,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "20 sec relaxed stride",
+              "durationType": "TIME",
+              "durationValue": 20,
+              "targetType": "SPEED",
+              "targetValueLow": 3.9215686274509802,
+              "targetValueHigh": 4.25531914893617,
+              "extraValueSpeed": 4.081632653061225
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "75 sec easy",
+              "durationType": "TIME",
+              "durationValue": 75,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 130,
+              "targetValueHigh": 150,
+              "extraValueHeartrate": 140,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 4,
+          "intensity": "REST",
+          "description": "Wait for parkrun start; press lap",
+          "durationType": "OPEN",
+          "targetType": "OPEN"
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 5,
+          "intensity": "INTERVAL",
+          "description": "Controlled 5K; even effort",
+          "durationType": "DISTANCE",
+          "durationValue": 5000,
+          "targetType": "SPEED",
+          "targetValueLow": 3.4965034965034967,
+          "targetValueHigh": 3.5714285714285716,
+          "extraValueHeartrate": 180,
+          "extraValueSpeed": 3.5335689045936394
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 6,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 127,
+          "targetValueHigh": 143,
+          "extraValueHeartrate": 135,
+          "extraValueSpeed": 2.5316455696202533
+        }
+      ]
+    }
+  },
+  {
+    "id": "vvK4rnVRhn4ApirBMpqD4x",
+    "scheduledStart": "2026-10-11T16:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Recovery Run 35 min",
+    "notes": "Very easy recovery. Pace roughly 6:30–7:00/km, HR 122–138. If legs are sore or Saturday created more fatigue than expected, replace with walking or easy cycling.",
+    "durationSeconds": 2100.0,
+    "workout": {
+      "workoutName": "Recovery Run 35 min",
+      "description": "Very easy recovery. Pace roughly 6:30–7:00/km, HR 122–138. If legs are sore or Saturday created more fatigue than expected, replace with walking or easy cycling.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "RECOVERY",
+          "description": "Keep this genuinely easy",
+          "durationType": "TIME",
+          "durationValue": 2100,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 122,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 130,
+          "extraValueSpeed": 2.4691358024691357
+        }
+      ]
+    }
+  },
+  {
+    "id": "4jEF3stp5TMYbaUTSkBAUm",
+    "scheduledStart": "2026-10-12T17:00:00.079Z",
+    "timezone": "Europe/London",
+    "title": "Long Aerobic 85 min",
+    "notes": "HR-led aerobic durability. Main target 135–145 bpm, pace roughly 5:50–6:20/km. Keep the finish controlled.",
+    "durationSeconds": 5100.0,
+    "workout": {
+      "workoutName": "Long Aerobic 85 min",
+      "description": "HR-led aerobic durability. Main target 135–145 bpm, pace roughly 5:50–6:20/km. Keep the finish controlled.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "10 min easy warm-up",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 1,
+          "intensity": "INTERVAL",
+          "description": "Main aerobic",
+          "durationType": "TIME",
+          "durationValue": 3900,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 135,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 140,
+          "extraValueSpeed": 2.73972602739726
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 2,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        }
+      ]
+    }
+  },
+  {
+    "id": "p7roXwWJmcARSqkL8YTYYH",
+    "scheduledStart": "2026-10-14T17:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Threshold 3 × 10 min",
+    "notes": "Build controlled threshold duration. Reps 4:47–4:57/km. Expected HR ~163–170 bpm by the middle/later portions of reps. Finish with control, not race effort.",
+    "durationSeconds": 3840.0,
+    "workout": {
+      "workoutName": "Threshold 3 × 10 min",
+      "description": "Build controlled threshold duration. Reps 4:47–4:57/km. Expected HR ~163–170 bpm by the middle/later portions of reps. Finish with control, not race effort.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "15 min easy warm-up",
+          "durationType": "TIME",
+          "durationValue": 900,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 131,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 138,
+          "extraValueSpeed": 2.6881720430107525
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 3,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "Threshold: controlled hard",
+              "durationType": "TIME",
+              "durationValue": 600,
+              "targetType": "SPEED",
+              "targetValueLow": 3.367003367003367,
+              "targetValueHigh": 3.484320557491289,
+              "extraValueHeartrate": 167,
+              "extraValueSpeed": 3.4246575342465753
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "3 min easy jog",
+              "durationType": "TIME",
+              "durationValue": 180,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 137,
+              "targetValueHigh": 153,
+              "extraValueHeartrate": 145,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 4,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 128,
+          "targetValueHigh": 142,
+          "extraValueHeartrate": 135,
+          "extraValueSpeed": 2.5641025641025643
+        }
+      ]
+    }
+  },
+  {
+    "id": "me6zkQ5jtbQuE4qzdyGofp",
+    "scheduledStart": "2026-10-15T17:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Easy 45 min + 5 Strides",
+    "notes": "Easy aerobic volume, 5:50–6:20/km, HR 132–145. Five smooth strides with full control.",
+    "durationSeconds": 3175.0,
+    "workout": {
+      "workoutName": "Easy 45 min + 5 Strides",
+      "description": "Easy aerobic volume, 5:50–6:20/km, HR 132–145. Five smooth strides with full control.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "INTERVAL",
+          "description": "45 min easy aerobic",
+          "durationType": "TIME",
+          "durationValue": 2700,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 131,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 138,
+          "extraValueSpeed": 2.73972602739726
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 5,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "20 sec relaxed stride",
+              "durationType": "TIME",
+              "durationValue": 20,
+              "targetType": "SPEED",
+              "targetValueLow": 3.952569169960474,
+              "targetValueHigh": 4.291845493562231,
+              "extraValueSpeed": 4.11522633744856
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "75 sec easy recovery",
+              "durationType": "TIME",
+              "durationValue": 75,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 125,
+              "targetValueHigh": 145,
+              "extraValueHeartrate": 135,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "tc4bPYKjgBbC7RvHnyfirb",
+    "scheduledStart": "2026-10-17T08:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "5K Benchmark — Target 22:20–22:30",
+    "notes": "All-out benchmark after a full warm-up. Aim ~4:28–4:30/km average, but run hills by effort. Expected HR: mid/high 170s early, rising through 180s; late race may reach ~190+. Avoid an over-fast first km.",
+    "durationSeconds": 3355.3999999999996,
+    "workout": {
+      "workoutName": "5K Benchmark — Target 22:20–22:30",
+      "description": "All-out benchmark after a full warm-up. Aim ~4:28–4:30/km average, but run hills by effort. Expected HR: mid/high 170s early, rising through 180s; late race may reach ~190+. Avoid an over-fast first km.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "2.5–3 km easy warm-up",
+          "durationType": "DISTANCE",
+          "durationValue": 2800,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 134,
+          "targetValueHigh": 150,
+          "extraValueHeartrate": 142,
+          "extraValueSpeed": 2.717391304347826
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 4,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "20 sec relaxed stride",
+              "durationType": "TIME",
+              "durationValue": 20,
+              "targetType": "SPEED",
+              "targetValueLow": 4,
+              "targetValueHigh": 4.3478260869565215,
+              "extraValueSpeed": 4.166666666666667
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "75 sec easy",
+              "durationType": "TIME",
+              "durationValue": 75,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 130,
+              "targetValueHigh": 150,
+              "extraValueHeartrate": 140,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 4,
+          "intensity": "REST",
+          "description": "Wait for start; press lap",
+          "durationType": "OPEN",
+          "targetType": "OPEN"
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 5,
+          "intensity": "INTERVAL",
+          "description": "5K benchmark: controlled first km",
+          "durationType": "DISTANCE",
+          "durationValue": 5000,
+          "targetType": "SPEED",
+          "targetValueLow": 3.690036900369004,
+          "targetValueHigh": 3.745318352059925,
+          "extraValueHeartrate": 184,
+          "extraValueSpeed": 3.717472118959108
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 6,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 127,
+          "targetValueHigh": 143,
+          "extraValueHeartrate": 135,
+          "extraValueSpeed": 2.5316455696202533
+        }
+      ]
+    }
+  },
+  {
+    "id": "pgrL1vyF4xfFAC6quGfr9B",
+    "scheduledStart": "2026-10-18T16:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Recovery Run 40 min",
+    "notes": "Very easy recovery after the benchmark. Pace ~6:30–7:00/km, HR 122–138. Substitute easy cycling/walking if soreness is more than mild.",
+    "durationSeconds": 2400.0,
+    "workout": {
+      "workoutName": "Recovery Run 40 min",
+      "description": "Very easy recovery after the benchmark. Pace ~6:30–7:00/km, HR 122–138. Substitute easy cycling/walking if soreness is more than mild.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "RECOVERY",
+          "description": "Keep it very easy",
+          "durationType": "TIME",
+          "durationValue": 2400,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 122,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 130,
+          "extraValueSpeed": 2.4691358024691357
+        }
+      ]
+    }
+  },
+  {
+    "id": "ggvPma18hEb6ttNYDE9ECr",
+    "scheduledStart": "2026-10-19T17:00:00.047Z",
+    "timezone": "Europe/London",
+    "title": "Long Aerobic 90 min + Steady Finish",
+    "notes": "Aerobic durability with an optional controlled finish. Main HR 135–145. Final 10 min steady only if legs and breathing are good; target ~5:30–5:45/km and HR ~145–155.",
+    "durationSeconds": 5400.0,
+    "workout": {
+      "workoutName": "Long Aerobic 90 min + Steady Finish",
+      "description": "Aerobic durability with an optional controlled finish. Main HR 135–145. Final 10 min steady only if legs and breathing are good; target ~5:30–5:45/km and HR ~145–155.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "10 min easy warm-up",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 1,
+          "intensity": "INTERVAL",
+          "description": "60 min easy aerobic",
+          "durationType": "TIME",
+          "durationValue": 3600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 135,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 140,
+          "extraValueSpeed": 2.73972602739726
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 2,
+          "intensity": "INTERVAL",
+          "description": "10 min steady if feeling good",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "SPEED",
+          "targetValueLow": 2.8901734104046244,
+          "targetValueHigh": 3.0303030303030303,
+          "extraValueHeartrate": 150,
+          "extraValueSpeed": 2.9585798816568047
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 3,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        }
+      ]
+    }
+  },
+  {
+    "id": "tLgANchi89gZNmxpxmUErn",
+    "scheduledStart": "2026-10-21T17:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Threshold 3 × 12 min",
+    "notes": "Extend threshold durability. Reps 4:45–4:55/km. Expected HR ~163–171 bpm, with late-rep drift acceptable if breathing remains controlled.",
+    "durationSeconds": 4200.0,
+    "workout": {
+      "workoutName": "Threshold 3 × 12 min",
+      "description": "Extend threshold durability. Reps 4:45–4:55/km. Expected HR ~163–171 bpm, with late-rep drift acceptable if breathing remains controlled.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "15 min easy warm-up",
+          "durationType": "TIME",
+          "durationValue": 900,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 131,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 138,
+          "extraValueSpeed": 2.7027027027027026
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 3,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "Threshold: controlled hard",
+              "durationType": "TIME",
+              "durationValue": 720,
+              "targetType": "SPEED",
+              "targetValueLow": 3.389830508474576,
+              "targetValueHigh": 3.508771929824561,
+              "extraValueHeartrate": 167,
+              "extraValueSpeed": 3.4482758620689653
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "3 min easy jog",
+              "durationType": "TIME",
+              "durationValue": 180,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 137,
+              "targetValueHigh": 153,
+              "extraValueHeartrate": 145,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 4,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 128,
+          "targetValueHigh": 142,
+          "extraValueHeartrate": 135,
+          "extraValueSpeed": 2.5641025641025643
+        }
+      ]
+    }
+  },
+  {
+    "id": "gdqNQyJuefbyVQGL87f1Tk",
+    "scheduledStart": "2026-10-22T17:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Easy 45 min + 6 Strides",
+    "notes": "Easy aerobic volume. Pace ~5:50–6:20/km, HR 132–145. Six relaxed strides for economy and leg speed.",
+    "durationSeconds": 3270.0,
+    "workout": {
+      "workoutName": "Easy 45 min + 6 Strides",
+      "description": "Easy aerobic volume. Pace ~5:50–6:20/km, HR 132–145. Six relaxed strides for economy and leg speed.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "INTERVAL",
+          "description": "45 min easy aerobic",
+          "durationType": "TIME",
+          "durationValue": 2700,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 131,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 138,
+          "extraValueSpeed": 2.73972602739726
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 6,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "20 sec relaxed stride",
+              "durationType": "TIME",
+              "durationValue": 20,
+              "targetType": "SPEED",
+              "targetValueLow": 4,
+              "targetValueHigh": 4.3478260869565215,
+              "extraValueSpeed": 4.166666666666667
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "75 sec easy recovery",
+              "durationType": "TIME",
+              "durationValue": 75,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 125,
+              "targetValueHigh": 145,
+              "extraValueHeartrate": 135,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "nL4RzNNz5uHpA9eMyKm7e5",
+    "scheduledStart": "2026-10-24T08:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Progression Parkrun 5K",
+    "notes": "Controlled progression, not a PB attempt. Run hills by effort. Build through the 5K: 2 km around 4:55–5:00/km, then 1 km 4:40–4:45, 1 km 4:30–4:35, final km 4:20–4:30 if controlled.",
+    "durationSeconds": 3322.0,
+    "workout": {
+      "workoutName": "Progression Parkrun 5K",
+      "description": "Controlled progression, not a PB attempt. Run hills by effort. Build through the 5K: 2 km around 4:55–5:00/km, then 1 km 4:40–4:45, 1 km 4:30–4:35, final km 4:20–4:30 if controlled.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "2.5 km easy warm-up",
+          "durationType": "DISTANCE",
+          "durationValue": 2500,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 134,
+          "targetValueHigh": 150,
+          "extraValueHeartrate": 142,
+          "extraValueSpeed": 2.7027027027027026
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 4,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "20 sec relaxed stride",
+              "durationType": "TIME",
+              "durationValue": 20,
+              "targetType": "SPEED",
+              "targetValueLow": 4,
+              "targetValueHigh": 4.3478260869565215,
+              "extraValueSpeed": 4.166666666666667
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "75 sec easy",
+              "durationType": "TIME",
+              "durationValue": 75,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 130,
+              "targetValueHigh": 150,
+              "extraValueHeartrate": 140,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 4,
+          "intensity": "REST",
+          "description": "Wait for parkrun start; press lap",
+          "durationType": "OPEN",
+          "targetType": "OPEN"
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 5,
+          "intensity": "INTERVAL",
+          "description": "First 2 km steady",
+          "durationType": "DISTANCE",
+          "durationValue": 2000,
+          "targetType": "SPEED",
+          "targetValueLow": 3.3222591362126246,
+          "targetValueHigh": 3.389830508474576,
+          "extraValueHeartrate": 170,
+          "extraValueSpeed": 3.3557046979865772
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 6,
+          "intensity": "INTERVAL",
+          "description": "Build",
+          "durationType": "DISTANCE",
+          "durationValue": 1000,
+          "targetType": "SPEED",
+          "targetValueLow": 3.4965034965034967,
+          "targetValueHigh": 3.5714285714285716,
+          "extraValueHeartrate": 176,
+          "extraValueSpeed": 3.5335689045936394
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 7,
+          "intensity": "INTERVAL",
+          "description": "Build again",
+          "durationType": "DISTANCE",
+          "durationValue": 1000,
+          "targetType": "SPEED",
+          "targetValueLow": 3.6231884057971016,
+          "targetValueHigh": 3.7037037037037037,
+          "extraValueHeartrate": 181,
+          "extraValueSpeed": 3.663003663003663
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 8,
+          "intensity": "INTERVAL",
+          "description": "Final km strong if controlled",
+          "durationType": "DISTANCE",
+          "durationValue": 1000,
+          "targetType": "SPEED",
+          "targetValueLow": 3.7037037037037037,
+          "targetValueHigh": 3.8461538461538463,
+          "extraValueHeartrate": 187,
+          "extraValueSpeed": 3.7735849056603774
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 9,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 127,
+          "targetValueHigh": 143,
+          "extraValueHeartrate": 135,
+          "extraValueSpeed": 2.5316455696202533
+        }
+      ]
+    }
+  },
+  {
+    "id": "ihB3Jv4pihjfPQCzrE8EFN",
+    "scheduledStart": "2026-10-25T16:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Recovery Run 40 min",
+    "notes": "Very easy recovery. Pace ~6:25–6:55/km, HR 122–138. Keep impact low and finish fresher than you started.",
+    "durationSeconds": 2400.0,
+    "workout": {
+      "workoutName": "Recovery Run 40 min",
+      "description": "Very easy recovery. Pace ~6:25–6:55/km, HR 122–138. Keep impact low and finish fresher than you started.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "RECOVERY",
+          "description": "Genuinely easy recovery",
+          "durationType": "TIME",
+          "durationValue": 2400,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 122,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 130,
+          "extraValueSpeed": 2.5
+        }
+      ]
+    }
+  },
+  {
+    "id": "3sCFu3MQ7BLvRZAPgGSsBQ",
+    "scheduledStart": "2026-10-26T17:00:00.360Z",
+    "timezone": "Europe/London",
+    "title": "Long Aerobic 95 min",
+    "notes": "Continue aerobic durability. Main target 135–145 bpm, pace roughly 5:50–6:20/km. No hard finish this week because Saturday is the key 5K benchmark.",
+    "durationSeconds": 5700.0,
+    "workout": {
+      "workoutName": "Long Aerobic 95 min",
+      "description": "Continue aerobic durability. Main target 135–145 bpm, pace roughly 5:50–6:20/km. No hard finish this week because Saturday is the key 5K benchmark.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "10 min easy warm-up",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 1,
+          "intensity": "INTERVAL",
+          "description": "75 min aerobic",
+          "durationType": "TIME",
+          "durationValue": 4500,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 135,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 140,
+          "extraValueSpeed": 2.73972602739726
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 2,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        }
+      ]
+    }
+  },
+  {
+    "id": "jUQ6qYXK1PRCUr5oLFpm9B",
+    "scheduledStart": "2026-10-28T17:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Threshold 2 × 15 min",
+    "notes": "Slightly reduced threshold volume before Saturday benchmark. Reps 4:43–4:53/km. Expected HR ~164–172 bpm. Keep both reps even and controlled.",
+    "durationSeconds": 3780.0,
+    "workout": {
+      "workoutName": "Threshold 2 × 15 min",
+      "description": "Slightly reduced threshold volume before Saturday benchmark. Reps 4:43–4:53/km. Expected HR ~164–172 bpm. Keep both reps even and controlled.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "15 min easy warm-up",
+          "durationType": "TIME",
+          "durationValue": 900,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 131,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 138,
+          "extraValueSpeed": 2.7027027027027026
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 2,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "Threshold: controlled hard",
+              "durationType": "TIME",
+              "durationValue": 900,
+              "targetType": "SPEED",
+              "targetValueLow": 3.4129692832764507,
+              "targetValueHigh": 3.5335689045936394,
+              "extraValueHeartrate": 168,
+              "extraValueSpeed": 3.4722222222222223
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "4 min easy jog",
+              "durationType": "TIME",
+              "durationValue": 240,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 137,
+              "targetValueHigh": 153,
+              "extraValueHeartrate": 145,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 4,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 128,
+          "targetValueHigh": 142,
+          "extraValueHeartrate": 135,
+          "extraValueSpeed": 2.5641025641025643
+        }
+      ]
+    }
+  },
+  {
+    "id": "uiKgcH8ZNQ32ooTHDvoUFS",
+    "scheduledStart": "2026-10-29T17:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Easy 40 min + 4 Strides",
+    "notes": "Keep this light before Saturday's benchmark. Easy pace ~5:55–6:25/km, HR 132–145. Strides smooth, not maximal.",
+    "durationSeconds": 2780.0,
+    "workout": {
+      "workoutName": "Easy 40 min + 4 Strides",
+      "description": "Keep this light before Saturday's benchmark. Easy pace ~5:55–6:25/km, HR 132–145. Strides smooth, not maximal.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "INTERVAL",
+          "description": "40 min easy aerobic",
+          "durationType": "TIME",
+          "durationValue": 2400,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 131,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 138,
+          "extraValueSpeed": 2.7027027027027026
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 4,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "20 sec relaxed stride",
+              "durationType": "TIME",
+              "durationValue": 20,
+              "targetType": "SPEED",
+              "targetValueLow": 4,
+              "targetValueHigh": 4.3478260869565215,
+              "extraValueSpeed": 4.166666666666667
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "75 sec easy recovery",
+              "durationType": "TIME",
+              "durationValue": 75,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 125,
+              "targetValueHigh": 145,
+              "extraValueHeartrate": 135,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "uusBBEBM5T7XQivbNbgybj",
+    "scheduledStart": "2026-10-31T09:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "5K Benchmark — Target 22:00–22:10",
+    "notes": "Key 5K benchmark. Aim roughly 4:24–4:26/km average. Full warm-up. Expected HR rises from high 170s into 180s, with late-race 190+ possible. Do not force pace on hills; protect the opening kilometre.",
+    "durationSeconds": 3335.3999999999996,
+    "workout": {
+      "workoutName": "5K Benchmark — Target 22:00–22:10",
+      "description": "Key 5K benchmark. Aim roughly 4:24–4:26/km average. Full warm-up. Expected HR rises from high 170s into 180s, with late-race 190+ possible. Do not force pace on hills; protect the opening kilometre.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "2.5–3 km easy warm-up",
+          "durationType": "DISTANCE",
+          "durationValue": 2800,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 134,
+          "targetValueHigh": 150,
+          "extraValueHeartrate": 142,
+          "extraValueSpeed": 2.717391304347826
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 4,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "20 sec relaxed stride",
+              "durationType": "TIME",
+              "durationValue": 20,
+              "targetType": "SPEED",
+              "targetValueLow": 4.032258064516129,
+              "targetValueHigh": 4.385964912280702,
+              "extraValueSpeed": 4.201680672268908
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "75 sec easy",
+              "durationType": "TIME",
+              "durationValue": 75,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 130,
+              "targetValueHigh": 150,
+              "extraValueHeartrate": 140,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 4,
+          "intensity": "REST",
+          "description": "Wait for start; press lap",
+          "durationType": "OPEN",
+          "targetType": "OPEN"
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 5,
+          "intensity": "INTERVAL",
+          "description": "5K benchmark: even effort",
+          "durationType": "DISTANCE",
+          "durationValue": 5000,
+          "targetType": "SPEED",
+          "targetValueLow": 3.745318352059925,
+          "targetValueHigh": 3.802281368821293,
+          "extraValueHeartrate": 185,
+          "extraValueSpeed": 3.7735849056603774
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 6,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 127,
+          "targetValueHigh": 143,
+          "extraValueHeartrate": 135,
+          "extraValueSpeed": 2.5316455696202533
+        }
+      ]
+    }
+  },
+  {
+    "id": "o1eo8zAqJkjghNJf3GteF9",
+    "scheduledStart": "2026-11-01T16:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Recovery Run 40 min",
+    "notes": "Very easy post-benchmark recovery. Pace ~6:25–6:55/km, HR 122–138. Swap for walking/easy cycling if residual soreness is more than mild.",
+    "durationSeconds": 2400.0,
+    "workout": {
+      "workoutName": "Recovery Run 40 min",
+      "description": "Very easy post-benchmark recovery. Pace ~6:25–6:55/km, HR 122–138. Swap for walking/easy cycling if residual soreness is more than mild.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "RECOVERY",
+          "description": "Very easy recovery",
+          "durationType": "TIME",
+          "durationValue": 2400,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 122,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 130,
+          "extraValueSpeed": 2.5
+        }
+      ]
+    }
+  },
+  {
+    "id": "uE54PXjWBk3HxPXQeHZ8px",
+    "scheduledStart": "2026-11-02T17:00:00.338Z",
+    "timezone": "Europe/London",
+    "title": "Long Aerobic 100 min",
+    "notes": "Peak long-run duration of this block. Main target 135–145 bpm, pace roughly 5:45–6:15/km. Keep it smooth; no hard finish after the Saturday benchmark.",
+    "durationSeconds": 6000.0,
+    "workout": {
+      "workoutName": "Long Aerobic 100 min",
+      "description": "Peak long-run duration of this block. Main target 135–145 bpm, pace roughly 5:45–6:15/km. Keep it smooth; no hard finish after the Saturday benchmark.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "10 min easy warm-up",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 1,
+          "intensity": "INTERVAL",
+          "description": "80 min aerobic",
+          "durationType": "TIME",
+          "durationValue": 4800,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 135,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 140,
+          "extraValueSpeed": 2.7777777777777777
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 2,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        }
+      ]
+    }
+  },
+  {
+    "id": "5LHrNMvdQ6yEx17gWooSVH",
+    "scheduledStart": "2026-11-04T17:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Threshold 2 × 20 min",
+    "notes": "Highest threshold volume of this block. Reps 4:40–4:50/km. Expected HR ~164–173 bpm. This is not a time trial; if breathing becomes uncontrolled, back off or stop after the first 20 min.",
+    "durationSeconds": 4380.0,
+    "workout": {
+      "workoutName": "Threshold 2 × 20 min",
+      "description": "Highest threshold volume of this block. Reps 4:40–4:50/km. Expected HR ~164–173 bpm. This is not a time trial; if breathing becomes uncontrolled, back off or stop after the first 20 min.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "15 min easy warm-up",
+          "durationType": "TIME",
+          "durationValue": 900,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 131,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 138,
+          "extraValueSpeed": 2.7027027027027026
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 2,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "Threshold: controlled hard",
+              "durationType": "TIME",
+              "durationValue": 1200,
+              "targetType": "SPEED",
+              "targetValueLow": 3.4482758620689653,
+              "targetValueHigh": 3.5714285714285716,
+              "extraValueHeartrate": 169,
+              "extraValueSpeed": 3.508771929824561
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "4 min easy jog",
+              "durationType": "TIME",
+              "durationValue": 240,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 137,
+              "targetValueHigh": 153,
+              "extraValueHeartrate": 145,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 4,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 128,
+          "targetValueHigh": 142,
+          "extraValueHeartrate": 135,
+          "extraValueSpeed": 2.5641025641025643
+        }
+      ]
+    }
+  },
+  {
+    "id": "gEqfT5wkhn8TaMWAvpu1jz",
+    "scheduledStart": "2026-11-05T17:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Easy 45 min + 6 Strides",
+    "notes": "Easy aerobic support. Pace ~5:45–6:15/km, HR 132–145. Six relaxed strides; preserve freshness for Saturday.",
+    "durationSeconds": 3270.0,
+    "workout": {
+      "workoutName": "Easy 45 min + 6 Strides",
+      "description": "Easy aerobic support. Pace ~5:45–6:15/km, HR 132–145. Six relaxed strides; preserve freshness for Saturday.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "INTERVAL",
+          "description": "45 min easy aerobic",
+          "durationType": "TIME",
+          "durationValue": 2700,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 131,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 138,
+          "extraValueSpeed": 2.7777777777777777
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 6,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "20 sec relaxed stride",
+              "durationType": "TIME",
+              "durationValue": 20,
+              "targetType": "SPEED",
+              "targetValueLow": 4.032258064516129,
+              "targetValueHigh": 4.385964912280702,
+              "extraValueSpeed": 4.201680672268908
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "75 sec easy recovery",
+              "durationType": "TIME",
+              "durationValue": 75,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 125,
+              "targetValueHigh": 145,
+              "extraValueHeartrate": 135,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "8JS6rzs4tAHhf97xPzQXvi",
+    "scheduledStart": "2026-11-07T09:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Controlled Parkrun 5K — 4:32–4:38/km",
+    "notes": "Controlled 5K development after the 31 Oct benchmark. Target 4:32–4:38/km average, expected HR roughly 175–185 once settled. Strong but clearly below all-out effort; hills by effort.",
+    "durationSeconds": 3267.5,
+    "workout": {
+      "workoutName": "Controlled Parkrun 5K — 4:32–4:38/km",
+      "description": "Controlled 5K development after the 31 Oct benchmark. Target 4:32–4:38/km average, expected HR roughly 175–185 once settled. Strong but clearly below all-out effort; hills by effort.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "2.5 km easy warm-up",
+          "durationType": "DISTANCE",
+          "durationValue": 2500,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 134,
+          "targetValueHigh": 150,
+          "extraValueHeartrate": 142,
+          "extraValueSpeed": 2.73972602739726
+        },
+        {
+          "type": "WorkoutRepeatStep",
+          "stepOrder": 3,
+          "repeatType": "REPEAT_UNTIL_STEPS_CMPLT",
+          "repeatValue": 4,
+          "steps": [
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 1,
+              "intensity": "INTERVAL",
+              "description": "20 sec relaxed stride",
+              "durationType": "TIME",
+              "durationValue": 20,
+              "targetType": "SPEED",
+              "targetValueLow": 4.032258064516129,
+              "targetValueHigh": 4.385964912280702,
+              "extraValueSpeed": 4.201680672268908
+            },
+            {
+              "type": "WorkoutStep",
+              "stepOrder": 2,
+              "intensity": "RECOVERY",
+              "description": "75 sec easy",
+              "durationType": "TIME",
+              "durationValue": 75,
+              "targetType": "HEART_RATE",
+              "targetValueLow": 130,
+              "targetValueHigh": 150,
+              "extraValueHeartrate": 140,
+              "extraValueSpeed": 2.5316455696202533
+            }
+          ]
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 4,
+          "intensity": "REST",
+          "description": "Wait for start; press lap",
+          "durationType": "OPEN",
+          "targetType": "OPEN"
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 5,
+          "intensity": "INTERVAL",
+          "description": "Controlled 5K",
+          "durationType": "DISTANCE",
+          "durationValue": 5000,
+          "targetType": "SPEED",
+          "targetValueLow": 3.597122302158273,
+          "targetValueHigh": 3.676470588235294,
+          "extraValueHeartrate": 180,
+          "extraValueSpeed": 3.6363636363636362
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 6,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 127,
+          "targetValueHigh": 143,
+          "extraValueHeartrate": 135,
+          "extraValueSpeed": 2.5316455696202533
+        }
+      ]
+    }
+  },
+  {
+    "id": "xjWbZbypGkTJDmQH1S2PvX",
+    "scheduledStart": "2026-11-08T16:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Recovery Run 40 min",
+    "notes": "Very easy recovery. Pace ~6:25–6:55/km, HR 122–138. Keep it light enough to absorb the five-week build.",
+    "durationSeconds": 2400.0,
+    "workout": {
+      "workoutName": "Recovery Run 40 min",
+      "description": "Very easy recovery. Pace ~6:25–6:55/km, HR 122–138. Keep it light enough to absorb the five-week build.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "RECOVERY",
+          "description": "Very easy recovery",
+          "durationType": "TIME",
+          "durationValue": 2400,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 122,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 130,
+          "extraValueSpeed": 2.5
+        }
+      ]
+    }
+  },
+  {
+    "id": "iXzXGZ8nub58e9SrGXPMN6",
+    "scheduledStart": "2026-11-09T17:00:00.000Z",
+    "timezone": "Europe/London",
+    "title": "Step-Back Long Aerobic 90 min",
+    "notes": "Absorb the block while retaining aerobic durability. Main target 135–145 bpm, pace roughly 5:50–6:20/km. Keep this easier than the 100-min run the week before.",
+    "durationSeconds": 5400.0,
+    "workout": {
+      "workoutName": "Step-Back Long Aerobic 90 min",
+      "description": "Absorb the block while retaining aerobic durability. Main target 135–145 bpm, pace roughly 5:50–6:20/km. Keep this easier than the 100-min run the week before.",
+      "sport": "RUNNING",
+      "workoutProvider": "Tredict.com",
+      "workoutSourceId": "Tredict.com",
+      "steps": [
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 0,
+          "intensity": "WARMUP",
+          "description": "10 min easy warm-up",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 1,
+          "intensity": "INTERVAL",
+          "description": "70 min easy aerobic",
+          "durationType": "TIME",
+          "durationValue": 4200,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 135,
+          "targetValueHigh": 145,
+          "extraValueHeartrate": 140,
+          "extraValueSpeed": 2.73972602739726
+        },
+        {
+          "type": "WorkoutStep",
+          "stepOrder": 2,
+          "intensity": "COOLDOWN",
+          "description": "10 min easy cool-down",
+          "durationType": "TIME",
+          "durationValue": 600,
+          "targetType": "HEART_RATE",
+          "targetValueLow": 126,
+          "targetValueHigh": 138,
+          "extraValueHeartrate": 132,
+          "extraValueSpeed": 2.5316455696202533
+        }
+      ]
+    }
+  }
+]

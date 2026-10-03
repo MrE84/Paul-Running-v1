@@ -3,6 +3,7 @@ const nextConfig = {
   // PAU-88: the MCP reads the coaching guide from disk at request time; make sure the
   // serverless bundle for the MCP route includes it.
   outputFileTracingIncludes: {
+    "/master-plan": ["./coaches area/**/*.md"],
     "/api/mcp": ["./lib/debriefs/guide/**/*"],
   },
 };

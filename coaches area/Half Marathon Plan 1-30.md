@@ -699,3 +699,10 @@ The goal is to systematically build the physiology and durability that allow him
 > **4:16/km for 21.1 km without the effort becoming unsustainable.**
 
 Every session should contribute to that outcome.
+
+
+## Approved October–November programme
+
+Calendar corrected on 3 October 2026: the 26 running workouts are scheduled from Monday 5 October through Monday 9 November 2026 in Europe/London. Parkruns are Saturdays at 09:00 on 10, 17, 24 and 31 October and 7 November. Tuesday is strength/rest; Friday is rest.
+
+The structured programme already exists in Tredict for Garmin delivery. Paul’s Running embeds that programme for review; embedding it does not create another Garmin delivery or an Intervals.icu sync. The weekly coaching documents provide pacing and expected heart-rate guidance; the embedded workout steps show the exact scheduled programme. Heart rates are expectations, not numbers to force.
