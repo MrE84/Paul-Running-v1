@@ -31,6 +31,75 @@ that **4:16/km becomes sustainable for 21.1 km**.
 
 ---
 
+# Current Status — 3 October 2026
+
+## Latest benchmark
+
+**Cheltenham parkrun:** **22:47** on 3 October 2026.
+
+This is the current 5K PB and confirms that the **sub-23:00 progression gate has been achieved**.
+
+The run was not an optimised 5K execution:
+
+- minimal warm-up (~0.5 km plus two strides),
+- first kilometre approximately 4:01/km,
+- deliberate tactical reset after ~1.5–2 km,
+- hilly course profile,
+- breathing/ventilatory strain became the main limiter rather than obvious muscular failure,
+- strong enough late-race control to remain under 23 minutes despite the aggressive opening.
+
+This should be treated as evidence of improving fitness, but not as proof that 22:47 is the current physiological ceiling.
+
+## Recent 5K progression
+
+| Date | Result | Change vs previous PB |
+|---|---:|---:|
+| 30 May 2026 | 29:46 | — |
+| 13 Jun 2026 | 29:06 | -0:40 |
+| 20 Jun 2026 | 26:57 | -2:09 |
+| 27 Jun 2026 | 25:36 | -1:21 |
+| 11 Jul 2026 | 24:43 | -0:53 |
+| 15 Aug 2026 | 24:06 | -0:37 |
+| 5 Sep 2026 | 23:36 | -0:30 |
+| 3 Oct 2026 | **22:47** | **-0:49** |
+
+Recent improvement from 11 July to 3 October is **1:56 across roughly 12 weeks**.
+
+The recent observed trend has been approximately **15–25 seconds of 5K improvement per two weeks**, although this must not be assumed to continue indefinitely.
+
+## Current 10K markers
+
+| Event | Result |
+|---|---:|
+| Evesham 10K | ~51:00 |
+| Fastest rolling 10K during Cheltenham Half Marathon | **48:59** |
+
+The 48:59 marker was achieved within a half marathon rather than as a standalone 10K race, so standalone 10K potential may already be better.
+
+## Near-term projection
+
+A useful intermediate milestone is **21:20 for 5K**, equivalent to 4:16/km.
+
+From 22:47, another **87 seconds** are required.
+
+If the recent linear trend continued without plateau:
+
+| Improvement rate | Approximate crossing date |
+|---|---|
+| 25 sec every 2 weeks | ~21 Nov 2026 |
+| 20 sec every 2 weeks | ~5 Dec 2026 |
+| 15 sec every 2 weeks | ~26 Dec 2026 |
+
+**Working projection:** around **5 December 2026** for 21:20 if the recent trend continues.
+
+This is a planning hypothesis, not a guaranteed prediction.
+
+Crucially, **21:20 is not the final 5K goal**. It only demonstrates the ability to run target HM pace for 5K. The preferred standalone 5K range remains **20:30–21:00** to create meaningful speed reserve.
+
+If ~21:20 is reached around early December, the remaining ~15 weeks to 21 March 2027 should be used primarily to convert speed into threshold strength, 10K performance and half-marathon-specific durability.
+
+---
+
 ## Key Benchmark Race
 
 **Cotswold Airport Half Marathon**  
@@ -61,12 +130,13 @@ These are formal milestones in the plan.
 
 ## 5K Milestones
 
-| Stage | Target |
-|---|---:|
-| Baseline from Cheltenham Half | 24:05 rolling 5K |
-| Milestone 1 | Sub-23:00 |
-| Milestone 2 | Sub-22:00 |
-| Goal range | **20:30–21:00** |
+| Stage | Target | Status |
+|---|---:|---|
+| Baseline from Cheltenham Half | 24:05 rolling 5K | Historical baseline |
+| Milestone 1 | Sub-23:00 | **ACHIEVED — 22:47 on 3 Oct 2026** |
+| Milestone 2 | Sub-22:00 | Next formal gate |
+| HM-pace equivalence marker | **21:20** | Projected ~5 Dec 2026 if current trend continues |
+| Goal range | **20:30–21:00** | Required speed-reserve range |
 
 A 1:30 half marathon requires an average pace equivalent to about **21:20 for 5K**, but the preferred standalone 5K performance is faster than this so that 4:16/km is not too close to maximum 5K effort.
 
@@ -74,12 +144,13 @@ A 1:30 half marathon requires an average pace equivalent to about **21:20 for 5K
 
 ## 10K Milestones
 
-| Stage | Target |
-|---|---:|
-| Baseline from Cheltenham Half | 48:59 rolling 10K |
-| Milestone 1 | Sub-46:00 |
-| Milestone 2 | Sub-44:00 |
-| Goal range | **41:30–42:15** |
+| Stage | Target | Status |
+|---|---:|---|
+| Baseline from Cheltenham Half | 48:59 rolling 10K | Current benchmark |
+| Milestone 1 | Sub-46:00 | Upcoming |
+| Milestone 2 | Sub-44:00 | Upcoming |
+| HM-pace equivalence marker | 42:40 | Upcoming |
+| Goal range | **41:30–42:15** | Preferred speed reserve |
 
 A 1:30 half marathon passes 10K in approximately **42:40**.
 
@@ -117,6 +188,8 @@ The key adaptation we want is:
 > **Similar physiological cost → faster pace**
 
 The pace associated with LT1 and LT2 should improve as fitness develops.
+
+Recent 5K evidence shows the ability to access substantially faster pace, but the key question remains how much of that speed can be made sustainable at lower physiological cost.
 
 ---
 
@@ -158,6 +231,15 @@ Use selected parkruns or dedicated 5K tests to measure speed development.
 
 Not every Saturday parkrun should be an all-out PB attempt.
 
+Current PB: **22:47 (3 Oct 2026)**.
+
+Next checkpoints:
+
+- sub-22:30,
+- sub-22:00,
+- 21:20 HM-pace equivalence marker,
+- 20:30–21:00 preferred goal range.
+
 ---
 
 ## 4. 10K Performance
@@ -165,6 +247,15 @@ Not every Saturday parkrun should be an all-out PB attempt.
 Use dedicated 10K tests/races periodically.
 
 This is one of the most important indicators of whether the 1:30 target is becoming realistic.
+
+Current benchmark: **48:59 rolling 10K during the Cheltenham Half Marathon**.
+
+Next checkpoints:
+
+- sub-46:00,
+- sub-44:00,
+- 42:40 HM-pace equivalence,
+- 41:30–42:15 preferred goal range.
 
 ---
 
@@ -181,6 +272,8 @@ Later examples may include:
 - continuous race-specific blocks
 
 These should only be introduced when the underlying fitness supports them.
+
+The conversion challenge is not merely to touch 4:16/km, but to progressively make it metabolically and mechanically sustainable for 21.1 km.
 
 ---
 
@@ -212,7 +305,8 @@ Main objectives:
 - improve running economy,
 - build lower-body strength,
 - retain speed through strides and controlled parkrun work,
-- begin moving threshold pace forward.
+- begin moving threshold pace forward,
+- progress from the newly achieved sub-23 5K toward sub-22 without turning every parkrun into a maximal effort.
 
 Priority:
 
@@ -227,11 +321,13 @@ Priority:
 Main objectives:
 
 - materially improve LT2 pace,
-- move toward sub-22 5K,
+- move beyond sub-22 5K toward the 21:20 marker and ultimately 20:30–21:00 speed-reserve range,
 - move toward sub-44 10K,
 - increase sustainable threshold duration,
 - improve ability to run faster without excessive HR rise,
 - progressively increase weekly running volume if recovery supports it.
+
+If 21:20 is achieved around early December, the emphasis should shift from chasing repeated 5K PBs toward extending sustainable speed and improving 10K/HM durability.
 
 This is where running threshold work becomes increasingly important.
 
@@ -251,6 +347,8 @@ Main objectives:
 - develop control around 4:20–4:30/km before progressively approaching 4:16/km.
 
 The goal is not to force 4:16/km too early.
+
+By this phase, success should increasingly be judged by **duration and distance sustained near target pace while remaining controlled**, not by isolated short-distance PBs.
 
 ---
 
@@ -403,6 +501,8 @@ Not every week is a PB attempt.
 
 The purpose must be explicitly defined before the run.
 
+For future all-out 5K attempts, avoid repeating the 3 October execution error of combining a minimal warm-up with an opening kilometre near 4:00/km. Use an adequate warm-up and pace the first kilometre according to the session objective.
+
 ---
 
 ## Sunday — Recovery
@@ -478,9 +578,11 @@ Evidence:
 
 ---
 
-## Gate 2 — Sub-23 5K
+## Gate 2 — Sub-23 5K — ACHIEVED
 
-Indicates the first meaningful improvement in speed reserve.
+**Achieved 3 October 2026: 22:47 at Cheltenham parkrun.**
+
+This confirms the first meaningful improvement in speed reserve.
 
 ---
 
@@ -492,7 +594,19 @@ Indicates improved endurance at faster speeds.
 
 ## Gate 4 — Sub-22 5K
 
+This is now the next formal 5K progression gate.
+
 Signals that the speed gap to the target is closing materially.
+
+---
+
+## Intermediate Marker — 21:20 5K
+
+Equivalent to target half-marathon pace of 4:16/km.
+
+This is an important psychological and physiological marker, but **not sufficient evidence by itself** for 1:30 HM readiness.
+
+Working linear-trend projection: **around 5 December 2026**, subject to normal performance variability and plateau risk.
 
 ---
 
@@ -521,6 +635,15 @@ One of the strongest pre-race indicators that 4:16/km half-marathon pace may be 
 ## Gate 8 — HM-Specific Durability
 
 Ability to complete substantial race-specific work close to HM target pace while remaining controlled.
+
+Indicative evidence later in the plan may include:
+
+- substantial total distance around 4:20–4:25/km in controlled repetitions,
+- stable HR and breathing across longer blocks,
+- limited late-session pace fade,
+- strong long-run durability,
+- successful race-fuelling practice,
+- recovery compatible with continued training.
 
 ---
 
@@ -555,6 +678,13 @@ After key sessions we should review:
 - recovery,
 - soreness,
 - sleep/fatigue where relevant.
+
+For 5K benchmarks, also record:
+
+- warm-up completed,
+- opening-kilometre pace,
+- whether breathing or muscular fatigue was the primary limiter,
+- whether the result represented optimal pacing or an exploratory effort.
 
 The master plan should be updated when the evidence shows that current training targets are no longer appropriate.
 
