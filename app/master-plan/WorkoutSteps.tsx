@@ -17,7 +17,13 @@ function pace(speed: number) {
 }
 
 function duration(step: Step) {
-  if (step.durationType === "TIME") return `${(step.durationValue ?? 0) / 60} min`;
+  if (step.durationType === "TIME") {
+    const seconds = Math.round(step.durationValue ?? 0);
+    const minutes = Math.floor(seconds / 60);
+    const remaining = seconds % 60;
+    if (minutes === 0) return `${remaining} sec`;
+    return remaining ? `${minutes} min ${remaining} sec` : `${minutes} min`;
+  }
   if (step.durationType === "DISTANCE") return `${(step.durationValue ?? 0) / 1000} km`;
   return "Press lap when ready";
 }
