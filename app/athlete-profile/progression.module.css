@@ -1,0 +1,232 @@
+.progressionSection {
+  margin-top: 14px;
+  padding: 22px;
+  border: 1px solid rgba(183, 138, 255, .34);
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(183, 138, 255, .10), transparent 32%),
+    linear-gradient(145deg, rgba(13, 25, 42, .96), rgba(9, 18, 32, .96));
+  box-shadow: 0 0 34px rgba(183, 138, 255, .06);
+}
+
+.headingRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.headingRow h2 {
+  margin: 5px 0 7px;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+  letter-spacing: -.035em;
+}
+
+.headingRow p {
+  max-width: 720px;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.projectionBadge {
+  flex: 0 0 auto;
+  padding: 8px 11px;
+  border: 1px solid rgba(183, 255, 69, .25);
+  border-radius: 999px;
+  background: rgba(183, 255, 69, .08);
+  color: var(--green);
+  font-size: .72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.metricGrid article,
+.scenarioGrid article {
+  padding: 13px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .025);
+}
+
+.metricGrid span,
+.metricGrid small,
+.scenarioGrid span,
+.scenarioGrid small {
+  display: block;
+}
+
+.metricGrid span,
+.scenarioGrid span {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.metricGrid strong,
+.scenarioGrid strong {
+  display: block;
+  margin: 6px 0 4px;
+  font-size: 1.16rem;
+}
+
+.metricGrid small,
+.scenarioGrid small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.chartShell {
+  margin-top: 16px;
+  overflow-x: auto;
+  border: 1px solid rgba(53, 230, 255, .18);
+  border-radius: 16px;
+  background: rgba(4, 10, 20, .58);
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  min-width: 720px;
+  height: auto;
+}
+
+.gridLine,
+.gridLineVertical {
+  stroke: rgba(175, 189, 211, .12);
+  stroke-width: 1;
+}
+
+.gridLineVertical {
+  stroke-dasharray: 4 8;
+}
+
+.axisText {
+  fill: #8fa0b8;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.targetLine {
+  stroke: var(--green);
+  stroke-width: 2;
+  stroke-dasharray: 9 7;
+  opacity: .72;
+}
+
+.targetLabel {
+  fill: var(--green);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.series {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 4;
+}
+
+.actual {
+  stroke: var(--blue);
+}
+
+.fast {
+  stroke: var(--violet);
+  stroke-dasharray: 8 6;
+}
+
+.central {
+  stroke: var(--green);
+  stroke-dasharray: 12 6;
+}
+
+.slow {
+  stroke: var(--pink);
+  stroke-dasharray: 4 7;
+}
+
+.actualPoint {
+  fill: #08101f;
+  stroke: var(--blue);
+  stroke-width: 3;
+}
+
+.currentPoint {
+  fill: var(--green);
+  stroke: #08101f;
+  stroke-width: 4;
+}
+
+.currentLabel {
+  fill: #f5f8fc;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  margin-top: 13px;
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 750;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend i {
+  display: inline-block;
+  width: 24px;
+  height: 3px;
+  border-radius: 999px;
+}
+
+.actualSwatch { background: var(--blue); }
+.fastSwatch { background: var(--violet); }
+.centralSwatch { background: var(--green); }
+.slowSwatch { background: var(--pink); }
+
+.scenarioGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.scenarioGrid article:nth-child(1) { border-color: rgba(183, 138, 255, .28); }
+.scenarioGrid article:nth-child(2) { border-color: rgba(183, 255, 69, .28); }
+.scenarioGrid article:nth-child(3) { border-color: rgba(255, 115, 198, .28); }
+
+.caveat {
+  margin: 13px 0 0;
+  color: var(--muted);
+  font-size: .78rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .headingRow { flex-direction: column; }
+  .metricGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 680px) {
+  .progressionSection { padding: 17px 13px; }
+  .metricGrid,
+  .scenarioGrid { grid-template-columns: 1fr; }
+  .projectionBadge { white-space: normal; }
+}
