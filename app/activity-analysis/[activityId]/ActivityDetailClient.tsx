@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import ActivityWorkspace from "../ActivityWorkspace";
+import SplitPaceTower from "../SplitPaceTower";
 import DebriefPanel from "./DebriefPanel";
 import type { AnalysisProjection, ActivityListItem } from "../../../lib/activity-analysis/projection";
 import type { DecodedFit, UnitSystem } from "../../../lib/activity-analysis/contracts";
@@ -114,6 +115,7 @@ export default function ActivityDetailClient({ activityId }: { activityId: strin
         {next ? <Link href={`/activity-analysis/${encodeURIComponent(next.id)}`}>Newer →</Link> : <span className={styles.disabled}>Newer →</span>}
       </div>
     </header>
+    <SplitPaceTower projection={projection} />
     <section className={styles.workspace}><DebriefPanel activityId={activityId} /><ActivityWorkspace projection={projection} units={units} loadRaw={loadRaw} loadWeather={loadWeather} /></section>
   </main>;
 }
