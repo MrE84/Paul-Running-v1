@@ -1,6 +1,6 @@
 # FatMax, Easy Running, Fuel Use and Recovery — Working Notes
 
-Date: 2026-10-01
+Date: 2026-10-07
 
 ## Purpose
 
@@ -53,32 +53,39 @@ Using the measured LT1 of **144 bpm**, the practical FatMax estimate is:
 - likely range: **~133–140 bpm**
 - practical target: **~135–140 bpm**
 
-### Current provisional estimate
+### Current practical estimate
 
-Because post-test running suggests aerobic fitness has improved, the current working model is:
+Post-test running suggests aerobic economy has improved, but that is not sufficient evidence by itself to move the LT1 heart-rate anchor.
 
-- provisional LT1: **~150–155 bpm**
-- provisional FatMax range: **~138–145 bpm**
+The current practical FatMax model therefore remains:
+
+- measured LT1 reference: **144 bpm**
+- practical FatMax range: **~138–145 bpm**
 - practical bullseye: **~142 bpm**
 
-This is an estimate, not a measured metabolic threshold.
+This is an estimate, not a measured metabolic threshold. Pace at a given HR can improve without the LT1 HR itself necessarily moving.
 
 ---
 
-## 3. Current provisional threshold model
+## 3. Current working threshold model
 
-The working post-lab model discussed in chat is:
+The 7 October 2026 threshold session replaces the previous high-HR provisional LT2 estimate for training purposes.
 
-| Metric | Current provisional estimate |
+| Metric | Current working value |
 |---|---:|
-| LT1 | **~150–155 bpm** |
-| LT2 / LTHR | **~176–181 bpm** |
-| LT2 central estimate | **~179 bpm** |
-| LT2 pace central estimate | **~4:50–4:55 min/km** |
+| LT1 training reference | **144 bpm measured** |
+| LT2 / LTHR centre | **~167 bpm** |
+| LT2 practical HR range | **~164–170 bpm** |
+| LT2 pace centre | **~4:55 min/km** |
+| LT2 practical pace range | **~4:50–5:00 min/km** |
 | FatMax practical range | **~138–145 bpm** |
 | FatMax target | **~142 bpm** |
 
-The lab values should remain stored separately from these estimates.
+The historical laboratory LT2 remains **165 bpm at 5:17/km** and should remain stored separately.
+
+The current LT2 value is a **working training estimate**, not a new blood-lactate measurement. It is supported by the 7 October 3 × 8 minute session, where approximately 4:50/km was repeatedly produced with late-repetition HR generally in the mid-to-high 160s, and by comparison with the Cheltenham Half Marathon where approximately the same pace carried a much higher race HR.
+
+The previous provisional model of **~176–181 bpm / ~179 bpm central LT2** is retired. That range is better interpreted as hard race / above-threshold cardiovascular demand rather than the threshold anchor.
 
 ---
 
@@ -91,10 +98,10 @@ A FatMax run is **not a different physiological zone** from easy aerobic running
 | Run type | HR range |
 |---|---:|
 | Recovery / very easy | **~125–135 bpm** |
-| Easy aerobic | **~135–150 bpm** |
+| Easy aerobic | **~135–149 bpm** |
 | FatMax-targeted | **~138–145 bpm** |
 | FatMax bullseye | **~140–143 bpm** |
-| Estimated LT1 | **~150–155 bpm** |
+| Measured LT1 reference | **144 bpm** |
 
 ### Key distinction
 
@@ -341,16 +348,25 @@ The intended strategy is to create the calorie deficit mainly away from critical
 - LT2 = **165 bpm**
 - LT2 pace = **5:17/km**
 
-### Estimated / provisional
+### Current working estimate
 
-- current LT1 = **~150–155 bpm**
-- current LT2/LTHR = **~176–181 bpm**
-- current LT2 central estimate = **~179 bpm**
+- LT2/LTHR centre = **~167 bpm**
+- practical threshold HR = **~164–170 bpm**
+- LT2 pace centre = **~4:55/km**
+- practical threshold pace = **~4:50–5:00/km**
 - likely current FatMax = **~138–145 bpm**
 - practical current FatMax target = **~142 bpm**
 
+### Retired provisional estimate
+
+- LT2/LTHR = **~176–181 bpm**
+- LT2 central estimate = **~179 bpm**
+
+These are retained only as historical notes and should not be used for current threshold prescription.
+
 ### Not measured
 
+- true current LT2 by repeat blood-lactate test
 - true FatMax
 - grams of fat oxidised per minute
 - respiratory exchange ratio
@@ -371,3 +387,4 @@ Where training logic uses these values:
 6. Permit post-run segmentation into arbitrary time windows such as 15-minute blocks without requiring workout laps.
 7. Calculate HR/pace drift across those blocks.
 8. Allow future metabolic or lactate retesting to replace estimates with new measured values.
+9. Treat **~4:55/km at ~167 bpm** as the current working LT2 centre for training until new evidence justifies another revision.
