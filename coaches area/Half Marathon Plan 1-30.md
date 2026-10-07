@@ -31,7 +31,7 @@ that **4:16/km becomes sustainable for 21.1 km**.
 
 ---
 
-# Current Status — 3 October 2026
+# Current Status — 7 October 2026
 
 ## Latest benchmark
 
@@ -75,6 +75,27 @@ The recent observed trend has been approximately **15–25 seconds of 5K improve
 | Fastest rolling 10K during Cheltenham Half Marathon | **48:59** |
 
 The 48:59 marker was achieved within a half marathon rather than as a standalone 10K race, so standalone 10K potential may already be better.
+
+## Current threshold anchor — adopted 7 October 2026
+
+The 7 October **3 × 8 minute threshold session** provides sufficient training evidence to replace the August LT2 pace as the active working prescription.
+
+| Evidence | Pace | Heart-rate response |
+|---|---:|---:|
+| Rep 1 | ~4:48/km | whole-rep average ~157 bpm; late rep ~161–164 bpm |
+| Rep 2 | ~4:54/km | whole-rep average ~157 bpm; late rep ~165–169 bpm |
+| Rep 3 | ~4:49/km | whole-rep average ~159 bpm; late rep ~166–168 bpm |
+| Combined work | ~4:50/km for 24 min | controlled rise rather than 5K-like HR |
+
+The strongest comparison is with the Cheltenham Half Marathon. During the early/middle race, approximately **4:49/km** was associated with roughly **179 bpm** over the comparable five-kilometre block. On 7 October, essentially the same pace was produced with late-repetition HR generally in the **mid-to-high 160s**.
+
+The sessions are not perfectly like-for-like: the threshold workout included three-minute recoveries, occurred in cooler conditions and did not carry the accumulated fatigue of a half marathon. The evidence is therefore used as a **working training anchor**, not as a claim that a new laboratory lactate test has been performed.
+
+**Adopted working LT2 centre:** **~4:55/km at ~167 bpm**  
+**Practical threshold pace range:** **~4:50–5:00/km**  
+**Practical threshold HR range:** **~164–170 bpm**
+
+The main implication is that the pace component of LT2 has shifted substantially while the threshold HR itself has moved only modestly from the August laboratory value.
 
 ## Near-term projection
 
@@ -167,29 +188,38 @@ The preferred standalone 10K target is faster than this to provide sufficient sp
 
 ---
 
-# Physiological Baseline
+# Physiological Baseline and Current Working Anchors
 
-Measured lactate-test anchors:
+The August lactate test remains the historical measured baseline. The 7 October threshold session establishes the current working LT2 training anchor.
 
-## LT1
+## LT1 — historical laboratory anchor
 
 - **Heart rate:** ~144 bpm
 - **Pace:** ~6:34/km
 
-## LT2
+No new LT1 value is being adopted from the 7 October session. Aerobic development should continue to be tracked through **pace at comparable easy HR**, cardiac drift and recovery.
+
+## LT2 — historical laboratory baseline
 
 - **Heart rate:** ~165 bpm
 - **Pace:** ~5:17/km
+- **Measured:** 20 August 2026 lactate test
 
-These values are starting physiological anchors, not permanent pace limits.
+## LT2 — current working training anchor
 
-The key adaptation we want is:
+- **Heart rate centre:** ~167 bpm
+- **Pace centre:** ~4:55/km
+- **Practical pace range:** ~4:50–5:00/km
+- **Practical HR range:** ~164–170 bpm
+- **Adopted:** 7 October 2026
+
+The current anchor is a training estimate rather than a new blood-lactate measurement. It supersedes **5:17/km** as the active threshold pace prescription while preserving the August result as the historical benchmark.
+
+The key adaptation remains:
 
 > **Similar physiological cost → faster pace**
 
-The pace associated with LT1 and LT2 should improve as fitness develops.
-
-Recent 5K evidence shows the ability to access substantially faster pace, but the key question remains how much of that speed can be made sustainable at lower physiological cost.
+The observed direction is now clear: pace at approximately threshold physiological cost has moved substantially faster.
 
 ---
 
@@ -215,11 +245,25 @@ Example progression:
 
 Track pace achieved around threshold physiological effort.
 
-Historical anchor:
+Historical laboratory baseline:
 
 **~5:17/km at ~165 bpm**
 
-We want this pace to move progressively faster.
+Current working anchor:
+
+**~4:55/km at ~167 bpm**
+
+Practical threshold range:
+
+**~4:50–5:00/km with HR generally ~164–170 bpm**
+
+The next priority is **not to make every threshold session faster**. First increase the amount of controlled work that can be completed around the new anchor with stable pace, breathing and late-repetition HR.
+
+Progress threshold sessions primarily through:
+
+1. more controlled time at the current physiological intensity,
+2. longer repetitions or less recovery,
+3. only then a modest pace increase when the previous step is clearly controlled.
 
 Do not force an arbitrary threshold pace if HR, breathing and RPE indicate that the physiological cost is wrong.
 
@@ -305,12 +349,12 @@ Main objectives:
 - improve running economy,
 - build lower-body strength,
 - retain speed through strides and controlled parkrun work,
-- begin moving threshold pace forward,
+- consolidate the new ~4:55/km / ~167 bpm working threshold anchor by extending controlled time before pushing pace faster,
 - progress from the newly achieved sub-23 5K toward sub-22 without turning every parkrun into a maximal effort.
 
 Priority:
 
-**Consistency before intensity.**
+**Consistency and repeatability before additional intensity.**
 
 ---
 
@@ -320,7 +364,7 @@ Priority:
 
 Main objectives:
 
-- materially improve LT2 pace,
+- extend sustainable threshold duration from the new working anchor and then continue moving LT2 pace forward,
 - move beyond sub-22 5K toward the 21:20 marker and ultimately 20:30–21:00 speed-reserve range,
 - move toward sub-44 10K,
 - increase sustainable threshold duration,
@@ -449,14 +493,20 @@ Primary purpose:
 - improve sustainable speed,
 - increase time at controlled hard effort.
 
+Current working centre:
+
+**~4:55/km at ~167 bpm**, with a practical range of **~4:50–5:00/km and ~164–170 bpm**.
+
 Example progression:
 
-- 4 × 8 min
-- 3 × 10 min
-- 3 × 12 min
-- 2 × 15 min
-- 2 × 20 min
-- continuous threshold work
+- 3 × 8 min — completed 7 October at ~4:50/km average across the work,
+- 3 × 10 min,
+- 3 × 12 min,
+- 2 × 15 min,
+- 2 × 20 min,
+- continuous threshold work.
+
+The sequence is a **duration/control progression**, not permission to force a faster pace every Wednesday. A longer session may need to sit toward the slower end of the working range. Pace should only advance when the prior session remains controlled through the final repetition.
 
 Wattbike may be used when cardiovascular load is useful but additional running impact is not.
 
@@ -540,14 +590,26 @@ Do not force pace when the physiological cost is too high.
 
 ## Threshold Running
 
+Current working threshold centre:
+
+**~4:55/km at ~167 bpm**
+
+Practical training range:
+
+**~4:50–5:00/km with HR generally ~164–170 bpm**
+
 Judge threshold sessions using:
 
-1. HR response
-2. breathing/control
-3. RPE
-4. pace achieved
+1. HR response,
+2. breathing/control,
+3. RPE,
+4. pace achieved,
+5. pace fade or stability across repetitions,
+6. late-repetition HR rather than early-repetition HR lag.
 
 Pace is an outcome and performance marker.
+
+**Progression rule:** increase controlled threshold duration before systematically increasing pace. Do not progress both duration and pace simply because the next calendar week has arrived. If the final repetition becomes 5K-like, HR rises materially beyond the working range early, or pace fades significantly, repeat or reduce the prescription rather than forcing progression.
 
 ---
 
@@ -575,6 +637,16 @@ Evidence:
 - lower HR at previously familiar pace,
 - reduced cardiac drift,
 - good recovery.
+
+---
+
+## Threshold Marker — Working LT2 Reset — ACHIEVED
+
+**Adopted 7 October 2026: ~4:55/km at ~167 bpm.**
+
+This replaces the August **5:17/km** pace as the active threshold training anchor while retaining the August lactate test as the historical laboratory baseline.
+
+The next threshold objective is to make this new anchor increasingly continuous and durable before chasing materially faster threshold pace.
 
 ---
 
@@ -679,6 +751,14 @@ After key sessions we should review:
 - soreness,
 - sleep/fatigue where relevant.
 
+For threshold sessions, also record:
+
+- exact pace and distance for each work repetition,
+- whole-repetition HR and late-repetition HR,
+- recovery duration and whether recovery was jogging or walking,
+- whether breathing remained threshold-like rather than becoming 5K-like,
+- whether the final repetition was stable or showed meaningful pace fade.
+
 For 5K benchmarks, also record:
 
 - warm-up completed,
@@ -706,3 +786,5 @@ Every session should contribute to that outcome.
 Calendar corrected on 3 October 2026: the 26 running workouts are scheduled from Monday 5 October through Monday 9 November 2026 in Europe/London. Parkruns are Saturdays at 09:00 on 10, 17, 24 and 31 October and 7 November. Tuesday is strength/rest; Friday is rest.
 
 The structured programme already exists in Tredict for Garmin delivery. Paul’s Running embeds that programme for review; embedding it does not create another Garmin delivery or an Intervals.icu sync. The weekly coaching documents provide pacing and expected heart-rate guidance; the embedded workout steps show the exact scheduled programme. Heart rates are expectations, not numbers to force.
+
+The upcoming threshold sessions are already broadly aligned with the new working anchor. Their faster pace ranges are **conditional progressions**, not automatic requirements. If the preceding threshold session is not controlled through the final repetition, retain or repeat the prior pace range rather than progressing both pace and duration at once.
