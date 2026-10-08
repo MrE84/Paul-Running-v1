@@ -35,7 +35,6 @@ const xTicks = [
   ["2026-07-01", "Jul"],
   ["2026-09-01", "Sep"],
   ["2026-10-03", "Oct"],
-  ["2026-11-01", "Nov"],
   ["2026-12-01", "Dec"],
 ] as const;
 
@@ -43,6 +42,7 @@ const FIVE_K_BENCHMARKS = [
   {
     date: "2026-10-17",
     label: "Benchmark #1",
+    axisLabel: "PB #1",
     shortDate: "17 Oct",
     target: "22:20–22:30",
     seconds: 1345,
@@ -51,6 +51,7 @@ const FIVE_K_BENCHMARKS = [
   {
     date: "2026-10-31",
     label: "Benchmark #2",
+    axisLabel: "PB #2",
     shortDate: "31 Oct",
     target: "22:00–22:10",
     seconds: 1325,
@@ -102,6 +103,16 @@ export function ProgressionChart() {
             </g>
           ))}
 
+          {FIVE_K_BENCHMARKS.map((benchmark) => (
+            <g key={`axis-${benchmark.date}`}>
+              <line className={styles.gridLineVertical} x1={xFor(benchmark.date)} x2={xFor(benchmark.date)} y1={MARGIN.top} y2={HEIGHT - MARGIN.bottom} />
+              <text className={styles.axisText} x={xFor(benchmark.date)} y={HEIGHT - 31} textAnchor="middle">
+                <tspan x={xFor(benchmark.date)}>{benchmark.axisLabel}</tspan>
+                <tspan x={xFor(benchmark.date)} dy="16">{benchmark.shortDate}</tspan>
+              </text>
+            </g>
+          ))}
+
           <line className={styles.targetLine} x1={MARGIN.left} x2={WIDTH - MARGIN.right} y1={targetY} y2={targetY} />
           <text className={styles.targetLabel} x={WIDTH - MARGIN.right} y={targetY - 9} textAnchor="end">21:20 HM-pace marker</text>
 
@@ -121,16 +132,9 @@ export function ProgressionChart() {
             />
           ))}
 
-          {FIVE_K_BENCHMARKS.map((benchmark, index) => (
+          {FIVE_K_BENCHMARKS.map((benchmark) => (
             <g key={benchmark.date}>
               <circle className={styles.currentPoint} cx={xFor(benchmark.date)} cy={yFor(benchmark.seconds)} r="6" />
-              <text
-                className={styles.targetLabel}
-                x={xFor(benchmark.date) + (index === 0 ? 9 : 8)}
-                y={yFor(benchmark.seconds) + (index === 0 ? 26 : 39)}
-              >
-                {benchmark.shortDate}
-              </text>
               <title>{benchmark.label} · {benchmark.shortDate}: target {benchmark.target}</title>
             </g>
           ))}
