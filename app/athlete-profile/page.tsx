@@ -10,8 +10,8 @@ export default function AthleteProfilePage() {
         <div className="athleteProfileHeader">
           <div>
             <span className="sectionKicker">ATHLETE PROFILE · PHYSIOLOGICAL SOURCE OF TRUTH</span>
-            <h1 id="athlete-profile-title">Thresholds, zones, PBs and training capacities</h1>
-            <p>Current training anchors, HR zones, performance progression and run-history context. Current athlete-state values take priority over the historical lactate report.</p>
+            <h1 id="athlete-profile-title">Thresholds, zones, durability, PBs and training capacities</h1>
+            <p>Current training anchors, HR zones, race-derived durability, performance progression and run-history context. Current athlete-state values take priority over the historical lactate report.</p>
           </div>
           <div className="testMeta">
             <span>{athleteProfile.test.name}</span>
@@ -38,6 +38,68 @@ export default function AthleteProfilePage() {
         </div>
 
         <ProgressionChart />
+
+        <article className="profilePanel capacitiesPanel" aria-labelledby="durability-title">
+          <div className="panelHeading">
+            <div>
+              <span className="sectionKicker">RACE-DERIVED DURABILITY</span>
+              <h2 id="durability-title">How long each HR band is currently sustainable</h2>
+            </div>
+            <span className="sourceBadge">Updated {athleteProfile.durability.updated}</span>
+          </div>
+
+          <div className="domainItem">
+            <div><strong>{athleteProfile.durability.model}</strong><span>{athleteProfile.durability.basis}</span></div>
+            <small>{athleteProfile.durability.note}</small>
+          </div>
+
+          <div className="domainHeading">
+            <span className="sectionKicker">CHELTENHAM HALF EVIDENCE</span>
+            <h2>Why the high-HR estimates are personal rather than generic</h2>
+          </div>
+          <div className="pbGrid">
+            {athleteProfile.durability.raceEvidence.map((item) => (
+              <div className="pbCard" key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+                <small>{item.detail}</small>
+                <em>Race-derived working evidence</em>
+              </div>
+            ))}
+          </div>
+
+          <div className="domainHeading">
+            <span className="sectionKicker">CURRENT ZONE DURABILITY</span>
+            <h2>Working sustainable-duration ranges</h2>
+          </div>
+          <div className="capacityGrid">
+            {athleteProfile.durability.zones.map((zone) => (
+              <div className="capacityCard" key={zone.zone}>
+                <span>{zone.zone} · {zone.heartRate}</span>
+                <strong>{zone.duration}</strong>
+                <p>{zone.detail}</p>
+                <p><strong>Confidence:</strong> {zone.confidence}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="domainHeading">
+            <span className="sectionKicker">Z5 HIGH-HR SUB-BANDS</span>
+            <h2>Threshold+ is too broad for one sustainability number</h2>
+          </div>
+          <div className="domainList">
+            {athleteProfile.durability.highHrBands.map((band) => (
+              <div className="domainItem" key={band.range}>
+                <div><strong>{band.range}</strong><span>{band.duration}</span></div>
+                <small>{band.detail} · Confidence: {band.confidence}</small>
+              </div>
+            ))}
+            <div className="domainItem">
+              <div><strong>Training interpretation</strong><span>Durability metric</span></div>
+              <small>{athleteProfile.durability.interpretation}</small>
+            </div>
+          </div>
+        </article>
 
         <div className="profileSplit">
           <article className="profilePanel zonesPanel">
