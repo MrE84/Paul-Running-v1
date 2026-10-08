@@ -39,6 +39,25 @@ const xTicks = [
   ["2026-12-01", "Dec"],
 ] as const;
 
+const FIVE_K_BENCHMARKS = [
+  {
+    date: "2026-10-17",
+    label: "Benchmark #1",
+    shortDate: "17 Oct",
+    target: "22:20–22:30",
+    seconds: 1345,
+    purpose: "All-out parkrun benchmark to test whether the current improvement trend is continuing.",
+  },
+  {
+    date: "2026-10-31",
+    label: "Benchmark #2",
+    shortDate: "31 Oct",
+    target: "22:00–22:10",
+    seconds: 1325,
+    purpose: "All-out parkrun benchmark after four weeks of controlled aerobic and threshold work.",
+  },
+] as const;
+
 export function ProgressionChart() {
   const progression = athleteProfile.progression;
   const targetY = yFor(1280);
@@ -51,23 +70,23 @@ export function ProgressionChart() {
           <span className="sectionKicker">CURRENT PROGRESSION</span>
           <h2 id="progression-title">5K progression &amp; projection</h2>
           <p>
-            Recorded PB progression plus three linear planning scenarios toward the {progression.targetTime} 5K marker.
+            Recorded PB progression, two scheduled all-out parkrun benchmarks, and three linear planning scenarios toward the {progression.targetTime} 5K marker.
           </p>
         </div>
-        <span className={styles.projectionBadge}>Working projection · {progression.workingProjection}</span>
+        <span className={styles.projectionBadge}>Next benchmark · 17 Oct 2026</span>
       </div>
 
       <div className={styles.metricGrid}>
         <article><span>Current PB</span><strong>{progression.currentPb}</strong><small>{progression.currentDate}</small></article>
-        <article><span>Recent trend</span><strong>{progression.recentRate}</strong><small>Observed planning range</small></article>
+        <article><span>Next benchmark</span><strong>22:20–22:30</strong><small>17 Oct · all-out parkrun</small></article>
         <article><span>Next gate</span><strong>{progression.nextGate}</strong><small>Formal 5K milestone</small></article>
         <article><span>HM marker</span><strong>{progression.targetTime}</strong><small>{progression.targetMeaning}</small></article>
       </div>
 
       <div className={styles.chartShell}>
         <svg className={styles.chart} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-labelledby="progression-chart-title progression-chart-desc">
-          <title id="progression-chart-title">Paul&apos;s recorded and projected 5K progression</title>
-          <desc id="progression-chart-desc">Recorded 5K results from 29 minutes 46 seconds on 30 May 2026 to 22 minutes 47 seconds on 3 October 2026, followed by projected 15, 20 and 25 second improvements every two weeks toward 21 minutes 20 seconds.</desc>
+          <title id="progression-chart-title">Paul&apos;s recorded and projected 5K progression with formal parkrun benchmarks</title>
+          <desc id="progression-chart-desc">Recorded 5K results from 29 minutes 46 seconds on 30 May 2026 to 22 minutes 47 seconds on 3 October 2026, scheduled all-out parkrun benchmarks of 22 minutes 20 to 22 minutes 30 on 17 October and 22 minutes to 22 minutes 10 on 31 October, followed by planning scenarios toward 21 minutes 20 seconds.</desc>
 
           {yTicks.map((tick) => (
             <g key={tick}>
@@ -102,6 +121,20 @@ export function ProgressionChart() {
             />
           ))}
 
+          {FIVE_K_BENCHMARKS.map((benchmark, index) => (
+            <g key={benchmark.date}>
+              <circle className={styles.currentPoint} cx={xFor(benchmark.date)} cy={yFor(benchmark.seconds)} r="6" />
+              <text
+                className={styles.targetLabel}
+                x={xFor(benchmark.date) + (index === 0 ? 9 : 8)}
+                y={yFor(benchmark.seconds) + (index === 0 ? 26 : 39)}
+              >
+                {benchmark.shortDate}
+              </text>
+              <title>{benchmark.label} · {benchmark.shortDate}: target {benchmark.target}</title>
+            </g>
+          ))}
+
           <circle className={styles.currentPoint} cx={xFor(current.date)} cy={yFor(current.seconds)} r="7" />
           <text className={styles.currentLabel} x={xFor(current.date) + 12} y={yFor(current.seconds) - 12}>{current.result} current PB</text>
         </svg>
@@ -109,22 +142,28 @@ export function ProgressionChart() {
 
       <div className={styles.legend} aria-label="Progression chart legend">
         <span><i className={styles.actualSwatch} />Recorded PBs</span>
+        <span><i className={styles.centralSwatch} />Formal PB benchmarks</span>
         <span><i className={styles.fastSwatch} />25 sec / fortnight</span>
         <span><i className={styles.centralSwatch} />20 sec / fortnight</span>
         <span><i className={styles.slowSwatch} />15 sec / fortnight</span>
       </div>
 
       <div className={styles.scenarioGrid}>
-        {progression.projections.map((projection) => (
-          <article key={projection.key}>
-            <span>{projection.label}</span>
-            <strong>{projection.crossing}</strong>
-            <small>{projection.rate} to reach 21:20</small>
+        {FIVE_K_BENCHMARKS.map((benchmark) => (
+          <article key={benchmark.date}>
+            <span>{benchmark.label} · {benchmark.shortDate}</span>
+            <strong>{benchmark.target}</strong>
+            <small>{benchmark.purpose}</small>
           </article>
         ))}
+        <article>
+          <span>Working projection · ~5 Dec</span>
+          <strong>{progression.targetTime}</strong>
+          <small>Projected HM-pace-equivalence marker if the recent trend remains broadly on course.</small>
+        </article>
       </div>
 
-      <p className={styles.caveat}>{progression.caveat}</p>
+      <p className={styles.caveat}>Benchmark points are scheduled performance targets, not achieved results. The 21:20 early-December point remains a planning projection rather than a formally scheduled PB attempt. {progression.caveat}</p>
     </section>
   );
 }
