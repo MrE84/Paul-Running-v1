@@ -31,7 +31,7 @@ that **4:16/km becomes sustainable for 21.1 km**.
 
 ---
 
-# Current Status — 7 October 2026
+# Current Status — 8 October 2026
 
 ## Latest benchmark
 
@@ -75,6 +75,25 @@ The recent observed trend has been approximately **15–25 seconds of 5K improve
 | Fastest rolling 10K during Cheltenham Half Marathon | **48:59** |
 
 The 48:59 marker was achieved within a half marathon rather than as a standalone 10K race, so standalone 10K potential may already be better.
+
+### Formal standalone 10K benchmark schedule
+
+The plan now includes three dedicated 10K PB attempts to replace inference from rolling 10K splits with repeatable standalone performance data.
+
+| Date | Benchmark | Primary purpose | Main progression gate |
+|---|---|---|---|
+| **Sunday 15 November 2026** | **10K PB Attempt #1** | Establish a fresh standalone 10K baseline after the October–November rebuild and update current pace/HR performance metrics | First direct check against **sub-46:00** |
+| **Sunday 10 January 2027** | **10K PB Attempt #2** | Quantify adaptation from the threshold/10K-development phase and recalibrate HM-readiness metrics | Main check against **sub-44:00** |
+| **Sunday 7 February 2027** | **10K PB Attempt #3** | Final 10K speed-strength check before the Cotswold Airport Half Marathon | Assess progress toward **42:40** and the preferred **41:30–42:15** range |
+
+These are **replacement quality sessions, not additional hard sessions**. On each benchmark weekend:
+
+- the preceding Saturday parkrun must **not** be raced hard; use rest or a short easy run with strides,
+- complete a proper 10K warm-up before the attempt,
+- use a flat/repeatable course where practical so comparisons are meaningful,
+- record 1 km splits, pace, HR, cadence, elevation/conditions and RPE,
+- Monday becomes recovery/rest rather than the normal long run; the long run should be moved, shortened or omitted according to recovery,
+- use the result to update the 10K benchmark, HM-readiness projection and future training prescriptions; do **not** automatically treat a race result as a laboratory LT2 measurement.
 
 ## Current threshold anchor — adopted 7 October 2026
 
@@ -176,6 +195,8 @@ A 1:30 half marathon requires an average pace equivalent to about **21:20 for 5K
 A 1:30 half marathon passes 10K in approximately **42:40**.
 
 The preferred standalone 10K target is faster than this to provide sufficient speed reserve.
+
+The formal 10K benchmark dates are **15 November 2026**, **10 January 2027** and **7 February 2027**.
 
 ---
 
@@ -301,6 +322,8 @@ Next checkpoints:
 - 42:40 HM-pace equivalence,
 - 41:30–42:15 preferred goal range.
 
+Formal standalone tests are scheduled for **15 Nov 2026**, **10 Jan 2027** and **7 Feb 2027**. Each result should trigger an update of the 10K benchmark and a review of current training targets.
+
 ---
 
 ## 5. Half-Marathon Pace Durability
@@ -350,7 +373,8 @@ Main objectives:
 - build lower-body strength,
 - retain speed through strides and controlled parkrun work,
 - consolidate the new ~4:55/km / ~167 bpm working threshold anchor by extending controlled time before pushing pace faster,
-- progress from the newly achieved sub-23 5K toward sub-22 without turning every parkrun into a maximal effort.
+- progress from the newly achieved sub-23 5K toward sub-22 without turning every parkrun into a maximal effort,
+- finish the phase with the **15 November standalone 10K benchmark** to establish a fresh 10K baseline.
 
 Priority:
 
@@ -369,7 +393,8 @@ Main objectives:
 - move toward sub-44 10K,
 - increase sustainable threshold duration,
 - improve ability to run faster without excessive HR rise,
-- progressively increase weekly running volume if recovery supports it.
+- progressively increase weekly running volume if recovery supports it,
+- use the **10 January 10K benchmark** as the principal checkpoint for the phase.
 
 If 21:20 is achieved around early December, the emphasis should shift from chasing repeated 5K PBs toward extending sustainable speed and improving 10K/HM durability.
 
@@ -388,7 +413,8 @@ Main objectives:
 - extend long runs,
 - practise race fuelling,
 - practise race shoes,
-- develop control around 4:20–4:30/km before progressively approaching 4:16/km.
+- develop control around 4:20–4:30/km before progressively approaching 4:16/km,
+- use the **7 February 10K benchmark** as the final 10K speed-strength check before the Cotswold Airport Half Marathon.
 
 The goal is not to force 4:16/km too early.
 
@@ -553,6 +579,8 @@ The purpose must be explicitly defined before the run.
 
 For future all-out 5K attempts, avoid repeating the 3 October execution error of combining a minimal warm-up with an opening kilometre near 4:00/km. Use an adequate warm-up and pace the first kilometre according to the session objective.
 
+On weekends containing a Sunday 10K benchmark, Saturday changes to **rest or easy running plus a few strides**. Do not race parkrun the day before a 10K PB attempt.
+
 ---
 
 ## Sunday — Recovery
@@ -571,6 +599,8 @@ Initially this may be:
 - very easy recovery running.
 
 A second aerobic run can be added later if recovery and training volume justify it.
+
+The three formal 10K benchmark Sundays are exceptions to this default. On those weekends, the 10K test becomes the quality session and the following Monday changes to recovery/rest rather than a normal long run.
 
 ---
 
@@ -662,6 +692,8 @@ This confirms the first meaningful improvement in speed reserve.
 
 Indicates improved endurance at faster speeds.
 
+The first formal opportunity to test this gate is **15 November 2026**.
+
 ---
 
 ## Gate 4 — Sub-22 5K
@@ -686,6 +718,8 @@ Working linear-trend projection: **around 5 December 2026**, subject to normal p
 
 Important threshold before committing heavily to 1:30-specific HM work.
 
+The **10 January 2027** benchmark is the main planned test of this gate.
+
 ---
 
 ## Gate 6 — 5K Goal Range
@@ -701,6 +735,8 @@ Indicates strong enough speed reserve for a serious 1:30 attempt.
 **41:30–42:15**
 
 One of the strongest pre-race indicators that 4:16/km half-marathon pace may be supportable.
+
+The **7 February 2027** benchmark is the final planned standalone 10K test before the Cotswold Airport Half Marathon.
 
 ---
 
@@ -766,6 +802,19 @@ For 5K benchmarks, also record:
 - whether breathing or muscular fatigue was the primary limiter,
 - whether the result represented optimal pacing or an exploratory effort.
 
+For 10K benchmarks, also record:
+
+- warm-up and pre-race preparation,
+- 1 km splits and pacing stability,
+- average and peak HR plus HR progression through the race,
+- pace/HR relationship in the first and second 5K,
+- cadence and any late-race mechanical deterioration,
+- elevation, wind and temperature so tests can be compared fairly,
+- breathing versus muscular limitation,
+- RPE and recovery in the following 24–48 hours.
+
+After each formal 10K benchmark, update the current 10K marker and reassess the next training block against the 1:30 HM milestones.
+
 The master plan should be updated when the evidence shows that current training targets are no longer appropriate.
 
 ---
@@ -788,3 +837,5 @@ Calendar corrected on 3 October 2026: the 26 running workouts are scheduled from
 The structured programme already exists in Tredict for Garmin delivery. Paul’s Running embeds that programme for review; embedding it does not create another Garmin delivery or an Intervals.icu sync. The weekly coaching documents provide pacing and expected heart-rate guidance; the embedded workout steps show the exact scheduled programme. Heart rates are expectations, not numbers to force.
 
 The upcoming threshold sessions are already broadly aligned with the new working anchor. Their faster pace ranges are **conditional progressions**, not automatic requirements. If the preceding threshold session is not controlled through the final repetition, retain or repeat the prior pace range rather than progressing both pace and duration at once.
+
+The first formal standalone 10K benchmark follows this block on **Sunday 15 November 2026**. The normal Saturday hard parkrun/Sunday recovery/Monday long-run pattern is overridden for that benchmark weekend as described above.
