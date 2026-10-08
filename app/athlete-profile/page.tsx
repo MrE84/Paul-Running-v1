@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { athleteProfile } from "../../lib/athlete-profile";
-import { ProgressionChart } from "./progression-chart";
+import { ProgressionChart, TenKProgressionChart } from "./progression-chart";
 
 export default function AthleteProfilePage() {
   return (
@@ -38,6 +38,7 @@ export default function AthleteProfilePage() {
         </div>
 
         <ProgressionChart />
+        <TenKProgressionChart />
 
         <article className="profilePanel capacitiesPanel" aria-labelledby="durability-title">
           <div className="panelHeading">
