@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import sessions from "../../lib/training-programme/scheduled-workouts.json";
 import { listShoeOverrides } from "../../lib/shoe-overrides";
+import { buildWeeklyShoeMileage, SHOE_VISUALS } from "../../lib/shoe-mileage-chart";
 import { getTrainingApiRuntime } from "../../lib/training-api/runtime";
 import {
   buildShoeUsage,
@@ -9,6 +10,7 @@ import {
   SHOE_ROTATION,
   SHOE_TRACKING_START_LOCAL_DATE,
   type PlannedShoeSession,
+  type ShoeKey,
   type ShoeLifeStatus,
 } from "../../lib/shoe-rotation";
 import { updateShoeAssignment } from "./actions";
@@ -18,7 +20,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Running Shoes · Paul's Running",
-  description: "Live shoe rotation, editable completed-run assignments, historical estimates and replacement countdowns for Paul's Running.",
+  description: "Live shoe rotation, editable completed-run assignments, weekly mileage and replacement countdowns for Paul's Running.",
 };
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", {
@@ -48,6 +50,12 @@ function statusClass(status: ShoeLifeStatus) {
   if (status === "replace_due" || status === "replace_soon") return styles.statusDanger;
   if (status === "review_due" || status === "review_soon") return styles.statusWarning;
   return styles.statusHealthy;
+}
+
+function shoeSegmentClass(key: ShoeKey) {
+  if (key === "adidas-evo-sl") return styles.segmentAdidas;
+  if (key === "puma-deviate-nitro-3-hyrox") return styles.segmentPuma;
+  return styles.segmentAsics;
 }
 
 export default async function ShoesPage() {
@@ -98,13 +106,16 @@ export default async function ShoesPage() {
     plannedByKey.set(`${session.scheduledStart}|${session.title}`, session);
   }
 
+  const timeZone = profile.athlete.timezone || "Europe/London";
   const usage = buildShoeUsage(
     activities,
     [...plannedByKey.values()],
-    profile.athlete.timezone || "Europe/London",
+    timeZone,
     new Date().toISOString(),
     overrides,
   );
+  const weeklyMileage = buildWeeklyShoeMileage(usage.assignments, timeZone);
+  const maxWeeklyKm = Math.max(1, ...weeklyMileage.map((week) => week.totalKm));
 
   return (
     <main className={styles.page}>
@@ -122,16 +133,81 @@ export default async function ShoesPage() {
         </div>
       </section>
 
+      <section className={`${styles.section} ${styles.chartSection}`}>
+        <div className={styles.sectionHeader}>
+          <div>
+            <span className={styles.eyebrow}>WEEKLY MILEAGE BY SHOE</span>
+            <h2>Where your running kilometres are going</h2>
+          </div>
+          <span className={styles.subtle}>Weekly bars start from live shoe tracking</span>
+        </div>
+        <div className={styles.shoeLegend}>
+          {SHOE_ROTATION.map((shoe) => {
+            const visual = SHOE_VISUALS[shoe.key];
+            return (
+              <div className={styles.legendItem} key={shoe.key}>
+                <img src={visual.imageUrl} alt="" className={styles.legendShoeImage} />
+                <div>
+                  <strong>{shoe.shortName}</strong>
+                  <span>{usage.summaries.find((item) => item.shoe.key === shoe.key)?.trackedDistanceKm.toFixed(1) ?? "0.0"} km tracked</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {weeklyMileage.length ? (
+          <div className={styles.chartScroller}>
+            <div className={styles.weekChart} style={{ minWidth: `${Math.max(360, weeklyMileage.length * 82)}px` }}>
+              {weeklyMileage.map((week) => (
+                <div className={styles.weekColumn} key={week.weekStart}>
+                  <span className={styles.weekTotal}>{week.totalKm.toFixed(1)} km</span>
+                  <div className={styles.barShell} aria-label={`Week of ${week.weekLabel}: ${week.totalKm.toFixed(1)} km`}>
+                    {SHOE_ROTATION.map((shoe) => {
+                      const km = week.byShoe[shoe.key];
+                      if (km <= 0) return null;
+                      const heightPercent = (km / maxWeeklyKm) * 100;
+                      const showIcon = heightPercent >= 18;
+                      return (
+                        <div
+                          key={shoe.key}
+                          className={`${styles.barSegment} ${shoeSegmentClass(shoe.key)}`}
+                          style={{ height: `${heightPercent}%` }}
+                          title={`${shoe.shortName}: ${km.toFixed(1)} km`}
+                        >
+                          {showIcon ? <img src={SHOE_VISUALS[shoe.key].imageUrl} alt="" className={styles.segmentShoeImage} /> : null}
+                          <span className={styles.segmentLabel}>{km.toFixed(1)}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <span className={styles.weekLabel}>{week.weekLabel}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className={styles.empty}>The first weekly shoe-mileage bar will appear after a completed run is assigned to a shoe.</p>
+        )}
+        <p className={styles.chartNote}>
+          Each bar is your total running mileage for that week, stacked by the shoe actually assigned to each completed run. Historical pre-tracking estimates stay out of this chart because they do not have reliable per-run shoe dates.
+        </p>
+      </section>
+
       <section className={styles.grid} aria-label="Shoe mileage">
         {usage.summaries.map((summary) => {
           const { shoe, totalDistanceKm, totalDistanceMiles, estimatedHistoricalKm, trackedDistanceKm, activityCount } = summary;
           const progress = Math.min(100, (totalDistanceKm / shoe.replaceAtKm) * 100);
+          const visual = SHOE_VISUALS[shoe.key];
           return (
             <article key={shoe.key} className={styles.card}>
+              <a href={visual.productUrl} target="_blank" rel="noreferrer" className={styles.shoeImageLink}>
+                <img src={visual.imageUrl} alt={visual.imageAlt} className={styles.shoeImage} />
+              </a>
               <div className={styles.cardTop}>
                 <div>
                   <span className={styles.brand}>{shoe.brand}</span>
                   <h2>{shoe.model}</h2>
+                  <span className={styles.edition}>{visual.editionLabel}</span>
                 </div>
                 <span className={`${styles.status} ${statusClass(summary.status)}`}>{statusLabel[summary.status]}</span>
               </div>
