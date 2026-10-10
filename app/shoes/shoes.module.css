@@ -256,6 +256,13 @@
   margin: 0;
 }
 
+.editHelp {
+  margin: 0 0 14px;
+  color: #b9c7da;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .tableWrap {
   overflow-x: auto;
 }
@@ -263,7 +270,7 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 720px;
+  min-width: 900px;
 }
 
 .table th,
@@ -290,6 +297,46 @@
   color: #baffea;
   font-size: 0.77rem;
   white-space: nowrap;
+}
+
+.assignmentForm {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 265px;
+}
+
+.shoeSelect {
+  min-width: 180px;
+  max-width: 230px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  border: 1px solid rgba(143, 180, 255, 0.28);
+  background: #111a28;
+  color: #eef5ff;
+  font: inherit;
+  font-size: 0.82rem;
+}
+
+.shoeSelect:focus-visible {
+  outline: 2px solid #88ffd6;
+  outline-offset: 2px;
+}
+
+.saveButton {
+  padding: 7px 11px;
+  border-radius: 9px;
+  border: 1px solid rgba(136, 255, 214, 0.35);
+  background: rgba(136, 255, 214, 0.12);
+  color: #caffee;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.saveButton:hover {
+  background: rgba(136, 255, 214, 0.2);
 }
 
 .empty {
