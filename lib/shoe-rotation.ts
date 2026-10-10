@@ -168,16 +168,18 @@ export function assignActivityShoe(
   }
 
   const session = matchActivityToPlannedSession(activity, sessions, timeZone);
-  const sessionShoe = session ? prescribedShoeKeyForTitle(session.title) : null;
-  if (sessionShoe) {
-    return {
-      activityId: activity.id,
-      startedAt: activity.startedAt,
-      distanceKm,
-      shoeKey: sessionShoe,
-      source: "planned_session",
-      sessionTitle: session.title,
-    };
+  if (session) {
+    const sessionShoe = prescribedShoeKeyForTitle(session.title);
+    if (sessionShoe) {
+      return {
+        activityId: activity.id,
+        startedAt: activity.startedAt,
+        distanceKm,
+        shoeKey: sessionShoe,
+        source: "planned_session",
+        sessionTitle: session.title,
+      };
+    }
   }
 
   const activityName = activityNameFromMetadata(activity);
