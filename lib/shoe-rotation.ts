@@ -17,6 +17,13 @@ export interface ShoeDefinition {
   note: string;
 }
 
+export interface ActivityShoeOverride {
+  activityId: string;
+  athleteId: string;
+  shoeKey: ShoeKey | null;
+  updatedAt: string;
+}
+
 export const SHOE_TRACKING_START_LOCAL_DATE = "2026-10-10";
 
 export const SHOE_ROTATION: readonly ShoeDefinition[] = [
@@ -160,7 +167,7 @@ export function matchActivityToPlannedSession(
     .sort((a, b) => a.distance - b.distance)[0]?.session;
 }
 
-export type ShoeAssignmentSource = "confirmed_user" | "activity_metadata" | "planned_session" | "activity_name";
+export type ShoeAssignmentSource = "manual_override" | "confirmed_user" | "activity_metadata" | "planned_session" | "activity_name";
 
 export interface ShoeActivityAssignment {
   activityId: string;
@@ -175,12 +182,25 @@ export function assignActivityShoe(
   activity: Activity,
   sessions: readonly PlannedShoeSession[],
   timeZone = "Europe/London",
+  overrides: ReadonlyMap<string, ShoeKey | null> = new Map(),
 ): ShoeActivityAssignment | undefined {
   if (activity.sport !== "running") return undefined;
   const activityDate = localDateKey(activity.startedAt, timeZone);
   if (activityDate < SHOE_TRACKING_START_LOCAL_DATE) return undefined;
 
   const distanceKm = Math.max(0, Number(activity.summary.distanceMeters ?? 0)) / 1000;
+  const manualShoe = overrides.get(activity.id);
+  if (manualShoe) {
+    return {
+      activityId: activity.id,
+      startedAt: activity.startedAt,
+      distanceKm,
+      shoeKey: manualShoe,
+      source: "manual_override",
+      sessionTitle: activityNameFromMetadata(activity),
+    };
+  }
+
   const confirmedShoe = CONFIRMED_SHOE_BY_LOCAL_DATE[activityDate];
   if (confirmedShoe) {
     return {
@@ -279,9 +299,11 @@ export function buildShoeUsage(
   sessions: readonly PlannedShoeSession[],
   timeZone = "Europe/London",
   nowIso = new Date().toISOString(),
+  overrides: readonly ActivityShoeOverride[] = [],
 ): { summaries: ShoeUsageSummary[]; assignments: ShoeActivityAssignment[]; unassignedRuns: number } {
+  const overrideMap = new Map<string, ShoeKey | null>(overrides.map((item) => [item.activityId, item.shoeKey]));
   const assignments = activities
-    .map((activity) => assignActivityShoe(activity, sessions, timeZone))
+    .map((activity) => assignActivityShoe(activity, sessions, timeZone, overrideMap))
     .filter((item): item is ShoeActivityAssignment => Boolean(item))
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 
