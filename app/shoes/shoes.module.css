@@ -42,6 +42,7 @@
   border: 1px solid rgba(118, 178, 255, 0.2);
   color: #d9e7ff;
   font-size: 0.92rem;
+  line-height: 1.55;
 }
 
 .grid {
@@ -59,6 +60,13 @@
   background: rgba(15, 22, 34, 0.86);
 }
 
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .card h2 {
   margin: 5px 0 6px;
   font-size: 1.25rem;
@@ -70,6 +78,33 @@
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.status {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.statusHealthy {
+  color: #baffea;
+  border: 1px solid rgba(136, 255, 214, 0.22);
+  background: rgba(136, 255, 214, 0.1);
+}
+
+.statusWarning {
+  color: #ffe1a7;
+  border: 1px solid rgba(255, 191, 92, 0.28);
+  background: rgba(255, 191, 92, 0.1);
+}
+
+.statusDanger {
+  color: #ffc0c7;
+  border: 1px solid rgba(255, 112, 129, 0.3);
+  background: rgba(255, 112, 129, 0.1);
 }
 
 .distance {
@@ -96,6 +131,18 @@
   line-height: 1.5;
 }
 
+.breakdown {
+  display: grid;
+  gap: 5px;
+  margin-top: 12px;
+  color: #9faac0;
+  font-size: 0.82rem;
+}
+
+.breakdown strong {
+  color: #dce7f6;
+}
+
 .note {
   margin-top: 14px;
   font-size: 0.88rem;
@@ -103,8 +150,8 @@
 }
 
 .progressTrack {
-  height: 8px;
-  margin: 16px 0 6px;
+  height: 9px;
+  margin: 18px 0 12px;
   overflow: hidden;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.08);
@@ -114,6 +161,79 @@
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #88ffd6, #8fb4ff);
+}
+
+.countdowns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.countdowns > div {
+  padding: 11px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.countdowns span,
+.countdowns small {
+  display: block;
+  color: #9faac0;
+  font-size: 0.72rem;
+}
+
+.countdowns strong {
+  display: block;
+  margin: 3px 0;
+  font-size: 1rem;
+}
+
+.forecast {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(118, 178, 255, 0.07);
+  color: #cbd9ed;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.cardWarning,
+.cardDanger {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.cardWarning {
+  color: #ffe1a7;
+  background: rgba(255, 191, 92, 0.08);
+  border: 1px solid rgba(255, 191, 92, 0.2);
+}
+
+.cardDanger {
+  color: #ffc0c7;
+  background: rgba(255, 112, 129, 0.08);
+  border: 1px solid rgba(255, 112, 129, 0.22);
+}
+
+.basis {
+  margin-top: 14px;
+  color: #aab6c8;
+  font-size: 0.8rem;
+}
+
+.basis summary {
+  cursor: pointer;
+  color: #cbd9ed;
+}
+
+.basis p {
+  margin: 8px 0 0;
+  line-height: 1.5;
 }
 
 .section {
@@ -201,8 +321,12 @@
   .card {
     padding: 18px;
   }
-  .sectionHeader {
+  .sectionHeader,
+  .cardTop {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .countdowns {
+    grid-template-columns: 1fr;
   }
 }

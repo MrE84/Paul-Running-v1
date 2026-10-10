@@ -1,6 +1,7 @@
 import type { Activity } from "./domain/contracts";
 
 export type ShoeKey = "adidas-evo-sl" | "puma-deviate-nitro-3-hyrox" | "asics-metaspeed-sky-tokyo";
+export type ShoeLifeStatus = "healthy" | "review_soon" | "review_due" | "replace_soon" | "replace_due";
 
 export interface ShoeDefinition {
   key: ShoeKey;
@@ -9,7 +10,10 @@ export interface ShoeDefinition {
   shortName: string;
   role: string;
   aliases: readonly string[];
-  reviewAtKm?: number;
+  estimatedHistoricalKm: number;
+  historicalBasis: string;
+  reviewAtKm: number;
+  replaceAtKm: number;
   note: string;
 }
 
@@ -23,8 +27,11 @@ export const SHOE_ROTATION: readonly ShoeDefinition[] = [
     shortName: "Evo SL",
     role: "Easy, aerobic, long and recovery running; easy runs with strides",
     aliases: ["adizero evo sl", "evo sl", "adidas evo sl"],
+    estimatedHistoricalKm: 186.98,
+    historicalBasis: "Estimated from Tredict running history from the first post-order training period through 9 Oct 2026. Paul reported the Evo SL handled essentially all training; 20.98 km Cheltenham Half + ~10 km other confirmed/remembered Sky use are excluded.",
     reviewAtKm: 400,
-    note: "Primary mileage shoe. Start assessing loss of responsiveness from roughly 350–400 km; it can stay in easy/general use if it still feels comfortable.",
+    replaceAtKm: 550,
+    note: "Primary mileage shoe. Start assessing loss of responsiveness from roughly 350–400 km. Around 550 km is a planning point to replace or demote it if the foam/ride is clearly flatter, rather than a hard failure limit.",
   },
   {
     key: "puma-deviate-nitro-3-hyrox",
@@ -33,7 +40,11 @@ export const SHOE_ROTATION: readonly ShoeDefinition[] = [
     shortName: "Deviate NITRO 3 HYROX",
     role: "Threshold, tempo, progression, HM-pace work, intervals and controlled fast parkruns",
     aliases: ["deviate nitro 3 hyrox", "deviate nitro 3", "puma hyrox", "hyrox"],
-    note: "Middle-fast training shoe. Use it to absorb repeated quality-session mileage instead of spending race-shoe kilometres.",
+    estimatedHistoricalKm: 0,
+    historicalBasis: "No confirmed pre-10 Oct 2026 running mileage was found, so no historical distance is invented. Automatic tracking carries it forward from zero until better evidence is available.",
+    reviewAtKm: 500,
+    replaceAtKm: 650,
+    note: "Middle-fast training shoe. Review the plate/foam feel around 500 km and use ~650 km as a planning point for replacement or demotion if responsiveness or comfort has materially declined.",
   },
   {
     key: "asics-metaspeed-sky-tokyo",
@@ -42,7 +53,11 @@ export const SHOE_ROTATION: readonly ShoeDefinition[] = [
     shortName: "Metaspeed Sky Tokyo",
     role: "5K/10K PB attempts, benchmark races, key race rehearsals and half-marathon racing",
     aliases: ["metaspeed sky tokyo", "metaspeed sky", "sky tokyo", "tokyo drift"],
-    note: "Race shoe. Keep routine training mileage low and use it when the session is testing performance or rehearsing race execution.",
+    estimatedHistoricalKm: 30.98,
+    historicalBasis: "Estimated as the recorded 20.98 km Cheltenham Half Marathon on 20 Sep 2026 plus ~10 km of additional remembered pre-race/race use. This is deliberately labelled as an estimate.",
+    reviewAtKm: 150,
+    replaceAtKm: 250,
+    note: "Race shoe. Review race-day pop and stability from ~150 km. Around 250 km is a conservative planning point to demote it from key racing if performance has faded; it may remain usable for training beyond that.",
   },
 ] as const;
 
@@ -58,7 +73,6 @@ export function prescribedShoeKeyForTitle(title: string): ShoeKey | null {
 
   if (/(strength|wattbike|cycling|bike|mobility|rest|walk)/.test(value)) return null;
 
-  // Performance tests and races take priority over generic parkrun/pace keywords.
   if (/(benchmark|pb attempt|time trial|all[- ]out|race day|cotswold airport|goal race)/.test(value)) {
     return "asics-metaspeed-sky-tokyo";
   }
@@ -197,17 +211,57 @@ export function assignActivityShoe(
   return undefined;
 }
 
+function lifeStatus(shoe: ShoeDefinition, totalDistanceKm: number): ShoeLifeStatus {
+  if (totalDistanceKm >= shoe.replaceAtKm) return "replace_due";
+  if (shoe.replaceAtKm - totalDistanceKm <= 50) return "replace_soon";
+  if (totalDistanceKm >= shoe.reviewAtKm) return "review_due";
+  if (shoe.reviewAtKm - totalDistanceKm <= 50) return "review_soon";
+  return "healthy";
+}
+
+function projectedDate(
+  remainingKm: number,
+  assignments: readonly ShoeActivityAssignment[],
+  nowIso: string,
+): string | undefined {
+  if (remainingKm <= 0 || assignments.length < 3) return undefined;
+  const nowMs = Date.parse(nowIso);
+  if (!Number.isFinite(nowMs)) return undefined;
+  const cutoffMs = nowMs - 28 * 86400000;
+  const recent = assignments.filter((item) => {
+    const startedMs = Date.parse(item.startedAt);
+    return Number.isFinite(startedMs) && startedMs >= cutoffMs && startedMs <= nowMs;
+  });
+  if (recent.length < 3) return undefined;
+  const oldestMs = Math.min(...recent.map((item) => Date.parse(item.startedAt)));
+  const spanDays = (nowMs - oldestMs) / 86400000;
+  if (spanDays < 14) return undefined;
+  const recentKm = recent.reduce((sum, item) => sum + item.distanceKm, 0);
+  const weeklyKm = recentKm / (spanDays / 7);
+  if (!Number.isFinite(weeklyKm) || weeklyKm <= 0) return undefined;
+  const daysRemaining = (remainingKm / weeklyKm) * 7;
+  return new Date(nowMs + daysRemaining * 86400000).toISOString();
+}
+
 export interface ShoeUsageSummary {
   shoe: ShoeDefinition;
-  distanceKm: number;
-  distanceMiles: number;
+  estimatedHistoricalKm: number;
+  trackedDistanceKm: number;
+  totalDistanceKm: number;
+  totalDistanceMiles: number;
   activityCount: number;
+  remainingToReviewKm: number;
+  remainingToReplaceKm: number;
+  status: ShoeLifeStatus;
+  projectedReviewDate?: string;
+  projectedReplaceDate?: string;
 }
 
 export function buildShoeUsage(
   activities: readonly Activity[],
   sessions: readonly PlannedShoeSession[],
   timeZone = "Europe/London",
+  nowIso = new Date().toISOString(),
 ): { summaries: ShoeUsageSummary[]; assignments: ShoeActivityAssignment[]; unassignedRuns: number } {
   const assignments = activities
     .map((activity) => assignActivityShoe(activity, sessions, timeZone))
@@ -223,12 +277,22 @@ export function buildShoeUsage(
 
   const summaries = SHOE_ROTATION.map((shoe) => {
     const shoeAssignments = assignments.filter((item) => item.shoeKey === shoe.key);
-    const distanceKm = shoeAssignments.reduce((sum, item) => sum + item.distanceKm, 0);
+    const trackedDistanceKm = shoeAssignments.reduce((sum, item) => sum + item.distanceKm, 0);
+    const totalDistanceKm = shoe.estimatedHistoricalKm + trackedDistanceKm;
+    const remainingToReviewKm = Math.max(0, shoe.reviewAtKm - totalDistanceKm);
+    const remainingToReplaceKm = Math.max(0, shoe.replaceAtKm - totalDistanceKm);
     return {
       shoe,
-      distanceKm,
-      distanceMiles: distanceKm * 0.621371,
+      estimatedHistoricalKm: shoe.estimatedHistoricalKm,
+      trackedDistanceKm,
+      totalDistanceKm,
+      totalDistanceMiles: totalDistanceKm * 0.621371,
       activityCount: shoeAssignments.length,
+      remainingToReviewKm,
+      remainingToReplaceKm,
+      status: lifeStatus(shoe, totalDistanceKm),
+      projectedReviewDate: projectedDate(remainingToReviewKm, shoeAssignments, nowIso),
+      projectedReplaceDate: projectedDate(remainingToReplaceKm, shoeAssignments, nowIso),
     };
   });
 
