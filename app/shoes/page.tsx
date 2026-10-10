@@ -53,6 +53,24 @@ function statusClass(status: ShoeLifeStatus) {
 export default async function ShoesPage() {
   const runtime = getTrainingApiRuntime();
   const { service, primaryAthleteId } = runtime;
+
+  let syncMessage = "Nightly activity sync is the current backstop.";
+  if (runtime.activityImporter) {
+    try {
+      const sync = await runtime.activityImporter.importRecent(1);
+      const changed = sync.imported + sync.repaired;
+      syncMessage = changed
+        ? `Live refresh added or repaired ${changed} completed ${changed === 1 ? "activity" : "activities"}.`
+        : "Live refresh checked the latest completed activities; the shoe ledger is up to date.";
+      if (sync.failed) syncMessage += ` ${sync.failed} provider ${sync.failed === 1 ? "activity could" : "activities could"} not be refreshed.`;
+    } catch (error) {
+      console.warn("Shoes page live activity refresh failed; using stored activities", {
+        message: error instanceof Error ? error.message : String(error),
+      });
+      syncMessage = "Live refresh could not complete, so stored activities are shown; the nightly sync will retry automatically.";
+    }
+  }
+
   const [profile, activities, calendarItems, workouts, overrides] = await Promise.all([
     service.getProfile(primaryAthleteId),
     service.listActivities(primaryAthleteId, 500),
@@ -100,6 +118,7 @@ export default async function ShoesPage() {
         <div className={styles.notice}>
           <strong>Historical baseline:</strong> Evo SL ≈187.0 km, Metaspeed Sky Tokyo ≈31.0 km, PUMA 0 km before live tracking.
           Automatic activity tracking starts on <strong>10 October 2026</strong>. Manual assignments are stored separately from imported activity data, so Garmin/Tredict re-syncs cannot overwrite them.
+          <br /><strong>Activity sync:</strong> {syncMessage}
         </div>
       </section>
 
