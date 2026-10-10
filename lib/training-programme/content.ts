@@ -11,9 +11,10 @@ const weeklyFiles = [
 
 export async function readTrainingProgramme() {
   const root = path.join(process.cwd(), "coaches area");
-  const [master, ...weeks] = await Promise.all([
+  const [master, shoeRotation, ...weeks] = await Promise.all([
     readFile(path.join(root, "Half Marathon Plan 1-30.md"), "utf8"),
+    readFile(path.join(root, "Shoe Rotation.md"), "utf8"),
     ...weeklyFiles.map((file) => readFile(path.join(root, "weekly plans", file), "utf8")),
   ]);
-  return { master, weeks };
+  return { master, shoeRotation, weeks };
 }
