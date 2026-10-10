@@ -4,6 +4,7 @@ export interface ShoeVisual {
   imageUrl: string;
   imageAlt: string;
   productUrl: string;
+  editionLabel: string;
 }
 
 export const SHOE_VISUALS: Readonly<Record<ShoeKey, ShoeVisual>> = {
@@ -11,16 +12,19 @@ export const SHOE_VISUALS: Readonly<Record<ShoeKey, ShoeVisual>> = {
     imageUrl: "https://assets.adidas.com/images/w_500,f_auto,q_auto/22b92f1143c34c748c889eaa1c1f475f_9366/Adizero_EVO_SL_AMG_Shoes_Grey_KI7297_HM1.jpg",
     imageAlt: "Grey adidas Adizero EVO SL AMG running shoe",
     productUrl: "https://www.adidas.co.uk/adizero-evo-sl-amg-shoes/KI7297.html",
+    editionLabel: "AMG · Aurora Onix / Acid Yellow / Grey Three",
   },
   "puma-deviate-nitro-3-hyrox": {
     imageUrl: "https://images.puma.com/image/upload/f_auto,q_auto,b_rgb:fafafa,w_600,h_600/global/311413/01/sv01/fnd/GBR/fmt/png/PUMA-x-HYROX-Deviate-NITRO%E2%84%A2-3-Running-Shoes-Women",
     imageAlt: "Green PUMA x HYROX Deviate NITRO 3 running shoe",
     productUrl: "https://uk.puma.com/uk/en/pd/puma-x-hyrox-deviate-nitro-3-running-shoes-women/311413",
+    editionLabel: "PUMA x HYROX · Green Glare",
   },
   "asics-metaspeed-sky-tokyo": {
     imageUrl: "https://images.asics.com/is/image/asics/1013A162_300_SL_LT_GLB?$sfcc-product$=",
     imageAlt: "Green ASICS METASPEED SKY TOKYO running shoe",
     productUrl: "https://www.asics.com/gb/en-gb/metaspeed-sky-tokyo/p/1013A162-300.html",
+    editionLabel: "TOKYO · EKIDEN pack",
   },
 };
 
