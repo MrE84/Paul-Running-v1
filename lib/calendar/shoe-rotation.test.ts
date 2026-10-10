@@ -70,6 +70,30 @@ test("Paul's direct confirmation assigns every running activity on 10 Oct to the
   assert.equal(assignment?.distanceKm, 3.24933);
 });
 
+test("manual shoe choice overrides confirmation, imported gear and master-plan inference", () => {
+  const activity = baseActivity({
+    id: "parkrun-warmup",
+    startedAt: "2026-10-10T07:36:06.380Z",
+    sourceMetadata: { title: "Parkrun Warm-up", shoe: "Adidas Adizero Evo SL" },
+  });
+  const overrides = new Map([[activity.id, "asics-metaspeed-sky-tokyo" as const]]);
+  const assignment = assignActivityShoe(activity, sessions, "Europe/London", overrides);
+  assert.equal(assignment?.shoeKey, "asics-metaspeed-sky-tokyo");
+  assert.equal(assignment?.source, "manual_override");
+});
+
+test("automatic/default reset falls back to the normal assignment rules", () => {
+  const activity = baseActivity({
+    id: "parkrun-warmup",
+    startedAt: "2026-10-10T07:36:06.380Z",
+    sourceMetadata: { title: "Parkrun Warm-up", shoe: "Adidas Adizero Evo SL" },
+  });
+  const overrides = new Map([[activity.id, null]]);
+  const assignment = assignActivityShoe(activity, [], "Europe/London", overrides);
+  assert.equal(assignment?.shoeKey, "puma-deviate-nitro-3-hyrox");
+  assert.equal(assignment?.source, "confirmed_user");
+});
+
 test("usage adds the historical baseline without double counting tracked activities", () => {
   const activities = [
     baseActivity({ id: "threshold", summary: { distanceMeters: 10000 } }),
@@ -94,6 +118,19 @@ test("usage adds the historical baseline without double counting tracked activit
   assert.equal(sky?.estimatedHistoricalKm, 30.98);
   assert.equal(sky?.totalDistanceKm, 30.98);
   assert.equal(usage.assignments.length, 2);
+});
+
+test("manual override moves the run mileage to the chosen shoe", () => {
+  const activity = baseActivity({ id: "threshold", summary: { distanceMeters: 10000 } });
+  const usage = buildShoeUsage(
+    [activity],
+    sessions,
+    "Europe/London",
+    "2026-10-16T12:00:00.000Z",
+    [{ activityId: activity.id, athleteId: activity.athleteId, shoeKey: "adidas-evo-sl", updatedAt: "2026-10-16T12:00:00.000Z" }],
+  );
+  assert.equal(usage.summaries.find((item) => item.shoe.key === "adidas-evo-sl")?.trackedDistanceKm, 10);
+  assert.equal(usage.summaries.find((item) => item.shoe.key === "puma-deviate-nitro-3-hyrox")?.trackedDistanceKm, 0);
 });
 
 test("lifecycle countdowns use total estimated plus tracked mileage", () => {
