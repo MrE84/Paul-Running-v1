@@ -57,7 +57,7 @@ test("actual shoe metadata overrides the planned shoe", () => {
   assert.equal(assignment?.source, "activity_metadata");
 });
 
-test("usage is derived from activities so re-rendering does not double count", () => {
+test("usage adds the historical baseline without double counting tracked activities", () => {
   const activities = [
     baseActivity({ id: "threshold", summary: { distanceMeters: 10000 } }),
     baseActivity({
@@ -67,8 +67,57 @@ test("usage is derived from activities so re-rendering does not double count", (
       sourceMetadata: { shoeName: "Adizero Evo SL" },
     }),
   ];
-  const usage = buildShoeUsage(activities, sessions);
-  assert.equal(usage.summaries.find((item) => item.shoe.key === "puma-deviate-nitro-3-hyrox")?.distanceKm, 10);
-  assert.equal(usage.summaries.find((item) => item.shoe.key === "adidas-evo-sl")?.distanceKm, 8);
+  const usage = buildShoeUsage(activities, sessions, "Europe/London", "2026-10-16T12:00:00.000Z");
+  const puma = usage.summaries.find((item) => item.shoe.key === "puma-deviate-nitro-3-hyrox");
+  const evo = usage.summaries.find((item) => item.shoe.key === "adidas-evo-sl");
+  const sky = usage.summaries.find((item) => item.shoe.key === "asics-metaspeed-sky-tokyo");
+
+  assert.equal(puma?.trackedDistanceKm, 10);
+  assert.equal(puma?.estimatedHistoricalKm, 0);
+  assert.equal(puma?.totalDistanceKm, 10);
+  assert.equal(evo?.trackedDistanceKm, 8);
+  assert.equal(evo?.estimatedHistoricalKm, 186.98);
+  assert.equal(evo?.totalDistanceKm, 194.98);
+  assert.equal(sky?.estimatedHistoricalKm, 30.98);
+  assert.equal(sky?.totalDistanceKm, 30.98);
   assert.equal(usage.assignments.length, 2);
+});
+
+test("lifecycle countdowns use total estimated plus tracked mileage", () => {
+  const usage = buildShoeUsage([], [], "Europe/London", "2026-10-10T12:00:00.000Z");
+  const evo = usage.summaries.find((item) => item.shoe.key === "adidas-evo-sl");
+  const sky = usage.summaries.find((item) => item.shoe.key === "asics-metaspeed-sky-tokyo");
+
+  assert.equal(evo?.remainingToReviewKm, 213.02);
+  assert.equal(evo?.remainingToReplaceKm, 363.02);
+  assert.equal(evo?.status, "healthy");
+  assert.equal(sky?.remainingToReviewKm, 119.02);
+  assert.equal(sky?.remainingToReplaceKm, 219.02);
+});
+
+test("swap forecast appears only after enough automatic tracking history exists", () => {
+  const activities = [
+    baseActivity({
+      id: "easy-1",
+      startedAt: "2026-10-11T09:00:00.000Z",
+      summary: { distanceMeters: 10000 },
+      sourceMetadata: { shoeName: "Adizero Evo SL" },
+    }),
+    baseActivity({
+      id: "easy-2",
+      startedAt: "2026-10-20T09:00:00.000Z",
+      summary: { distanceMeters: 10000 },
+      sourceMetadata: { shoeName: "Adizero Evo SL" },
+    }),
+    baseActivity({
+      id: "easy-3",
+      startedAt: "2026-10-28T09:00:00.000Z",
+      summary: { distanceMeters: 10000 },
+      sourceMetadata: { shoeName: "Adizero Evo SL" },
+    }),
+  ];
+  const usage = buildShoeUsage(activities, [], "Europe/London", "2026-10-30T12:00:00.000Z");
+  const evo = usage.summaries.find((item) => item.shoe.key === "adidas-evo-sl");
+  assert.ok(evo?.projectedReplaceDate);
+  assert.ok(evo?.projectedReviewDate);
 });
