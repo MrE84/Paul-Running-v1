@@ -7,6 +7,7 @@ import {
   getShoe,
   SHOE_TRACKING_START_LOCAL_DATE,
   type PlannedShoeSession,
+  type ShoeLifeStatus,
 } from "../../lib/shoe-rotation";
 import styles from "./shoes.module.css";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Running Shoes · Paul's Running",
-  description: "Live shoe rotation, prescribed use and completed-run mileage for Paul's Running.",
+  description: "Live shoe rotation, historical estimates, completed-run mileage and replacement countdowns for Paul's Running.",
 };
 
 const dateFormat = new Intl.DateTimeFormat("en-GB", {
@@ -29,6 +30,20 @@ const sourceLabel = {
   planned_session: "Master-plan shoe",
   activity_name: "Session-name inference",
 } as const;
+
+const statusLabel: Record<ShoeLifeStatus, string> = {
+  healthy: "In service",
+  review_soon: "Review approaching",
+  review_due: "Performance review due",
+  replace_soon: "Swap approaching",
+  replace_due: "Swap / demotion due",
+};
+
+function statusClass(status: ShoeLifeStatus) {
+  if (status === "replace_due" || status === "replace_soon") return styles.statusDanger;
+  if (status === "review_due" || status === "review_soon") return styles.statusWarning;
+  return styles.statusHealthy;
+}
 
 export default async function ShoesPage() {
   const runtime = getTrainingApiRuntime();
@@ -54,8 +69,6 @@ export default async function ShoesPage() {
     title: session.title,
   }));
 
-  // Prefer canonical Paul’s Running calendar items, with the already-synced programme as a
-  // fallback for sessions that pre-date/precede canonical plan application.
   const plannedByKey = new Map<string, PlannedShoeSession>();
   for (const session of [...syncedProgramme, ...canonicalSessions]) {
     plannedByKey.set(`${session.scheduledStart}|${session.title}`, session);
@@ -73,36 +86,74 @@ export default async function ShoesPage() {
         <span className={styles.eyebrow}>SHOE ROTATION</span>
         <h1>Running shoes</h1>
         <p>
-          Completed running activities are matched to the prescribed shoe in the master plan.
-          If an imported activity already contains an actual shoe/gear name, that wins over the prescription.
+          Each shoe now has a historical starting estimate plus automatic mileage from completed runs.
+          Actual imported shoe metadata takes priority; otherwise Paul&apos;s Running uses the master-plan prescription for that session.
         </p>
         <div className={styles.notice}>
-          Automatic app mileage starts on <strong>10 October 2026</strong>. Earlier shoe mileage is not guessed or backfilled.
-          Distances below are recalculated from completed activities, so refreshing or re-importing a run cannot add the same kilometres twice.
+          <strong>Historical baseline:</strong> Evo SL ≈187.0 km, Metaspeed Sky Tokyo ≈31.0 km, PUMA 0 km confirmed.
+          Automatic activity tracking starts on <strong>10 October 2026</strong>. Historical estimates and app-tracked kilometres stay visibly separate so the site never pretends reconstructed mileage is exact.
         </div>
       </section>
 
       <section className={styles.grid} aria-label="Shoe mileage">
-        {usage.summaries.map(({ shoe, distanceKm, distanceMiles, activityCount }) => {
-          const progress = shoe.reviewAtKm ? Math.min(100, (distanceKm / shoe.reviewAtKm) * 100) : undefined;
+        {usage.summaries.map((summary) => {
+          const { shoe, totalDistanceKm, totalDistanceMiles, estimatedHistoricalKm, trackedDistanceKm, activityCount } = summary;
+          const progress = Math.min(100, (totalDistanceKm / shoe.replaceAtKm) * 100);
           return (
             <article key={shoe.key} className={styles.card}>
-              <span className={styles.brand}>{shoe.brand}</span>
-              <h2>{shoe.model}</h2>
+              <div className={styles.cardTop}>
+                <div>
+                  <span className={styles.brand}>{shoe.brand}</span>
+                  <h2>{shoe.model}</h2>
+                </div>
+                <span className={`${styles.status} ${statusClass(summary.status)}`}>{statusLabel[summary.status]}</span>
+              </div>
               <p className={styles.role}>{shoe.role}</p>
               <div className={styles.distance}>
-                <strong>{distanceKm.toFixed(1)} km</strong>
-                <span>{distanceMiles.toFixed(1)} mi</span>
+                <strong>{totalDistanceKm.toFixed(1)} km</strong>
+                <span>{totalDistanceMiles.toFixed(1)} mi total</span>
               </div>
-              <p className={styles.subtle}>{activityCount} completed {activityCount === 1 ? "run" : "runs"} tracked</p>
-              {shoe.reviewAtKm ? (
-                <>
-                  <div className={styles.progressTrack} aria-label={`${shoe.shortName} mileage toward review point`}>
-                    <div className={styles.progressFill} style={{ width: `${progress}%` }} />
-                  </div>
-                  <p className={styles.subtle}>Responsiveness review point: ~{shoe.reviewAtKm} km</p>
-                </>
+              <div className={styles.breakdown}>
+                <span><strong>{estimatedHistoricalKm.toFixed(1)} km</strong> historical estimate</span>
+                <span><strong>{trackedDistanceKm.toFixed(1)} km</strong> automatically tracked</span>
+                <span><strong>{activityCount}</strong> tracked {activityCount === 1 ? "run" : "runs"}</span>
+              </div>
+
+              <div className={styles.progressTrack} aria-label={`${shoe.shortName} mileage toward swap point`}>
+                <div className={styles.progressFill} style={{ width: `${progress}%` }} />
+              </div>
+              <div className={styles.countdowns}>
+                <div>
+                  <span>Performance review</span>
+                  <strong>{summary.remainingToReviewKm > 0 ? `${summary.remainingToReviewKm.toFixed(0)} km left` : "Due now"}</strong>
+                  <small>at ~{shoe.reviewAtKm} km</small>
+                </div>
+                <div>
+                  <span>Swap / demote</span>
+                  <strong>{summary.remainingToReplaceKm > 0 ? `${summary.remainingToReplaceKm.toFixed(0)} km left` : "Due now"}</strong>
+                  <small>planning point ~{shoe.replaceAtKm} km</small>
+                </div>
+              </div>
+
+              <div className={styles.forecast}>
+                {summary.projectedReplaceDate ? (
+                  <><strong>Projected swap window:</strong> {dateFormat.format(new Date(summary.projectedReplaceDate))} at the recent usage rate.</>
+                ) : (
+                  <>Swap-date forecast will appear after at least 3 automatically tracked runs spanning 14+ days.</>
+                )}
+              </div>
+
+              {(summary.status === "review_soon" || summary.status === "review_due") ? (
+                <p className={styles.cardWarning}>Start comparing ride feel, rebound, stability and post-run soreness against when this shoe was fresher.</p>
               ) : null}
+              {(summary.status === "replace_soon" || summary.status === "replace_due") ? (
+                <p className={styles.cardDanger}>This shoe is at or close to its planned swap/demotion point. Do not assume it still delivers its original performance.</p>
+              ) : null}
+
+              <details className={styles.basis}>
+                <summary>How was the starting mileage estimated?</summary>
+                <p>{shoe.historicalBasis}</p>
+              </details>
               <p className={styles.note}>{shoe.note}</p>
             </article>
           );
@@ -119,7 +170,7 @@ export default async function ShoesPage() {
         </div>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
-            <thead><tr><th>Shoe</th><th>Use it for</th><th>Do not waste it on</th></tr></thead>
+            <thead><tr><th>Shoe</th><th>Use it for</th><th>Protect it from</th></tr></thead>
             <tbody>
               <tr><td><strong>Adidas Evo SL</strong></td><td>Easy, aerobic, long, recovery, easy + strides</td><td>Nothing special — this is the main mileage shoe</td></tr>
               <tr><td><strong>PUMA Deviate NITRO 3 HYROX</strong></td><td>Threshold, tempo, progression, HM pace, intervals, controlled parkrun</td><td>Routine recovery mileage and PB/race-only efforts</td></tr>
@@ -133,9 +184,9 @@ export default async function ShoesPage() {
         <div className={styles.sectionHeader}>
           <div>
             <span className={styles.eyebrow}>AUDIT TRAIL</span>
-            <h2>Recent shoe assignments</h2>
+            <h2>Recent automatic assignments</h2>
           </div>
-          <span className={styles.subtle}>Tracking since {SHOE_TRACKING_START_LOCAL_DATE}</span>
+          <span className={styles.subtle}>Automatic tracking since {SHOE_TRACKING_START_LOCAL_DATE}</span>
         </div>
         {usage.assignments.length ? (
           <div className={styles.tableWrap}>
@@ -157,7 +208,7 @@ export default async function ShoesPage() {
               </tbody>
             </table>
           </div>
-        ) : <p className={styles.empty}>No completed runs have been assigned since shoe tracking started.</p>}
+        ) : <p className={styles.empty}>No completed runs have been automatically assigned since shoe tracking started.</p>}
         {usage.unassignedRuns ? (
           <p className={styles.warning}>
             {usage.unassignedRuns} completed running {usage.unassignedRuns === 1 ? "activity is" : "activities are"} currently unassigned. Add an actual shoe name to the activity metadata or make sure the run is represented in the master-plan calendar.
