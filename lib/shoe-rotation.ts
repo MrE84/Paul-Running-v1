@@ -61,6 +61,10 @@ export const SHOE_ROTATION: readonly ShoeDefinition[] = [
   },
 ] as const;
 
+export const CONFIRMED_SHOE_BY_LOCAL_DATE: Readonly<Record<string, ShoeKey>> = {
+  "2026-10-10": "puma-deviate-nitro-3-hyrox",
+};
+
 const shoeByKey = new Map<ShoeKey, ShoeDefinition>(SHOE_ROTATION.map((shoe) => [shoe.key, shoe]));
 
 export function getShoe(key: ShoeKey | null | undefined): ShoeDefinition | undefined {
@@ -156,7 +160,7 @@ export function matchActivityToPlannedSession(
     .sort((a, b) => a.distance - b.distance)[0]?.session;
 }
 
-export type ShoeAssignmentSource = "activity_metadata" | "planned_session" | "activity_name";
+export type ShoeAssignmentSource = "confirmed_user" | "activity_metadata" | "planned_session" | "activity_name";
 
 export interface ShoeActivityAssignment {
   activityId: string;
@@ -173,9 +177,22 @@ export function assignActivityShoe(
   timeZone = "Europe/London",
 ): ShoeActivityAssignment | undefined {
   if (activity.sport !== "running") return undefined;
-  if (localDateKey(activity.startedAt, timeZone) < SHOE_TRACKING_START_LOCAL_DATE) return undefined;
+  const activityDate = localDateKey(activity.startedAt, timeZone);
+  if (activityDate < SHOE_TRACKING_START_LOCAL_DATE) return undefined;
 
   const distanceKm = Math.max(0, Number(activity.summary.distanceMeters ?? 0)) / 1000;
+  const confirmedShoe = CONFIRMED_SHOE_BY_LOCAL_DATE[activityDate];
+  if (confirmedShoe) {
+    return {
+      activityId: activity.id,
+      startedAt: activity.startedAt,
+      distanceKm,
+      shoeKey: confirmedShoe,
+      source: "confirmed_user",
+      sessionTitle: activityNameFromMetadata(activity),
+    };
+  }
+
   const metadataShoe = shoeKeyFromActivityMetadata(activity);
   if (metadataShoe) {
     return { activityId: activity.id, startedAt: activity.startedAt, distanceKm, shoeKey: metadataShoe, source: "activity_metadata" };

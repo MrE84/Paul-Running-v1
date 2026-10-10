@@ -57,6 +57,19 @@ test("actual shoe metadata overrides the planned shoe", () => {
   assert.equal(assignment?.source, "activity_metadata");
 });
 
+test("Paul's direct confirmation assigns every running activity on 10 Oct to the PUMA", () => {
+  const activity = baseActivity({
+    id: "parkrun-warmup",
+    startedAt: "2026-10-10T07:36:06.380Z",
+    summary: { distanceMeters: 3249.33 },
+    sourceMetadata: { title: "Parkrun Warm-up – 2.5 km", shoe: "Adidas Adizero Evo SL" },
+  });
+  const assignment = assignActivityShoe(activity, []);
+  assert.equal(assignment?.shoeKey, "puma-deviate-nitro-3-hyrox");
+  assert.equal(assignment?.source, "confirmed_user");
+  assert.equal(assignment?.distanceKm, 3.24933);
+});
+
 test("usage adds the historical baseline without double counting tracked activities", () => {
   const activities = [
     baseActivity({ id: "threshold", summary: { distanceMeters: 10000 } }),

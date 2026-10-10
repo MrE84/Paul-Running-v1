@@ -26,6 +26,7 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", {
 });
 
 const sourceLabel = {
+  confirmed_user: "User-confirmed shoe",
   activity_metadata: "Actual shoe metadata",
   planned_session: "Master-plan shoe",
   activity_name: "Session-name inference",
@@ -86,12 +87,12 @@ export default async function ShoesPage() {
         <span className={styles.eyebrow}>SHOE ROTATION</span>
         <h1>Running shoes</h1>
         <p>
-          Each shoe now has a historical starting estimate plus automatic mileage from completed runs.
-          Actual imported shoe metadata takes priority; otherwise Paul&apos;s Running uses the master-plan prescription for that session.
+          Each shoe has a historical starting estimate plus mileage from completed runs.
+          A direct user-confirmed shoe assignment takes priority, then imported gear metadata, then the master-plan prescription.
         </p>
         <div className={styles.notice}>
-          <strong>Historical baseline:</strong> Evo SL ≈187.0 km, Metaspeed Sky Tokyo ≈31.0 km, PUMA 0 km confirmed.
-          Automatic activity tracking starts on <strong>10 October 2026</strong>. Historical estimates and app-tracked kilometres stay visibly separate so the site never pretends reconstructed mileage is exact.
+          <strong>Historical baseline:</strong> Evo SL ≈187.0 km, Metaspeed Sky Tokyo ≈31.0 km, PUMA 0 km before live tracking.
+          Automatic activity tracking starts on <strong>10 October 2026</strong>. Historical estimates and tracked kilometres stay visibly separate so the site never pretends reconstructed mileage is exact.
         </div>
       </section>
 
@@ -115,7 +116,7 @@ export default async function ShoesPage() {
               </div>
               <div className={styles.breakdown}>
                 <span><strong>{estimatedHistoricalKm.toFixed(1)} km</strong> historical estimate</span>
-                <span><strong>{trackedDistanceKm.toFixed(1)} km</strong> automatically tracked</span>
+                <span><strong>{trackedDistanceKm.toFixed(1)} km</strong> tracked since launch</span>
                 <span><strong>{activityCount}</strong> tracked {activityCount === 1 ? "run" : "runs"}</span>
               </div>
 
@@ -139,7 +140,7 @@ export default async function ShoesPage() {
                 {summary.projectedReplaceDate ? (
                   <><strong>Projected swap window:</strong> {dateFormat.format(new Date(summary.projectedReplaceDate))} at the recent usage rate.</>
                 ) : (
-                  <>Swap-date forecast will appear after at least 3 automatically tracked runs spanning 14+ days.</>
+                  <>Swap-date forecast will appear after at least 3 tracked runs spanning 14+ days.</>
                 )}
               </div>
 
@@ -184,9 +185,9 @@ export default async function ShoesPage() {
         <div className={styles.sectionHeader}>
           <div>
             <span className={styles.eyebrow}>AUDIT TRAIL</span>
-            <h2>Recent automatic assignments</h2>
+            <h2>Recent shoe assignments</h2>
           </div>
-          <span className={styles.subtle}>Automatic tracking since {SHOE_TRACKING_START_LOCAL_DATE}</span>
+          <span className={styles.subtle}>Tracking since {SHOE_TRACKING_START_LOCAL_DATE}</span>
         </div>
         {usage.assignments.length ? (
           <div className={styles.tableWrap}>
@@ -208,7 +209,7 @@ export default async function ShoesPage() {
               </tbody>
             </table>
           </div>
-        ) : <p className={styles.empty}>No completed runs have been automatically assigned since shoe tracking started.</p>}
+        ) : <p className={styles.empty}>No completed runs have been assigned since shoe tracking started.</p>}
         {usage.unassignedRuns ? (
           <p className={styles.warning}>
             {usage.unassignedRuns} completed running {usage.unassignedRuns === 1 ? "activity is" : "activities are"} currently unassigned. Add an actual shoe name to the activity metadata or make sure the run is represented in the master-plan calendar.
