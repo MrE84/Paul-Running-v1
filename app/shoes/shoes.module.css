@@ -60,6 +60,22 @@
   background: rgba(15, 22, 34, 0.86);
 }
 
+.shoeImageLink {
+  display: block;
+  height: 176px;
+  margin: -6px -6px 18px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #f4f4f1;
+}
+
+.shoeImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
 .cardTop {
   display: flex;
   align-items: flex-start;
@@ -78,6 +94,14 @@
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+.edition {
+  display: block;
+  max-width: 230px;
+  color: #87a0bd;
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .status {
@@ -256,6 +280,156 @@
   margin: 0;
 }
 
+.chartSection {
+  overflow: hidden;
+}
+
+.shoeLegend {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 14px 0 20px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 9px 11px;
+  border-radius: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.legendShoeImage {
+  width: 58px;
+  height: 42px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #f3f3ef;
+}
+
+.legendItem strong,
+.legendItem span {
+  display: block;
+}
+
+.legendItem strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+}
+
+.legendItem span {
+  margin-top: 2px;
+  color: #93a3b8;
+  font-size: 0.72rem;
+}
+
+.chartScroller {
+  overflow-x: auto;
+  padding: 6px 2px 4px;
+}
+
+.weekChart {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  min-height: 282px;
+  padding: 6px 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  background: repeating-linear-gradient(to top, transparent 0, transparent 54px, rgba(255, 255, 255, 0.045) 55px);
+}
+
+.weekColumn {
+  display: grid;
+  grid-template-rows: 22px 220px 28px;
+  align-items: end;
+  justify-items: center;
+  width: 64px;
+  flex: 0 0 64px;
+}
+
+.weekTotal {
+  color: #dce7f6;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.barShell {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  width: 48px;
+  height: 220px;
+  overflow: hidden;
+  border-radius: 12px 12px 4px 4px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.barSegment {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2px;
+  overflow: hidden;
+  border-top: 1px solid rgba(6, 11, 18, 0.28);
+}
+
+.segmentAdidas {
+  background: linear-gradient(180deg, #d9dce1, #99a1ad);
+}
+
+.segmentPuma {
+  background: linear-gradient(180deg, #b7ff4a, #51bd5e);
+}
+
+.segmentAsics {
+  background: linear-gradient(180deg, #65ead4, #2b8fc7);
+}
+
+.segmentShoeImage {
+  position: absolute;
+  width: 42px;
+  height: 30px;
+  object-fit: contain;
+  border-radius: 7px;
+  background: rgba(250, 250, 247, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.16);
+}
+
+.segmentLabel {
+  position: absolute;
+  right: 3px;
+  bottom: 2px;
+  z-index: 1;
+  padding: 1px 3px;
+  border-radius: 4px;
+  background: rgba(4, 9, 15, 0.58);
+  color: #fff;
+  font-size: 0.58rem;
+  font-weight: 800;
+}
+
+.weekLabel {
+  padding-top: 7px;
+  color: #8fa0b6;
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.chartNote {
+  margin: 14px 0 0;
+  color: #92a3b8;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
 .editHelp {
   margin: 0 0 14px;
   color: #b9c7da;
@@ -350,11 +524,15 @@
 }
 
 @media (max-width: 900px) {
-  .grid {
+  .grid,
+  .shoeLegend {
     grid-template-columns: 1fr;
   }
   .role {
     min-height: 0;
+  }
+  .legendItem strong {
+    white-space: normal;
   }
 }
 
@@ -375,5 +553,17 @@
   }
   .countdowns {
     grid-template-columns: 1fr;
+  }
+  .shoeImageLink {
+    height: 154px;
+  }
+  .weekChart {
+    min-height: 246px;
+  }
+  .weekColumn {
+    grid-template-rows: 20px 184px 28px;
+  }
+  .barShell {
+    height: 184px;
   }
 }
