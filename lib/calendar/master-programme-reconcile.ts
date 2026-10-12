@@ -166,8 +166,11 @@ function targetForProvider(step: ProviderWorkoutStep): Pick<WorkoutExecutionStep
   }
 }
 
-function convertProviderStep(step: ProviderWorkoutStep, sessionId: string, path: string, fallbackSequence: number): WorkoutStep {
-  const sequence = Number.isInteger(step.stepOrder) ? Number(step.stepOrder) : fallbackSequence;
+function convertProviderStep(step: ProviderWorkoutStep, sessionId: string, path: string, sequence: number): WorkoutStep {
+  // Tredict stepOrder values describe the provider's flattened representation and
+  // are not guaranteed to be contiguous within Paul's Running's nested arrays.
+  // Canonical workout QA requires each array to use zero-based contiguous sequence
+  // numbers, so derive sequence from array position instead of provider stepOrder.
   if (step.type === "WorkoutRepeatStep") {
     const children = step.steps ?? [];
     return {
@@ -279,14 +282,12 @@ export async function reconcileMasterProgramme(options: {
     canonicalByDate.set(workout.localDate, list);
   }
 
-  const exactItemIds = new Set<string>();
   const stale: CalendarItem[] = [];
   for (const item of plannedExisting) {
     const itemDate = dateParts(new Date(item.scheduledStart));
     const allowed = canonicalByDate.get(itemDate) ?? [];
     const exact = allowed.find((candidate) => candidate.id === item.workout.id && candidate.version === item.workout.version);
-    if (exact) exactItemIds.add(item.id);
-    else stale.push(item);
+    if (!exact) stale.push(item);
   }
 
   let externalItemsCancelled = 0;
