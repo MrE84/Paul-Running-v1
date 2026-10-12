@@ -15,26 +15,28 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function TrainingCalendarPage() {
-  const runtime = getTrainingApiRuntime();
-  try {
-    const result = await reconcileMasterProgramme({
-      service: runtime.service,
-      athleteId: runtime.primaryAthleteId,
-      publisher: runtime.workoutPublisher,
-      fromDate: londonDateKey(),
-      actor: {
-        type: "ai_client",
-        id: "training-calendar-master-programme-reconciler",
-        requestId: randomUUID(),
-      },
-    });
-    if (result.changed || result.publishFailures.length > 0) {
-      console.info("master-programme reconciliation", result);
+  if (process.env.VERCEL_ENV === "production") {
+    const runtime = getTrainingApiRuntime();
+    try {
+      const result = await reconcileMasterProgramme({
+        service: runtime.service,
+        athleteId: runtime.primaryAthleteId,
+        publisher: runtime.workoutPublisher,
+        fromDate: londonDateKey(),
+        actor: {
+          type: "ai_client",
+          id: "training-calendar-master-programme-reconciler",
+          requestId: randomUUID(),
+        },
+      });
+      if (result.changed || result.publishFailures.length > 0) {
+        console.info("master-programme reconciliation", result);
+      }
+    } catch (error) {
+      // Do not make the calendar UI unavailable if reconciliation fails. The client
+      // still loads the persisted state, while the server log preserves the failure.
+      console.error("master-programme reconciliation failed", error);
     }
-  } catch (error) {
-    // Do not make the calendar UI unavailable if reconciliation fails. The client
-    // still loads the persisted state, while the server log preserves the failure.
-    console.error("master-programme reconciliation failed", error);
   }
 
   return <TrainingCalendarClient />;
