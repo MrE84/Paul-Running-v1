@@ -23,7 +23,7 @@ export default async function TrainingCalendarPage() {
       publisher: runtime.workoutPublisher,
       fromDate: londonDateKey(),
       actor: {
-        type: "system",
+        type: "ai_client",
         id: "training-calendar-master-programme-reconciler",
         requestId: randomUUID(),
       },
