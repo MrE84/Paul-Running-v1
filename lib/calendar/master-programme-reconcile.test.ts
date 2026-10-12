@@ -48,13 +48,15 @@ const canonicalProgramme: ScheduledProgrammeSession[] = [
       sport: "RUNNING",
       steps: [{
         type: "WorkoutRepeatStep",
-        stepOrder: 0,
+        // Tredict can number a nested repeat according to the flattened provider
+        // representation. Paul's Running must normalize this to array sequence 0.
+        stepOrder: 3,
         repeatValue: 3,
         description: "Three controlled threshold reps",
         steps: [
           {
             type: "WorkoutStep",
-            stepOrder: 0,
+            stepOrder: 1,
             intensity: "INTERVAL",
             durationType: "TIME",
             durationValue: 600,
@@ -65,7 +67,7 @@ const canonicalProgramme: ScheduledProgrammeSession[] = [
           },
           {
             type: "WorkoutStep",
-            stepOrder: 1,
+            stepOrder: 2,
             intensity: "RECOVERY",
             durationType: "TIME",
             durationValue: 180,
