@@ -65,7 +65,7 @@ function boundaryAtDistance(points: DistancePoint[], targetMeters: number): { el
 }
 
 function timeWeightedAverageHeartRate(projection: AnalysisProjection, startIndex: number, endIndex: number): number | null {
-  const heartRate = projection.streams.channels.heart_rate;
+  const heartRate = projection.streams.channels?.heart_rate;
   if (!heartRate) return null;
 
   let weighted = 0;
@@ -118,10 +118,11 @@ export function buildKilometreSplits(projection: AnalysisProjection, minPartialM
 
     const isPartial = distanceMeters < 999.5;
     const previous = splits.at(-1);
+    const heartRate = projection.streams.channels?.heart_rate;
     const averageHeartRate = timeWeightedAverageHeartRate(projection, start.index, end.index);
     const fatEstimate = estimateFatOxidation(
       projection.streams.elapsed,
-      projection.streams.channels.heart_rate,
+      heartRate,
       { range: [start.index, end.index], breakBefore: projection.streams.breakBefore },
     );
 
