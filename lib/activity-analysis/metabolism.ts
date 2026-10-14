@@ -1,4 +1,6 @@
-export const FAT_OXIDATION_MODEL_VERSION = "paul-lactate-hr-v1";
+export const FAT_OXIDATION_MODEL_VERSION = "paul-lactate-hr-v2";
+export const PEAK_FAT_OXIDATION_BPM_MIN = 140;
+export const PEAK_FAT_OXIDATION_BPM_MAX = 143;
 
 export interface FatOxidationRateRange {
   low: number;
@@ -14,6 +16,9 @@ export interface FatOxidationEstimate {
   kcalFromFatLow: number;
   kcalFromFatHigh: number;
   averageRateGramsPerMinute: number;
+  peakFatOxidationSeconds: number;
+  peakFatOxidationBpmMin: number;
+  peakFatOxidationBpmMax: number;
   coveredSeconds: number;
   totalSeconds: number;
   coverage: number;
@@ -76,6 +81,32 @@ export function fatOxidationRateForHeartRate(bpm: number): FatOxidationRateRange
   return null;
 }
 
+function secondsWithinHeartRateBand(
+  startBpm: number,
+  endBpm: number,
+  dtSeconds: number,
+  minBpm: number,
+  maxBpm: number,
+): number {
+  if (![startBpm, endBpm, dtSeconds, minBpm, maxBpm].every(Number.isFinite) || dtSeconds <= 0) return 0;
+  if (startBpm === endBpm) return startBpm >= minBpm && startBpm <= maxBpm ? dtSeconds : 0;
+
+  const slope = endBpm - startBpm;
+  const crossings = [0, 1, (minBpm - startBpm) / slope, (maxBpm - startBpm) / slope]
+    .filter(value => value >= 0 && value <= 1)
+    .sort((a, b) => a - b);
+
+  let fraction = 0;
+  for (let i = 0; i < crossings.length - 1; i++) {
+    const a = crossings[i];
+    const b = crossings[i + 1];
+    if (b <= a) continue;
+    const sample = startBpm + slope * ((a + b) / 2);
+    if (sample >= minBpm && sample <= maxBpm) fraction += b - a;
+  }
+  return fraction * dtSeconds;
+}
+
 /** Integrate estimated fat oxidation over recorded HR samples. */
 export function estimateFatOxidation(
   elapsedSeconds: number[],
@@ -96,19 +127,29 @@ export function estimateFatOxidation(
 
   let gramsLow = 0;
   let gramsHigh = 0;
+  let peakFatOxidationSeconds = 0;
   let coveredSeconds = 0;
 
   for (let i = start; i < end; i++) {
     const dt = elapsedSeconds[i + 1] - elapsedSeconds[i];
     if (!Number.isFinite(dt) || dt <= 0 || dt > 30 || options.breakBefore?.[i + 1]) continue;
 
-    const r0 = fatOxidationRateForHeartRate(heartRate[i] ?? Number.NaN);
-    const r1 = fatOxidationRateForHeartRate(heartRate[i + 1] ?? Number.NaN);
+    const hr0 = heartRate[i] ?? Number.NaN;
+    const hr1 = heartRate[i + 1] ?? Number.NaN;
+    const r0 = fatOxidationRateForHeartRate(hr0);
+    const r1 = fatOxidationRateForHeartRate(hr1);
     if (!r0 || !r1) continue;
 
     const minutes = dt / 60;
     gramsLow += ((r0.low + r1.low) / 2) * minutes;
     gramsHigh += ((r0.high + r1.high) / 2) * minutes;
+    peakFatOxidationSeconds += secondsWithinHeartRateBand(
+      hr0,
+      hr1,
+      dt,
+      PEAK_FAT_OXIDATION_BPM_MIN,
+      PEAK_FAT_OXIDATION_BPM_MAX,
+    );
     coveredSeconds += dt;
   }
 
@@ -122,6 +163,9 @@ export function estimateFatOxidation(
     kcalFromFatLow: round(gramsLow * 9),
     kcalFromFatHigh: round(gramsHigh * 9),
     averageRateGramsPerMinute: round(grams / (coveredSeconds / 60), 2),
+    peakFatOxidationSeconds: round(peakFatOxidationSeconds, 0),
+    peakFatOxidationBpmMin: PEAK_FAT_OXIDATION_BPM_MIN,
+    peakFatOxidationBpmMax: PEAK_FAT_OXIDATION_BPM_MAX,
     coveredSeconds: round(coveredSeconds, 0),
     totalSeconds: round(totalSeconds, 0),
     coverage: round(coveredSeconds / totalSeconds, 3),
