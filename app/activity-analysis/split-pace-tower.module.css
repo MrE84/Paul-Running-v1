@@ -33,11 +33,157 @@
 }
 
 .heading p {
-  max-width: 560px;
+  max-width: 600px;
   margin: 0;
   color: #93a7bb;
   font-size: 0.88rem;
   line-height: 1.45;
+}
+
+.metricToggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.metricToggles button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #94a3b8;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.metricToggles button:hover,
+.metricToggles button.metricActive {
+  border-color: rgba(148, 163, 184, 0.48);
+  background: rgba(30, 41, 59, 0.96);
+  color: #f8fafc;
+}
+
+.metricToggles i,
+.legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.chartScroller {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 14px;
+  background: rgba(2, 8, 23, 0.5);
+}
+
+.metricChart {
+  display: block;
+  width: max(100%, 720px);
+  min-height: 280px;
+}
+
+.gridLine {
+  stroke: rgba(148, 163, 184, 0.14);
+  stroke-width: 1;
+}
+
+.verticalGridLine {
+  stroke: rgba(148, 163, 184, 0.07);
+  stroke-width: 1;
+}
+
+.axisLabel,
+.axisCaption {
+  fill: #8294a7;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.chartPoint {
+  stroke: rgba(2, 8, 23, 0.86);
+  stroke-width: 2;
+  cursor: help;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 10px 0 16px;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+
+.legend small {
+  color: #71859a;
+}
+
+.splitMetrics {
+  margin: 8px 0 16px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+}
+
+.splitMetricHeader,
+.splitMetricRow {
+  display: grid;
+  grid-template-columns: minmax(42px, 0.55fr) repeat(3, minmax(82px, 1fr));
+  gap: 8px;
+  align-items: center;
+  min-width: 390px;
+  padding: 8px 12px;
+}
+
+.splitMetricHeader {
+  background: rgba(15, 23, 42, 0.82);
+  color: #7f93a7;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.splitMetricRow {
+  border-top: 1px solid rgba(148, 163, 184, 0.08);
+  color: #cbd5e1;
+  font-size: 0.79rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.splitMetricRow strong {
+  color: #f8fafc;
+}
+
+.paceTowerDetails {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.paceTowerDetails summary {
+  margin-bottom: 12px;
+  color: #93a7bb;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
 }
 
 .columns,
@@ -131,6 +277,8 @@
   .card { padding: 14px; }
   .heading { display: block; }
   .heading p { margin-top: 8px; }
+  .metricToggles button { flex: 1 1 auto; justify-content: center; }
+  .splitMetrics { overflow-x: auto; }
   .columns,
   .row { grid-template-columns: 38px minmax(0, 1fr) 56px; gap: 7px; }
   .pace { padding-left: 8px; font-size: 0.78rem; }
