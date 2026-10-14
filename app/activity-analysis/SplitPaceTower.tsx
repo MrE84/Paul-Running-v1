@@ -8,8 +8,8 @@ import styles from "./split-pace-tower.module.css";
 type MetricKey = "pace" | "heartRate" | "fatOxidation";
 
 const METRICS: Record<MetricKey, { label: string; color: string; available: (split: KilometreSplit) => boolean }> = {
-  pace: { label: "Pace", color: "#ff5b45", available: () => true },
-  heartRate: { label: "Heart rate", color: "#60a5fa", available: split => split.averageHeartRate != null },
+  pace: { label: "Pace", color: "#60a5fa", available: () => true },
+  heartRate: { label: "Heart rate", color: "#ef4444", available: split => split.averageHeartRate != null },
   fatOxidation: { label: "Fat oxidation", color: "#4ade80", available: split => split.fatOxidationGrams != null },
 };
 
