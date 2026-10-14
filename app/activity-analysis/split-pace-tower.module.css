@@ -172,18 +172,41 @@
   color: #f8fafc;
 }
 
-.paceTowerDetails {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(148, 163, 184, 0.12);
+.paceTowerSection {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
 }
 
-.paceTowerDetails summary {
-  margin-bottom: 12px;
-  color: #93a7bb;
-  cursor: pointer;
+.paceTowerHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+  margin-bottom: 14px;
+}
+
+.paceTowerHeading span {
+  display: block;
+  margin-bottom: 4px;
+  color: #fb7185;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.paceTowerHeading h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1rem;
+}
+
+.paceTowerHeading p {
+  max-width: 560px;
+  margin: 0;
+  color: #8294a7;
   font-size: 0.8rem;
-  font-weight: 700;
+  line-height: 1.45;
 }
 
 .columns,
@@ -275,8 +298,10 @@
 
 @media (max-width: 700px) {
   .card { padding: 14px; }
-  .heading { display: block; }
-  .heading p { margin-top: 8px; }
+  .heading,
+  .paceTowerHeading { display: block; }
+  .heading p,
+  .paceTowerHeading p { margin-top: 8px; }
   .metricToggles button { flex: 1 1 auto; justify-content: center; }
   .splitMetrics { overflow-x: auto; }
   .columns,
