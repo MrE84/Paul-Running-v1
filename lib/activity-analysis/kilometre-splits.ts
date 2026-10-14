@@ -1,4 +1,5 @@
 import type { AnalysisProjection } from "./projection";
+import { estimateFatOxidation } from "./metabolism";
 
 export interface KilometreSplit {
   id: string;
@@ -7,6 +8,8 @@ export interface KilometreSplit {
   durationSeconds: number;
   paceSecondsPerKm: number;
   deltaSeconds: number | null;
+  averageHeartRate: number | null;
+  fatOxidationGrams: number | null;
   startIndex: number;
   endIndex: number;
 }
@@ -61,6 +64,27 @@ function boundaryAtDistance(points: DistancePoint[], targetMeters: number): { el
   return targetMeters <= last.distance + 1 ? { elapsed: last.elapsed, index: last.index } : null;
 }
 
+function timeWeightedAverageHeartRate(projection: AnalysisProjection, startIndex: number, endIndex: number): number | null {
+  const heartRate = projection.streams.channels.heart_rate;
+  if (!heartRate) return null;
+
+  let weighted = 0;
+  let seconds = 0;
+  const end = Math.min(endIndex, projection.streams.elapsed.length - 1, heartRate.length - 1);
+
+  for (let i = Math.max(0, startIndex); i < end; i += 1) {
+    const dt = projection.streams.elapsed[i + 1] - projection.streams.elapsed[i];
+    if (!Number.isFinite(dt) || dt <= 0 || dt > 30 || projection.streams.breakBefore?.[i + 1]) continue;
+    const h0 = heartRate[i];
+    const h1 = heartRate[i + 1];
+    if (h0 == null || h1 == null || !Number.isFinite(h0) || !Number.isFinite(h1)) continue;
+    weighted += ((h0 + h1) / 2) * dt;
+    seconds += dt;
+  }
+
+  return seconds > 0 ? weighted / seconds : null;
+}
+
 /**
  * Builds fixed 1 km splits from the continuous distance trace rather than relying on FIT lap markers.
  * The final partial kilometre is included when it is at least `minPartialMeters` long.
@@ -94,6 +118,13 @@ export function buildKilometreSplits(projection: AnalysisProjection, minPartialM
 
     const isPartial = distanceMeters < 999.5;
     const previous = splits.at(-1);
+    const averageHeartRate = timeWeightedAverageHeartRate(projection, start.index, end.index);
+    const fatEstimate = estimateFatOxidation(
+      projection.streams.elapsed,
+      projection.streams.channels.heart_rate,
+      { range: [start.index, end.index], breakBefore: projection.streams.breakBefore },
+    );
+
     splits.push({
       id: `km-split-${i}`,
       label: isPartial ? (distanceMeters / 1000).toFixed(2) : String(i),
@@ -101,6 +132,8 @@ export function buildKilometreSplits(projection: AnalysisProjection, minPartialM
       durationSeconds,
       paceSecondsPerKm,
       deltaSeconds: previous ? previous.paceSecondsPerKm - paceSecondsPerKm : null,
+      averageHeartRate,
+      fatOxidationGrams: fatEstimate?.grams ?? null,
       startIndex: start.index,
       endIndex: end.index,
     });
