@@ -51,7 +51,6 @@ function normalizedMetricValues(splits: KilometreSplit[], metric: MetricKey): Ar
   return values.map(value => {
     if (value == null || !Number.isFinite(value)) return null;
     const fraction = (value - min) / spread;
-    // Pace is inverted so a faster kilometre plots higher, matching performance intuition.
     return metric === "pace" ? 1 - fraction : fraction;
   });
 }
@@ -151,8 +150,14 @@ export default function SplitPaceTower({ projection }: { projection: AnalysisPro
       </div>)}
     </div>
 
-    <details className={styles.paceTowerDetails}>
-      <summary>Show original pace tower</summary>
+    <section className={styles.paceTowerSection} aria-label="Original kilometre pace tower">
+      <div className={styles.paceTowerHeading}>
+        <div>
+          <span>PACE BREAKDOWN</span>
+          <h3>Kilometre pace tower</h3>
+        </div>
+        <p>Original pace view retained alongside the new overlay chart. Longer bars indicate faster kilometres; +/- is the change versus the previous split.</p>
+      </div>
       <div className={styles.columns} aria-hidden="true">
         <strong>KM</strong><strong>AVG PACE</strong><strong>+/-</strong>
       </div>
@@ -176,7 +181,7 @@ export default function SplitPaceTower({ projection }: { projection: AnalysisPro
           </div>;
         })}
       </div>
-    </details>
+    </section>
 
     <div className={styles.footer}>
       <span>{splits.length - (splits.at(-1)!.distanceMeters < 999.5 ? 1 : 0)} full kilometres</span>
